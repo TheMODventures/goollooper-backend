@@ -1,6 +1,7 @@
 exports.ROLES = Object.freeze({
-  USER: "user",
   ADMIN: "admin",
+  USER: "user",
+  SERVICE_PROVIDER: "service_provider",
 });
 
 exports.STATUS_CODES = Object.freeze({
@@ -13,4 +14,9 @@ exports.STATUS_CODES = Object.freeze({
   CONFLICT: 409,
   UNPROCESSABLE_ENTITY: 422,
   INTERNAL_SERVER_ERROR: 500,
+});
+
+exports.GENDERS = Object.freeze({
+  MALE: 'male',
+  FEMALE: 'female'
 });

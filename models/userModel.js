@@ -2,26 +2,35 @@
 
 const { Schema, model } = require('mongoose');
 const { sign } = require('jsonwebtoken');
-const { ROLES, PARTNER_RELATIONS } = require('../utils/constants');
 const mongoosePaginate = require('mongoose-paginate-v2');
 const aggregatePaginate = require("mongoose-aggregate-paginate-v2");
+
+const { ROLES, GENDERS } = require('../utils/constants');
 const { getMongooseAggregatePaginatedData } = require("../utils");
 
 const userSchema = new Schema({
-    firstName: { type: String, required: true },
+    firstName: { type: String, default: null },
     lastName: { type: String, default: null },
-    dob: { type: Date, required: true },
     email: { type: String, unique: true, required: true, lowercase: true, trim: true },
     password: { type: String, required: true, select: false },
+    dob: { type: Date, default: null },
+    gender: { type: String, enum: Object.values(GENDERS), default: GENDERS.MALE },
+    age: { type: Number, default: null },
+    countryCode: { type: String },  // like 'PK' alpha-2 format
+    phoneCode: { type: String },  // like '+92'
+    phone: { type: String, default: null },
+    completePhone: { type: String, select: false },
     location: {
         type: { type: String, enum: ["Point"], default: "Point" },
         coordinates: { type: [Number, Number] },
     },
     image: { type: String },
     role: { type: String, default: 'user', enum: Object.values(ROLES) },
+    isVerified: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true },
     fcmToken: { type: String },
     refreshToken: { type: String, select: false },
+    isDeleted: { type: Boolean, default: false },
 }, { timestamps: true });
 
 // register pagination plugin to user model
@@ -70,6 +79,19 @@ exports.generateRefreshToken = (user) => {
     });
 
     return refreshToken;
+};
+
+// generate reset token
+exports.generateResetToken = (user) => {
+    const { RESET_TOKEN_EXPIRATION, JWT_SECRET } = process.env;
+
+    const token = sign({
+        id: user._id,
+        email: user.email,
+        role: user.role,
+    }, JWT_SECRET, { expiresIn: RESET_TOKEN_EXPIRATION });
+
+    return token;
 };
 
 // get FcmToken
