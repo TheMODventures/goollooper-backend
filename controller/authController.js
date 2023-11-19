@@ -207,7 +207,7 @@ exports.resetPassword = async (req, res, next) => {
     });
 
     try {
-        const hashedPassword = await hash(body.newPassword, 10);
+        const hashedPassword = await hash(body.password, 10);
         const user = await updateUser({ _id: userId }, { $set: { password: hashedPassword } });
         generateResponse(user, 'Password reset successfully', res);
     } catch (error) {
