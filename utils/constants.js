@@ -20,3 +20,8 @@ exports.GENDERS = Object.freeze({
   MALE: 'male',
   FEMALE: 'female'
 });
+
+exports.SERVICE_TYPES = Object.freeze({
+  VOLUNTEER: "volunteer",
+  INTEREST: "interest",
+});
