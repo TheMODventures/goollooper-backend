@@ -5,6 +5,7 @@ const { Router } = require('express');
 const rootApi = require('./rootApi');
 const AuthAPI = require('./authApi');
 const ServiceAPI = require('./serviceApi');
+const SubscriptionAPI = require('./subscriptionApi');
 
 
 class API {
@@ -18,6 +19,7 @@ class API {
         this.routeGroups.push(new rootApi());
         this.routeGroups.push(new AuthAPI());
         this.routeGroups.push(new ServiceAPI());
+        this.routeGroups.push(new SubscriptionAPI());
     }
 
     setContentType(req, res, next) {

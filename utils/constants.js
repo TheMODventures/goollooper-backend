@@ -25,3 +25,9 @@ exports.SERVICE_TYPES = Object.freeze({
   VOLUNTEER: "volunteer",
   INTEREST: "interest",
 });
+
+exports.SUBSCRIPTION_DURATION = Object.freeze({
+  DAY: "day",
+  MONTH: "month",
+  YEAR: "year",
+});
