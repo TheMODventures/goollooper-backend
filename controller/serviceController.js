@@ -3,7 +3,6 @@
 const { Types } = require('mongoose');
 
 const { createService, getServices, getService, updateService, deleteService, updateOneService } = require('../models/serviceModel');
-const { updateUser } = require('../models/userModel');
 const { createValidation, updateValidation, addSubServiceValidation, updateSubServiceValidation } = require('../validation/serviceValidation');
 const { generateResponse, parseBody } = require('../utils');
 const { STATUS_CODES } = require('../utils/constants');
@@ -155,7 +154,11 @@ exports.updateSubService = async (req, res, next) => {
     });
 
     try {
-        const service = await updateOneService({ _id: serviceId, 'subServices._id': id }, { $set: { 'subServices.$': body } });
+        const updateValues = {};
+        for (let field in body) {
+            updateValues[`subServices.$.${field}`] = body[field];
+        }
+        const service = await updateOneService({ _id: serviceId, 'subServices._id': id }, { $set: updateValues });
         if (!service) return next({
             statusCode: STATUS_CODES.NOT_FOUND,
             message: 'id not found.'
