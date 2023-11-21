@@ -15,7 +15,7 @@ const subscriptionSchema = new Schema({
   isDeleted: { type: Boolean, default: false },
 }, { timestamps: true, versionKey: false });
 
-const SubscriptionModel = model("Subscriptions", subscriptionSchema);
+const SubscriptionModel = model("Subscription", subscriptionSchema);
 
 // create
 exports.createSubscription = (obj) => SubscriptionModel.create(obj);
