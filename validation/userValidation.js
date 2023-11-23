@@ -18,11 +18,11 @@ exports.updateProfileValidation = Joi.object({
     userName: Joi.string().min(3).max(20).required(),
     // email: Joi.string().email().optional(),
     gender: Joi.string().valid(...Object.values(GENDERS)).default(GENDERS.MALE),
-    age: Joi.string().email().optional(),
-    countryCode: Joi.string().email().optional(),
-    phoneCode: Joi.string().email().optional(),
-    phone: Joi.string().email().optional(),
-    about: Joi.string().email().optional(),
+    age: Joi.number().optional(),
+    countryCode: Joi.string().optional(),
+    phoneCode: Joi.string().optional(),
+    phone: Joi.string().optional(),
+    about: Joi.string().optional(),
     role: Joi.string().valid(...Object.values(ROLES)).optional(),
     volunteer: Joi.array().items(
         Joi.object({

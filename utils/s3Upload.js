@@ -32,7 +32,7 @@ const fileFilter = (req, file, cb) => {
 exports.upload = multer({
   storage,
   fileFilter,
-  limits: { fileSize: 2000000, files: 4 },
+  limits: { fileSize: 2000000, files: 41 },
 });
 
 exports.s3Uploadv3 = async (files, base64 = false) => {
