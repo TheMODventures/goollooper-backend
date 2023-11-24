@@ -37,6 +37,7 @@ exports.updateProfile = async (req, res, next) => {
     body.isProfileCompleted = true;
 
     try {
+        let resume, logo = null;
         // uploading to s3
         if (req?.files?.profileImage?.length > 0) [body.profileImage] = await s3Uploadv3(req.files?.profileImage);
         if (req?.files?.gallery?.length > 0) body.gallery = await s3Uploadv3(req.files.gallery);
@@ -44,6 +45,16 @@ exports.updateProfile = async (req, res, next) => {
         if (req?.files?.certificates?.length > 0) body.certificates = await s3Uploadv3(req.files.certificates);
         if (req?.files?.licenses?.length > 0) body.licenses = await s3Uploadv3(req.files.licenses);
         if (req?.files?.insurances?.length > 0) body.insurances = await s3Uploadv3(req.files.insurances);
+        if (req?.files?.companyLogo?.length > 0) logo = await s3Uploadv3(req.files.companyLogo);
+        if (req?.files?.companyResume?.length > 0) resume = await s3Uploadv3(req.files.companyResume);
+
+        if (resume?.length) {
+            body.company = { ...body.company, resume: resume[0] };
+        }
+        if (logo?.length) {
+            body.company = { ...body.company, logo: logo[0] };
+        }
+
 
         if (body?.locationType &&
             body?.locationType === LOCATIONS_TYPES.LOCAL &&

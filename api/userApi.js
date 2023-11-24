@@ -24,7 +24,9 @@ class SubscriptionAPI {
                 { name: "visuals", maxCount: 10 },
                 { name: "certificates", maxCount: 10 },
                 { name: "licenses", maxCount: 10 },
-                { name: "insurances", maxCount: 10 }
+                { name: "insurances", maxCount: 10 },
+                { name: "companyLogo", maxCount: 1 },
+                { name: "companyResume", maxCount: 1 }
             ]),
             updateProfile);
         router.delete('/delete-account', authMiddleware(Object.values(ROLES)), deleteUser);
