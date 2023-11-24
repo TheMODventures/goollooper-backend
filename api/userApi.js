@@ -17,7 +17,7 @@ class SubscriptionAPI {
         let router = this.router;
         router.get('/:id', authMiddleware(Object.values(ROLES)), getUser);
         router.post('/check-username', authMiddleware(Object.values(ROLES)), userNameAvailability);
-        router.put('/:id', authMiddleware(Object.values(ROLES)),
+        router.put('/', authMiddleware(Object.values(ROLES)),
             upload.fields([
                 { name: "profileImage", maxCount: 1 },
                 { name: "gallery", maxCount: 10 },

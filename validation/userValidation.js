@@ -1,5 +1,5 @@
 const Joi = require('joi');
-const { GENDERS, ROLES, LOCATIONS_TYPES } = require('../utils/constants');
+const { ROLES, LOCATIONS_TYPES } = require('../utils/constants');
 
 exports.resetPasswordValidation = Joi.object({
     password: Joi.string().min(8).max(30).required(),
@@ -14,15 +14,15 @@ exports.changePasswordValidation = Joi.object({
 
 exports.updateProfileValidation = Joi.object({
     firstName: Joi.string().regex(/^[a-zA-Z]+[0-9]*$/).min(3).max(30).required(),
-    lastName: Joi.string().regex(/^[a-zA-Z]+[0-9]*$/).min(3).max(30).allow(null, ''),
+    lastName: Joi.string().optional(),
     userName: Joi.string().min(3).max(20).required(),
     // email: Joi.string().email().optional(),
-    gender: Joi.string().valid(...Object.values(GENDERS)).default(GENDERS.MALE),
-    age: Joi.string().email().optional(),
-    countryCode: Joi.string().email().optional(),
-    phoneCode: Joi.string().email().optional(),
-    phone: Joi.string().email().optional(),
-    about: Joi.string().email().optional(),
+    gender: Joi.string().required(),
+    age: Joi.number().optional(),
+    countryCode: Joi.string().optional(),
+    phoneCode: Joi.string().optional(),
+    phone: Joi.string().optional(),
+    about: Joi.string().optional(),
     role: Joi.string().valid(...Object.values(ROLES)).optional(),
     volunteer: Joi.array().items(
         Joi.object({

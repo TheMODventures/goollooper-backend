@@ -16,11 +16,6 @@ exports.STATUS_CODES = Object.freeze({
   INTERNAL_SERVER_ERROR: 500,
 });
 
-exports.GENDERS = Object.freeze({
-  MALE: 'male',
-  FEMALE: 'female'
-});
-
 exports.LOCATIONS_TYPES = Object.freeze({
   GLOBAL: "global",
   LOCAL: "local",

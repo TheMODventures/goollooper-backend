@@ -60,7 +60,7 @@ exports.addSubService = async (req, res, next) => {
 }
 
 exports.getServices = async (req, res, next) => {
-    const { title = "" } = req.query;
+    const { title = "", type = "" } = req.query;
     const page = req.query.page || 1;
     const limit = req.query.limit || 10;
 
@@ -68,6 +68,7 @@ exports.getServices = async (req, res, next) => {
         {
             $match: {
                 title: { $regex: title, $options: 'i' },
+                type: { $regex: type },
                 isDeleted: false
             },
         }

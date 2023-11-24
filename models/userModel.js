@@ -5,7 +5,7 @@ const { sign } = require('jsonwebtoken');
 const mongoosePaginate = require('mongoose-paginate-v2');
 const aggregatePaginate = require("mongoose-aggregate-paginate-v2");
 
-const { ROLES, GENDERS, LOCATIONS_TYPES } = require('../utils/constants');
+const { ROLES, LOCATIONS_TYPES } = require('../utils/constants');
 const { getMongooseAggregatePaginatedData } = require("../utils");
 
 const userSchema = new Schema({
@@ -14,7 +14,7 @@ const userSchema = new Schema({
     userName: { type: String, default: null, unique: true, trim: true },
     email: { type: String, unique: true, required: true, lowercase: true, trim: true },
     password: { type: String, required: true, select: false },
-    gender: { type: String, enum: Object.values(GENDERS), default: GENDERS.MALE },
+    gender: { type: String },
     age: { type: Number, default: null },
     countryCode: { type: String },  // like 'PK' alpha-2 format
     phoneCode: { type: String },  // like '+92'
@@ -36,7 +36,7 @@ const userSchema = new Schema({
         subscription: { type: Schema.Types.ObjectId, ref: 'Subscription' },
         plan: { type: Schema.Types.ObjectId, ref: 'Plan' },
     },
-    locationType: { type: String, default: LOCATIONS_TYPES.LOCAL, enum: Object.values(LOCATIONS_TYPES) },
+    locationType: { type: String, enum: Object.values(LOCATIONS_TYPES) },
     location: {
         type: { type: String, enum: ["Point"], default: "Point" },
         coordinates: { type: [Number, Number] },
