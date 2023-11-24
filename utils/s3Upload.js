@@ -16,7 +16,7 @@ function config() {
 
 const fileFilter = (req, file, cb) => {
   try {
-    if (file.mimetype.split("/")[0] === "image") {
+    if (file.mimetype.split("/")[0] === "image" || file.mimetype.split("/")[1] === "pdf") {
       cb(null, true);
     } else {
       cb(new multer.MulterError("LIMIT_UNEXPECTED_FILE"), false);
@@ -43,7 +43,7 @@ exports.s3Uploadv3 = async (files, base64 = false) => {
     let buf;
     const params = files.map((file) => {
       if (base64) {
-         buf = Buffer.from(file.replace(/^data:image\/\w+;base64,/, ""), 'base64')
+        buf = Buffer.from(file.replace(/^data:image\/\w+;base64,/, ""), 'base64')
       }
       key = `uploads/${uuid()}-${base64 ? '.png' : file.originalname}`;
       return {
@@ -51,7 +51,7 @@ exports.s3Uploadv3 = async (files, base64 = false) => {
         Key: key,
         Body: base64 ? buf : file.buffer,
         ContentEncoding: 'base64',
-        ContentType: 'image/png'
+        ContentType: file?.mimetype === 'application/pdf' ? 'application/pdf' : 'image/png'
       };
     });
 
