@@ -1,6 +1,10 @@
-node_modules
-uploads
-pnpm-lock.yaml
+build/**/*.js
+build/**/*.js.map
+build/**/*.json
+build/**/*.ejs
+/node_modules
+/json_data
 yarn.lock
+dbconfig.js
 package-lock.json
 .env

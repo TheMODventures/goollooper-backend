@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "noImplicitReturns": true,
+    "noUnusedLocals": false,
+    "outDir": "build",
+    "sourceMap": true,
+    "strict": true,
+    "strictPropertyInitialization": false,
+    "target": "ES2020",
+    "esModuleInterop": true
+  },
+  "compileOnSave": true,
+  "include": ["src/**/*"],
+  "files": ["src/global.d.ts"],
+  "exclude": ["node_modules", "**/*.spec.ts"]
+}
