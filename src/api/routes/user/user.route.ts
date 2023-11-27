@@ -21,24 +21,26 @@ class UserRoutes extends BaseRoutes {
   }
 
   protected routes(): void {
-    this.router.post(
-      "/register",
-      this.validateRequest,
-      this.authController.register
-    );
-    this.router.post("/login", this.validateRequest, this.authController.login);
-    this.router.post(
-      "/forget-password",
-      this.validateRequest,
-      this.authController.forgetPassword
-    );
-    this.router.post(
-      "/get-new-token",
-      this.validateRequest,
-      this.authController.getAccessToken
-    );
-    this.router.use(this.authorize.validateAuth(EUserRole.user));
+    // this.router.use("/auth");
+    // this.router.post(
+    //   "/register",
+    //   this.validateRequest,
+    //   this.authController.register
+    // );
+    // this.router.post("/login", this.validateRequest, this.authController.login);
+    // this.router.post(
+    //   "/forget-password",
+    //   this.validateRequest,
+    //   this.authController.forgetPassword
+    // );
+    // this.router.post(
+    //   "/get-new-token",
+    //   this.validateRequest,
+    //   this.authController.getAccessToken
+    // );
+    // this.router.use(this.authorize.validateAuth);
     this.router.use("/auth", this.authRoutes.router);
+    // this.router.use(this.authorize.validateAuth(EUserRole.user));
   }
 }
 

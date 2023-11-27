@@ -1,12 +1,12 @@
 // RESPONSE OBJECT
 
 // success
-export const SUCCESS_REGISTRATION_PASSED: string = "Registerd Successfully!";
-export const SUCCESS_LOGIN_PASSED: string = "LoggedIn Successfully!";
-export const SUCCESS_LOGOUT_PASS: string = "LoggedOut Successfully!";
+export const SUCCESS_REGISTRATION_PASSED: string = "Registered Successfully!";
+export const SUCCESS_LOGIN_PASSED: string = "Logged In Successfully!";
+export const SUCCESS_LOGOUT_PASS: string = "Logged Out Successfully!";
 export const SUCCESS_OTP_VERIFICATION_PASSED: string =
   "Otp Verifed Successfully!";
-export const SUCCESS_OTP_SEND_PASSED: string = "New Otp Send Successfully!!";
+export const SUCCESS_OTP_SEND_PASSED: string = "New Otp Sent Successfully!!";
 export const SUCCESS_DATA_INSERTION_PASSED: string =
   "Data Inserted Successfully!";
 export const SUCCESS_DATA_UPDATION_PASSED: string =

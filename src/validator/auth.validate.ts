@@ -28,23 +28,6 @@ const registerRule = yup.object().shape({
             return !(await authData.validateEmail(value));
           }
         ),
-      firstName: yup.string().required(),
-      lastName: yup.string().required(),
-
-      phoneNumber: yup
-        .string()
-        .nullable()
-        .notRequired()
-        .test(
-          "invalid_number",
-          "No such Phone Number exists!",
-          (value: string | undefined | null) => {
-            if (typeof value !== "string") {
-              return true;
-            }
-            return phone(value!, { validateMobilePrefix: true }).isValid;
-          }
-        ),
       password: yup.string().required().min(6),
     })
     .noUnknown(),
@@ -153,12 +136,12 @@ const updateData = yup.object().shape({
   query: yup.object().noUnknown(),
 });
 
-const changePassword = yup.object().shape({
+const resetPassword = yup.object().shape({
   params: yup.object().noUnknown(),
   body: yup
     .object()
     .shape({
-      password: yup.string().min(3).required(),
+      password: yup.string().min(6).required(),
       confirmPassword: yup
         .string()
         .oneOf([yup.ref("password")], "Passwords must match")
@@ -173,8 +156,8 @@ const updatePassword = yup.object().shape({
   body: yup
     .object()
     .shape({
-      oldPassword: yup.string().min(3).required(),
-      password: yup.string().min(3).required(),
+      oldPassword: yup.string().min(6).required(),
+      password: yup.string().min(6).required(),
       confirmPassword: yup
         .string()
         .oneOf([yup.ref("password")], "Passwords must match")
@@ -210,7 +193,12 @@ const forgetPassword = yup.object().shape({
 
 const resendOtp = yup.object().shape({
   params: yup.object().noUnknown(),
-  body: yup.object().noUnknown(),
+  body: yup
+    .object()
+    .shape({
+      email: yup.string().email().required(),
+    })
+    .noUnknown(),
   query: yup.object().noUnknown(),
 });
 
@@ -219,7 +207,7 @@ const verifyOtp = yup.object().shape({
   body: yup
     .object()
     .shape({
-      otpCode: yup
+      code: yup
         .number()
         .required()
         .test(
@@ -240,13 +228,13 @@ const verifyOtp = yup.object().shape({
 export = {
   "/register": registerRule,
   "/login": loginRule,
+  "/forget-password": forgetPassword,
+  "/reset-password": resetPassword,
   "/get-new-token": getAccessTokenRule,
+  "/send-otp": resendOtp,
+  "/verify-otp": verifyOtp,
   "/logout": getAccessTokenRule,
   "/update": updateData,
-  "/resend-otp": resendOtp,
-  "/verify-otp": verifyOtp,
-  "/forget-password": forgetPassword,
-  "/change-password": changePassword,
   "/update-detail": updateData,
   "/update-password": updatePassword,
 };

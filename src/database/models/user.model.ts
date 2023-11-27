@@ -1,7 +1,7 @@
 import mongoose, { Schema } from "mongoose";
 import bcrypt from "bcrypt";
 
-import { EUserRole } from "../interfaces/enums";
+import { EUserRole, EUserLocationType } from "../interfaces/enums";
 import { IUserDoc } from "../interfaces/user.interface";
 
 const schemaOptions = {
@@ -11,46 +11,91 @@ const schemaOptions = {
 
 const userModel: Schema = new Schema(
   {
-    _id: {
-      type: Schema.Types.ObjectId,
-    },
-    role: {
-      type: Number,
-      required: true,
-      enum: EUserRole,
-    },
-    firstName: {
-      type: String,
-      required: true,
-    },
-    lastName: {
-      type: String,
-      required: true,
-    },
+    firstName: { type: String, default: null },
+    lastName: { type: String, default: null },
+    userName: { type: String, unique: true, trim: true },
     email: {
       type: String,
       unique: true,
       required: true,
+      lowercase: true,
+      trim: true,
     },
-    password: {
-      type: String,
-      select: false, // exclude from query result
+    password: { type: String, required: true, select: false },
+    gender: { type: String },
+    age: { type: Number, default: null },
+    countryCode: { type: String }, // like 'PK' alpha-2 format
+    phoneCode: { type: String }, // like '+92'
+    phone: { type: String, default: null },
+    completePhone: { type: String, select: false },
+    profileImage: { type: String },
+    gallery: [String],
+    about: { type: String, default: null },
+    role: {
+      type: Number,
+      default: EUserRole.user,
+      enum: EUserRole,
     },
+    volunteer: [
+      {
+        service: { type: Schema.Types.ObjectId, ref: "Service" },
+        subService: { type: Schema.Types.ObjectId, ref: "SubService" },
+      },
+    ],
+    services: [
+      {
+        service: { type: Schema.Types.ObjectId, ref: "Service" },
+        subService: { type: Schema.Types.ObjectId, ref: "SubService" },
+      },
+    ],
+    subscription: {
+      subscription: { type: Schema.Types.ObjectId, ref: "Subscription" },
+      plan: { type: Schema.Types.ObjectId, ref: "Plan" },
+    },
+    locationType: { type: String, enum: Object.values(EUserLocationType) },
+    location: {
+      type: { type: String, enum: ["Point"], default: "Point" },
+      coordinates: { type: [Number, Number] },
+    },
+    state: { type: String, default: null },
+    city: { type: String, default: null },
+    country: { type: String, default: null },
+    zipCode: [
+      {
+        code: { type: String, default: null },
+        isSelected: { type: Boolean, default: false },
+      },
+    ],
+    visuals: [String],
+    company: {
+      name: { type: String, default: null },
+      logo: { type: String, default: null },
+      website: { type: String, default: null },
+      affiliation: { type: String, default: null },
+      publication: { type: String, default: null },
+      resume: { type: String, default: null },
+    },
+    certificates: [String],
+    licenses: [String],
+    reference: {
+      name: { type: String, default: null },
+      contact: { type: String, default: null },
+    },
+    insurances: [String],
+    isProfileCompleted: { type: Boolean, default: false },
+    isVerified: { type: Boolean, default: false },
+    isActive: { type: Boolean, default: true },
+    fcmToken: { type: String },
+    refreshToken: { type: String, select: false },
     otpCode: {
       type: Number,
+      select: false,
     },
-    deletedAt: {
-      type: Date,
-      default: null,
+    otpExpiredAt: {
+      type: Number,
+      select: false, // exclude from query result
     },
-    isBanned: {
-      type: Boolean,
-      default: false,
-    },
-    bannedAt: {
-      type: Date,
-      default: null,
-    },
+    isDeleted: { type: Boolean, default: false },
   },
   schemaOptions
 );

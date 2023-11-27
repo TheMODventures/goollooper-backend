@@ -27,7 +27,7 @@ class AdminRoutes extends BaseRoutes {
       this.validateRequest,
       this.authController.getAccessToken
     );
-    this.router.use(this.authorize.validateAuth(EUserRole.admin));
+    // this.router.use(this.authorize.validateAuth(EUserRole.admin));
     this.router.use("/auth", this.authRoutes.router);
   }
 }

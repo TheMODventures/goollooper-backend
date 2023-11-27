@@ -40,11 +40,6 @@ class UserController {
   update = async (req: Request, res: Response) => {
     const { _id } = req.params;
     const dataset: Partial<IUser> = { ...req.body };
-    if (dataset.isBanned) {
-      dataset.bannedAt = moment();
-    } else {
-      dataset.bannedAt = null;
-    }
     const response = await this.userService.update(_id, dataset);
     return res.status(response.code).json(response);
   };

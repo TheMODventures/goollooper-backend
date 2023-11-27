@@ -77,12 +77,12 @@ class AuthService {
           role: role,
         },
         "+password",
-        undefined,
-        [
-          {
-            path: "package",
-          },
-        ]
+        undefined
+        // [
+        //   {
+        //     path: "package",
+        //   },
+        // ]
       );
       if (
         response === null ||
@@ -116,7 +116,7 @@ class AuthService {
       if (responseData === null) {
         return ResponseHelper.sendResponse(404);
       }
-      const response = await this.resendOtp(responseData._id as string);
+      const response = await this.resendOtp(email as string);
       const userId = new mongoose.Types.ObjectId(responseData._id!);
       const tokenResponse = await this.tokenService.create(
         userId,
@@ -155,12 +155,11 @@ class AuthService {
     }
   };
 
-  verifyOtp = async (userId: string, otpCode: number): Promise<ApiResponse> => {
+  verifyOtp = async (userId: string, code: number): Promise<ApiResponse> => {
     try {
-      console.log(moment().valueOf());
       const response = await this.userRepository.getOne<IUser>({
         _id: userId,
-        otpCode: otpCode,
+        otpCode: code,
         otpExpiredAt: { $gte: moment().valueOf() },
       });
       if (response === null) {
@@ -169,7 +168,7 @@ class AuthService {
       await this.userRepository.updateById<IUser>(userId, {
         otpCode: null,
         otpExpiredAt: null,
-        emailVerifiedAt: moment(),
+        isVerified: true,
       });
       return ResponseHelper.sendSuccessResponse(
         SUCCESS_OTP_VERIFICATION_PASSED
@@ -179,17 +178,16 @@ class AuthService {
     }
   };
 
-  resendOtp = async (userId: string): Promise<ApiResponse> => {
+  resendOtp = async (email: string): Promise<ApiResponse> => {
     try {
       const createCode = crypto.randomInt(100000, 999999);
       const updateObj = {
         otpCode: Number(createCode),
         otpExpiredAt: moment().add(60, "seconds").valueOf(),
-        emailVerifiedAt: null,
       };
       const response = await this.userRepository.updateByOne<IUser>(
         {
-          _id: userId,
+          email,
         },
         updateObj
       );
@@ -198,7 +196,7 @@ class AuthService {
       }
       return ResponseHelper.sendSuccessResponse(
         SUCCESS_OTP_SEND_PASSED,
-        response
+        updateObj
       );
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);
