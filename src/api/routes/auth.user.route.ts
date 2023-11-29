@@ -1,7 +1,7 @@
-import { Authorize } from "../../../middleware/authorize.middleware";
-import { Validation } from "../../../middleware/validation.middleware";
-import AuthController from "../../controllers/auth/auth.user.controller";
-import BaseRoutes from "../base.route";
+import { Authorize } from "../../middleware/authorize.middleware";
+import { Validation } from "../../middleware/validation.middleware";
+import AuthController from "../controllers/auth/auth.user.controller";
+import BaseRoutes from "./base.route";
 
 class AuthRoutes extends BaseRoutes {
   private authController: AuthController;
@@ -56,16 +56,6 @@ class AuthRoutes extends BaseRoutes {
       this.validateRequest,
       this.authController.logout
     );
-    // this.router.post(
-    //   "/update-detail",
-    //   this.validateRequest,
-    //   this.authController.updateData
-    // );
-    // this.router.post(
-    //   "/update-password",
-    //   this.validateRequest,
-    //   this.authController.updateData
-    // );
   }
 }
 

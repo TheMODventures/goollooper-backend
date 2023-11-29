@@ -8,18 +8,16 @@ import session from "express-session";
 import { APP_HOST, APP_PORT } from "./config/environment.config";
 import { Database } from "./config/database.config";
 import AdminRoutes from "./api/routes/admin/admin.route";
-import UserRoutes from "./api/routes/user/user.route";
+import UserRoutes from "./api/routes/user.route";
 
 class App {
   protected app: Application;
   protected database: Database;
   protected adminRoutes: AdminRoutes;
   protected userRoutes: UserRoutes;
-  protected viewPath: string;
 
   constructor() {
     this.app = express();
-    this.viewPath = path.join(__dirname, "views");
     this.adminRoutes = new AdminRoutes();
     this.userRoutes = new UserRoutes();
     this.database = new Database();
@@ -27,19 +25,10 @@ class App {
   }
 
   private config(): void {
-    this.app.use(
-      session({
-        secret: "mysecret", // Replace with your own secret key
-        resave: false,
-        saveUninitialized: true,
-      })
-    );
     this.app.use(cors());
     this.app.use(morgan("dev"));
     this.app.use(bodyParser.json());
     this.app.use(bodyParser.urlencoded({ extended: false }));
-    this.app.set("view engine", "ejs");
-    this.app.set("views", this.viewPath);
     this.app.get("/", (req, res) =>
       res.json({ message: "Welcome to the goollooper" })
     );

@@ -8,3 +8,8 @@ export enum EUserLocationType {
   global = "global",
   local = "local",
 }
+
+export enum ServiceType {
+  volunteer = "volunteer",
+  interest = "interest",
+}

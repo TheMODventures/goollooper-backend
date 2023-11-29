@@ -114,9 +114,11 @@ export abstract class BaseRepository<J, D> implements IBaseRepository<J, D> {
     const result = await this.model.deleteMany(filter).exec();
     return result.deletedCount > 1 ? true : false;
   }
+
   async getCount<T>(filter?: FilterQuery<T>): Promise<number> {
     return (await this.model.countDocuments(filter || {})) || 0;
   }
+
   async subDocAction<T>(
     filter: FilterQuery<T>,
     updateQuery?: QueryOptions<T>,
