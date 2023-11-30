@@ -101,6 +101,12 @@ const updateSubServiceRule = yup.object().shape({
   query: yup.object().noUnknown(),
 });
 
+const deleteSubServiceRule = yup.object().shape({
+  params: yup.object().shape(subServiceUpdateParamRule).noUnknown(),
+  body: yup.object().shape({}).noUnknown(),
+  query: yup.object().noUnknown(),
+});
+
 export = {
   "/": indexRule,
   "/create": createRule,
@@ -109,4 +115,5 @@ export = {
   "/delete": showRule,
   "/sub-service/create": createSubServiceRule,
   "/sub-service/update": updateSubServiceRule,
+  "/sub-service/delete": deleteSubServiceRule,
 };
