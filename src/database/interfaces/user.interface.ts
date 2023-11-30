@@ -8,7 +8,7 @@ export interface IUser {
   role: EUserRole;
   firstName?: string;
   lastName?: string;
-  userName?: string;
+  username?: string;
   email: string;
   password?: string;
   gender?: string;
@@ -30,13 +30,13 @@ export interface IUser {
   }[];
   visuals?: string[];
   company?: {
-    name: String;
-    logo: String;
-    website: String;
-    affiliation: String;
-    publication: String;
-    resume: String;
-  }[];
+    name?: String;
+    logo?: String;
+    website?: String;
+    affiliation?: String;
+    publication?: String;
+    resume?: String;
+  };
   certificates?: string[];
   licenses?: string[];
   reference?: {

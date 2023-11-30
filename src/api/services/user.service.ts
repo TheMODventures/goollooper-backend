@@ -1,3 +1,5 @@
+import { FilterQuery } from "mongoose";
+
 import { EUserRole } from "../../database/interfaces/enums";
 import { IUser } from "../../database/interfaces/user.interface";
 import { UserRepository } from "../repository/user/user.repository";
@@ -16,12 +18,27 @@ class UserService {
     this.userRepository = new UserRepository();
   }
 
-  index = async (page: number, limit = 10): Promise<ApiResponse> => {
+  getByFilter = async (filter: FilterQuery<IUser>): Promise<ApiResponse> => {
     try {
-      const filter = {
-        role: EUserRole.user,
-        $or: [{ deletedAt: { $exists: false } }, { deletedAt: { $eq: null } }],
-      };
+      const response = await this.userRepository.getOne<IUser>(filter);
+      if (response === null) {
+        return ResponseHelper.sendResponse(404);
+      }
+      return ResponseHelper.sendSuccessResponse(
+        SUCCESS_DATA_SHOW_PASSED,
+        response
+      );
+    } catch (error) {
+      return ResponseHelper.sendResponse(500, (error as Error).message);
+    }
+  };
+
+  index = async (
+    page: number,
+    limit = 10,
+    filter: FilterQuery<IUser>
+  ): Promise<ApiResponse> => {
+    try {
       const getDocCount = await this.userRepository.getCount(filter);
       const response = await this.userRepository.getAll<IUser>(
         filter,
@@ -137,7 +154,9 @@ class UserService {
 
   delete = async (_id: string): Promise<ApiResponse> => {
     try {
-      const response = await this.userRepository.delete({ _id: _id });
+      const response = await this.userRepository.updateById<IUser>(_id, {
+        isDeleted: true,
+      });
       if (!response) {
         return ResponseHelper.sendResponse(404);
       }

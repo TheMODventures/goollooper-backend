@@ -10,6 +10,7 @@ import { uuid } from "uuidv4";
 import {
   APP_MODE,
   AWS_ACCESS_KEY,
+  AWS_BUCKET_NAME,
   AWS_ENDPOINT,
   AWS_REGION,
   AWS_SECRET_ACCESS_KEY,
@@ -40,31 +41,35 @@ export class UploadHelper {
     });
   }
 
-  uploadFileFromBuffer = async (file: Express.Multer.File): Promise<string> => {
-    const buffer = file.buffer;
-    const contentType = file.mimetype;
-    const fileName = file.originalname;
+  uploadFileFromBuffer = async (
+    files: Express.Multer.File[]
+  ): Promise<string[]> => {
     try {
-      const key = `${AWS_SUB_FOLDER!}/${APP_MODE}/${
-        this.subPart
-      }/${uuid()}-${fileName}`;
-      await this.s3.send(
-        new PutObjectCommand({
-          Bucket: DO_BUCKET_NAME!,
-          ACL: "public-read",
+      let keys: string[] = [];
+      let key = "";
+      const params = files.map((file) => {
+        key = `${AWS_SUB_FOLDER!}/${APP_MODE}/${this.subPart}/${uuid()}-${
+          file.originalname
+        }`;
+        return {
+          Bucket: AWS_BUCKET_NAME!,
           Key: key,
-          Body: buffer,
-          ContentType: contentType,
+          Body: file.buffer,
+          ContentType: file.mimetype,
           ContentDisposition: "inline",
-        })
+        };
+      });
+      await Promise.all(
+        params.map((param) =>
+          this.s3.send(new PutObjectCommand(param)).then((v) => {
+            console.log(v);
+            keys.push(param.Key);
+          })
+        )
       );
-      console.log(`Successfully uploaded file with key ${key} to S3 bucket.`);
-      return key;
+      return keys;
     } catch (error) {
-      console.log(
-        `Error uploading file with key ${fileName} to S3 bucket:`,
-        error
-      );
+      console.log(`Error uploading file to S3 bucket:`, error);
       throw error;
     }
   };
@@ -73,7 +78,7 @@ export class UploadHelper {
     try {
       await this.s3.send(
         new HeadObjectCommand({
-          Bucket: DO_BUCKET_NAME!,
+          Bucket: AWS_BUCKET_NAME!,
           Key: key,
         })
       );
@@ -93,7 +98,7 @@ export class UploadHelper {
       try {
         await this.s3.send(
           new DeleteObjectCommand({
-            Bucket: DO_BUCKET_NAME!,
+            Bucket: AWS_BUCKET_NAME!,
             Key: key,
           })
         );

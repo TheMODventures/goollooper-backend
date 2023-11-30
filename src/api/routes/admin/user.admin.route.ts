@@ -1,5 +1,5 @@
 import { Validation } from "../../../middleware/validation.middleware";
-import UserController from "../../controllers/user/user.admin.controller";
+import UserController from "../../controllers/user/user.controller";
 import BaseRoutes from "../base.route";
 
 class UserRoutes extends BaseRoutes {

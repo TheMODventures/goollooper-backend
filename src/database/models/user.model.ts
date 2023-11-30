@@ -13,7 +13,7 @@ const userModel: Schema = new Schema(
   {
     firstName: { type: String, default: null },
     lastName: { type: String, default: null },
-    userName: { type: String, unique: true, trim: true },
+    username: { type: String, unique: true, trim: true, default: null },
     email: {
       type: String,
       unique: true,
