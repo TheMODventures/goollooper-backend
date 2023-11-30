@@ -13,3 +13,9 @@ export enum ServiceType {
   volunteer = "volunteer",
   interest = "interest",
 }
+
+export enum SubscriptionType {
+  day = "day",
+  month = "month",
+  annum = "annum",
+}
