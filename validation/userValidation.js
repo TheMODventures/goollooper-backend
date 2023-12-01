@@ -1,5 +1,5 @@
 const Joi = require('joi');
-const { ROLES, LOCATIONS_TYPES } = require('../utils/constants');
+const { ROLES, LOCATIONS_TYPES, SCHEDULE_TYPES, DAYS, REPETITION } = require('../utils/constants');
 
 exports.resetPasswordValidation = Joi.object({
     password: Joi.string().min(8).max(30).required(),
@@ -54,6 +54,27 @@ exports.updateProfileValidation = Joi.object({
             code: Joi.string(),
             isSelected: Joi.boolean(),
         })
+    ).optional(),
+    schedule: Joi.array().items(
+        Joi.object({
+            startDate: Joi.string().pattern(
+                /^(19|20)\d{2}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/,
+                "Please enter a valid date in the format YYYY-MM-DD"
+            ).required(),
+            endDate: Joi.string().pattern(
+                /^(19|20)\d{2}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/,
+                "Please enter a valid date in the format YYYY-MM-DD"
+            ).optional(),
+            type: Joi.string().valid(...Object.values(SCHEDULE_TYPES)).optional(),
+            day: Joi.string().valid(...Object.values(DAYS)).optional(),
+            repetition: Joi.string().valid(...Object.values(REPETITION)).optional(),
+            slots: Joi.array().items(
+                Joi.object({
+                    startTime: Joi.string().required(),
+                    endTime: Joi.string().required(),
+                })
+            ).required(),
+        }),
     ).optional(),
     company: Joi.object({
         name: Joi.string(),
