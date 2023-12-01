@@ -16,7 +16,7 @@ function config() {
 
 const fileFilter = (req, file, cb) => {
   try {
-    if (file.mimetype.split("/")[0] === "image") {
+    if (file.mimetype.split("/")[0] === "image" || file.mimetype.split("/")[1] === "pdf" || file.mimetype.split("/")[0] === "video") {
       cb(null, true);
     } else {
       cb(new multer.MulterError("LIMIT_UNEXPECTED_FILE"), false);
@@ -32,7 +32,7 @@ const fileFilter = (req, file, cb) => {
 exports.upload = multer({
   storage,
   fileFilter,
-  limits: { fileSize: 2000000, files: 4 },
+  limits: { fileSize: 20000000, files: 41 },
 });
 
 exports.s3Uploadv3 = async (files, base64 = false) => {
@@ -43,7 +43,7 @@ exports.s3Uploadv3 = async (files, base64 = false) => {
     let buf;
     const params = files.map((file) => {
       if (base64) {
-         buf = Buffer.from(file.replace(/^data:image\/\w+;base64,/, ""), 'base64')
+        buf = Buffer.from(file.replace(/^data:image\/\w+;base64,/, ""), 'base64')
       }
       key = `uploads/${uuid()}-${base64 ? '.png' : file.originalname}`;
       return {
@@ -51,7 +51,7 @@ exports.s3Uploadv3 = async (files, base64 = false) => {
         Key: key,
         Body: base64 ? buf : file.buffer,
         ContentEncoding: 'base64',
-        ContentType: 'image/png'
+        ContentType: file?.mimetype ? file?.mimetype : file?.mimetype === 'application/pdf' ? 'application/pdf' : 'image/png'
       };
     });
 
