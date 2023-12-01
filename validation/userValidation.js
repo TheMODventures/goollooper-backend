@@ -41,13 +41,14 @@ exports.updateProfileValidation = Joi.object({
         plan: Joi.string(),
     }).optional(),
     locationType: Joi.string().valid(...Object.values(LOCATIONS_TYPES)).default(LOCATIONS_TYPES.LOCAL),
-    location: Joi.object({
+    location: Joi.array().items(Joi.object({
         type: Joi.string().valid('Point').default('Point'),
-        coordinates: Joi.array().items(Joi.number()).length(2),
-    }).default({ type: 'Point', coordinates: [0, 0] }).optional(),
-    state: Joi.string().optional(),
-    city: Joi.string().optional(),
-    country: Joi.string().optional(),
+        coordinates: Joi.array().items(Joi.number()).length(2).default([0, 0]),
+        state: Joi.string().optional(),
+        city: Joi.string().optional(),
+        country: Joi.string().optional(),
+        isSelected: Joi.boolean(),
+    })).optional(),
     zipCode: Joi.array().items(
         Joi.object({
             code: Joi.string(),

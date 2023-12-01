@@ -60,9 +60,9 @@ exports.updateProfile = async (req, res, next) => {
             body?.locationType === LOCATIONS_TYPES.LOCAL &&
             (!body?.location ||
                 body?.location?.coordinates?.length < 2 ||
-                !body?.state ||
-                !body?.city ||
-                !body?.country ||
+                !body?.location?.state ||
+                !body?.location?.city ||
+                !body?.location?.country ||
                 !body?.zipCode?.length)
         ) {
             return next({
