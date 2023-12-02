@@ -15,7 +15,7 @@ exports.changePasswordValidation = Joi.object({
 exports.updateProfileValidation = Joi.object({
     firstName: Joi.string().regex(/^[a-zA-Z]+[0-9]*$/).min(3).max(30).required(),
     lastName: Joi.string().optional(),
-    userName: Joi.string().min(3).max(20).required(),
+    username: Joi.string().min(3).max(20).required(),
     // email: Joi.string().email().optional(),
     gender: Joi.string().required(),
     age: Joi.number().optional(),
@@ -91,5 +91,5 @@ exports.updateProfileValidation = Joi.object({
 });
 
 exports.checkUsernameAvailabilityValidation = Joi.object({
-    userName: Joi.string().min(3).max(20).required(),
+    username: Joi.string().min(3).max(20).required(),
 });

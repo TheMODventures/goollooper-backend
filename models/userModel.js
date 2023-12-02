@@ -11,7 +11,7 @@ const { getMongooseAggregatePaginatedData } = require("../utils");
 const userSchema = new Schema({
     firstName: { type: String, default: null },
     lastName: { type: String, default: null },
-    userName: { type: String, default: null, unique: true, trim: true },
+    username: { type: String, default: null, unique: true, trim: true },
     email: { type: String, unique: true, required: true, lowercase: true, trim: true },
     password: { type: String, required: true, select: false },
     gender: { type: String },

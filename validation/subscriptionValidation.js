@@ -10,7 +10,7 @@ exports.createValidation = Joi.object({
 // add subscription-plan validation
 exports.addSubscriptionPlanValidation = Joi.object({
     price: Joi.number().required(),
-    duration: Joi.string().valid('day', 'month', 'year').required(),
+    duration: Joi.string().valid('day', 'month', 'annum').required(),
 });
 
 // update validation
@@ -23,5 +23,5 @@ exports.updateValidation = Joi.object({
 // update subscription-plan validation
 exports.updateSubscriptionPlanValidation = Joi.object({
     price: Joi.number().optional(),
-    duration: Joi.string().valid('day', 'month', 'year').optional(),
+    duration: Joi.string().valid('day', 'month', 'annum').optional(),
 });

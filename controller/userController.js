@@ -127,15 +127,15 @@ exports.userNameAvailability = async (req, res, next) => {
         message: error.details[0].message
     });
 
-    const { userName } = body;
+    const { username } = body;
 
     try {
-        const user = await findUser({ userName, isDeleted: false });
+        const user = await findUser({ username, isDeleted: false });
         if (user) return next({
             statusCode: STATUS_CODES.CONFLICT,
-            message: 'UserName not available'
+            message: 'username not available'
         });
-        generateResponse(null, 'UserName available', res);
+        generateResponse(null, 'username available', res);
     } catch (error) {
         next(error);
     }

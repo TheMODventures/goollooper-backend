@@ -52,5 +52,5 @@ exports.SERVICE_TYPES = Object.freeze({
 exports.SUBSCRIPTION_DURATION = Object.freeze({
   DAY: "day",
   MONTH: "month",
-  YEAR: "year",
+  ANNUM: "annum",
 });
