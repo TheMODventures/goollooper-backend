@@ -218,3 +218,20 @@ exports.deleteSubService = async (req, res, next) => {
         next(error);
     }
 }
+
+// exports.addData = async (req, res, next) => {
+    // try {
+    //     const data = JSON.parse(req.file.buffer.toString());
+    //     for (let i = 0; i < data?.length; i++) {
+    //         let element = data[i];
+    //         let exists = await getService({ title: element?.title });
+    //         if (!exists) {
+    //             await createService(element);
+    //         }
+    //     }
+    //     generateResponse(null, 'Data added successfully', res);
+    // } catch (error) {
+    //     console.log({ error });
+    //     next(error);
+    // }
+// }

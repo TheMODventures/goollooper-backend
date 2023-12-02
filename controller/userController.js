@@ -2,9 +2,10 @@
 
 const { generateResponse, parseBody } = require('../utils');
 const { findUser, updateUser, } = require('../models/userModel');
+const { getSubscription } = require('../models/subscriptionModel');
 const { updateProfileValidation, checkUsernameAvailabilityValidation } = require('../validation/userValidation');
 const { s3Uploadv3 } = require('../utils/s3Upload');
-const { STATUS_CODES, LOCATIONS_TYPES } = require('../utils/constants');
+const { STATUS_CODES, LOCATIONS_TYPES, SCHEDULE_TYPES } = require('../utils/constants');
 
 exports.getUser = async (req, res, next) => {
     const userId = req.query?.userId || req.user.id;
@@ -60,9 +61,9 @@ exports.updateProfile = async (req, res, next) => {
             body?.locationType === LOCATIONS_TYPES.LOCAL &&
             (!body?.location ||
                 body?.location?.coordinates?.length < 2 ||
-                !body?.state ||
-                !body?.city ||
-                !body?.country ||
+                !body?.location?.state ||
+                !body?.location?.city ||
+                !body?.location?.country ||
                 !body?.zipCode?.length)
         ) {
             return next({
@@ -70,6 +71,26 @@ exports.updateProfile = async (req, res, next) => {
                 message: "Provide all location details"
             });
         }
+
+        if (body?.subscription?.subscription) {
+            let subscription = await getSubscription({ _id: body.subscription.subscription });
+            if (subscription.name?.toLowerCase() === "bsl" && body?.locationType !== LOCATIONS_TYPES.LOCAL) return next({
+                statusCode: STATUS_CODES.UNPROCESSABLE_ENTITY,
+                message: 'Location should be local while subscribing to BSL'
+            });
+        }
+
+        // let schedule = [];
+        // if (body?.schedule?.length) {
+        //     for (let i = 0; i < body?.schedule.length; i++) {
+        //         let element = body?.schedule[i];
+        //         if (element?.type === SCHEDULE_TYPES.DAY && element?.repetition > 0) {
+                    
+        //         } else {
+
+        //         }
+        //     }
+        // }
 
         if (body?.phoneCode && body?.phone) {
             body.completePhone = body.phoneCode + body.phone;

@@ -21,6 +21,29 @@ exports.LOCATIONS_TYPES = Object.freeze({
   LOCAL: "local",
 });
 
+exports.SCHEDULE_TYPES = Object.freeze({
+  DATE: "date",
+  DAY: "day",
+});
+
+exports.REPETITION = Object.freeze({
+  NONE: "none",
+  DAY: "day",
+  WEEK: "week",
+  MONTH: "month",
+  YEAR: "year",
+});
+
+exports.DAYS = Object.freeze({
+  MONDAY: "monday",
+  TUESDAY: "tuesday",
+  WEDNESDAY: "wednesday",
+  THURSDAY: "thursday",
+  FRIDAY: "driday",
+  SATURDAY: "saturday",
+  SUNDAY: "sunday"
+});
+
 exports.SERVICE_TYPES = Object.freeze({
   VOLUNTEER: "volunteer",
   INTEREST: "interest",

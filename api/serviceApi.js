@@ -23,6 +23,9 @@ class ServiceAPI {
         router.put('/:serviceId/sub-service/:id', authMiddleware(Object.values(ROLES)), updateSubService);
         router.delete('/:id', authMiddleware(Object.values(ROLES)), deleteService);
         router.delete('/:serviceId/sub-service/:id', authMiddleware(Object.values(ROLES)), deleteSubService);
+
+        // router.post('/insert-data', authMiddleware(Object.values(ROLES)),
+        //     upload.single("file"), addData);
     }
 
     getRouter() {

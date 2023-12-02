@@ -5,7 +5,7 @@ const { sign } = require('jsonwebtoken');
 const mongoosePaginate = require('mongoose-paginate-v2');
 const aggregatePaginate = require("mongoose-aggregate-paginate-v2");
 
-const { ROLES, LOCATIONS_TYPES } = require('../utils/constants');
+const { ROLES, LOCATIONS_TYPES, SCHEDULE_TYPES, DAYS, REPETITION } = require('../utils/constants');
 const { getMongooseAggregatePaginatedData } = require("../utils");
 
 const userSchema = new Schema({
@@ -37,18 +37,37 @@ const userSchema = new Schema({
         plan: { type: Schema.Types.ObjectId, ref: 'Plan' },
     },
     locationType: { type: String, enum: Object.values(LOCATIONS_TYPES) },
-    location: {
-        type: { type: String, enum: ["Point"], default: "Point" },
-        coordinates: { type: [Number, Number] },
-    },
-    state: { type: String, default: null },
-    city: { type: String, default: null },
-    country: { type: String, default: null },
+    location: [
+        {
+            type: { type: String, enum: ["Point"], default: "Point" },
+            coordinates: { type: [Number, Number] },
+            state: { type: String, default: null },
+            city: { type: String, default: null },
+            country: { type: String, default: null },
+            isSelected: { type: Boolean, default: false },
+        }
+    ],
     zipCode: [
         {
             code: { type: String, default: null },
             isSelected: { type: Boolean, default: false },
+        }
+    ],
+    schedule: {
+        type: [{
+            title: { type: String },
+            startDate: { type: Date },
+            endDate: { type: Date },
+            type: { type: String, enum: Object.values(SCHEDULE_TYPES), default: SCHEDULE_TYPES.DATE },
+            day: { type: String, enum: Object.values(DAYS), default: null },
+            repetition: { type: String, enum: Object.values(REPETITION), default: REPETITION.NONE },
+            slots: [{
+                startTime: { type: String },
+                endTime: { type: String },
+            }],
         }],
+        default: []
+    },
     visuals: [String],
     company: {
         name: { type: String, default: null },
