@@ -56,20 +56,34 @@ exports.updateProfile = async (req, res, next) => {
             body.company = { ...body.company, logo: logo[0] };
         }
 
-
         if (body?.locationType &&
             body?.locationType === LOCATIONS_TYPES.LOCAL &&
-            (!body?.location ||
-                body?.location?.coordinates?.length < 2 ||
-                !body?.location?.state ||
-                !body?.location?.city ||
-                !body?.location?.country ||
-                !body?.zipCode?.length)
+            !body?.location?.length
         ) {
             return next({
                 statusCode: STATUS_CODES.UNPROCESSABLE_ENTITY,
-                message: "Provide all location details"
+                message: "Provide all location details",
             });
+        }
+        else if (body?.locationType &&
+            body?.locationType === LOCATIONS_TYPES.LOCAL &&
+            body?.location?.length
+        ) {
+            for (let i = 0; i < body.location.length; i++) {
+                const element = body.location[i];
+                if (
+                    element?.coordinates?.length < 2 ||
+                    !element?.state ||
+                    !element?.city ||
+                    !element?.country ||
+                    !body?.zipCode?.length
+                ) {
+                    return next({
+                        statusCode: STATUS_CODES.UNPROCESSABLE_ENTITY,
+                        message: "Provide all location details",
+                    });
+                }
+            }
         }
 
         if (body?.subscription?.subscription) {
@@ -85,7 +99,7 @@ exports.updateProfile = async (req, res, next) => {
         //     for (let i = 0; i < body?.schedule.length; i++) {
         //         let element = body?.schedule[i];
         //         if (element?.type === SCHEDULE_TYPES.DAY && element?.repetition > 0) {
-                    
+
         //         } else {
 
         //         }
