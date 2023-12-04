@@ -1,5 +1,4 @@
 import { isObjectIdOrHexString } from "mongoose";
-import phone from "phone";
 import * as yup from "yup";
 import { EUserLocationType, EUserRole } from "../database/interfaces/enums";
 
@@ -134,22 +133,24 @@ const updateRule = yup.object().shape({
         .oneOf([...Object.values(EUserLocationType).map((value) => value)])
         .default(EUserLocationType.global),
       location: yup
-        .object()
-        .shape({
-          type: yup.string().oneOf(["Point"]).default("Point"),
-          coordinates: yup.array().of(yup.number()).length(2),
-        })
-        .default({ type: "Point", coordinates: [0, 0] })
+        .array()
+        .of(
+          yup.object().shape({
+            type: yup.string().oneOf(["Point"]).default("Point"),
+            coordinates: yup.array().of(yup.string()).length(2),
+            state: yup.string().notRequired(),
+            city: yup.string().notRequired(),
+            county: yup.string().notRequired(),
+            isSelected: yup.string(),
+          })
+        )
         .notRequired(),
-      state: yup.string().notRequired(),
-      city: yup.string().notRequired(),
-      country: yup.string().notRequired(),
       zipCode: yup
         .array()
         .of(
           yup.object().shape({
             code: yup.string(),
-            isSelected: yup.boolean(),
+            isSelected: yup.string(),
           })
         )
         .notRequired(),

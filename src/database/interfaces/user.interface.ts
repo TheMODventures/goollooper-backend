@@ -3,9 +3,32 @@ import mongoose, { Document } from "mongoose";
 
 import { EUserLocationType, EUserRole } from "./enums";
 
+interface Location {
+  type: string;
+  coordinates: [number, number];
+  state?: string;
+  city?: string;
+  county?: string;
+  isSelected: boolean;
+}
+
+interface Volunteer {
+  service: string;
+  subService: string;
+}
+
+interface Service {
+  service: string;
+  subService: string;
+}
+
+interface ZipCode {
+  code: string;
+  isSelected: boolean;
+}
+
 export interface IUser {
   _id?: string | mongoose.Types.ObjectId;
-  role: EUserRole;
   firstName?: string;
   lastName?: string;
   username?: string;
@@ -16,18 +39,20 @@ export interface IUser {
   countryCode?: string;
   phoneCode?: string;
   phone?: string;
+  completePhone?: string;
   profileImage?: string;
   gallery?: string[];
   about?: string;
+  role: EUserRole;
+  volunteer?: Volunteer[];
+  services?: Service[];
+  subscription?: {
+    subscription: string;
+    plan: string;
+  };
   locationType?: EUserLocationType;
-  location?: { type: string; coordinates: [number, number] } | null;
-  state?: string;
-  city?: string;
-  country?: string;
-  zipCode?: {
-    code: String;
-    isSelected: Boolean;
-  }[];
+  location?: Location[];
+  zipCode?: ZipCode[];
   visuals?: string[];
   company?: {
     name?: String;

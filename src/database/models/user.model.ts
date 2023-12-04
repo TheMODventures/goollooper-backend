@@ -53,13 +53,16 @@ const userModel: Schema = new Schema(
       plan: { type: Schema.Types.ObjectId, ref: "Plan" },
     },
     locationType: { type: String, enum: Object.values(EUserLocationType) },
-    location: {
-      type: { type: String, enum: ["Point"], default: "Point" },
-      coordinates: { type: [Number, Number] },
-    },
-    state: { type: String, default: null },
-    city: { type: String, default: null },
-    country: { type: String, default: null },
+    location: [
+      {
+        type: { type: String, enum: ["Point"], default: "Point" },
+        coordinates: { type: [Number, Number] },
+        state: { type: String, default: null },
+        city: { type: String, default: null },
+        county: { type: String, default: null },
+        isSelected: { type: Boolean, default: false },
+      },
+    ],
     zipCode: [
       {
         code: { type: String, default: null },

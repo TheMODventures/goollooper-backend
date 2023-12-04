@@ -19,3 +19,10 @@ export enum SubscriptionType {
   month = "month",
   annum = "annum",
 }
+
+export enum Subscription {
+  bsp = "bsp",
+  mbs = "mbs",
+  bsl = "bsl",
+  iw = "iw",
+}
