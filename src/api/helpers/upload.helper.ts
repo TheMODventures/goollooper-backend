@@ -62,7 +62,6 @@ export class UploadHelper {
       await Promise.all(
         params.map((param) =>
           this.s3.send(new PutObjectCommand(param)).then((v) => {
-            console.log(v);
             keys.push(param.Key);
           })
         )

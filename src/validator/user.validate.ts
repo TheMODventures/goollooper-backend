@@ -55,49 +55,6 @@ const updateRule = yup.object().shape({
       countryCode: yup.string().notRequired(),
       phoneCode: yup.string().notRequired(),
       phone: yup.string().notRequired(),
-      profileImage: yup
-        .array()
-        .max(1)
-        .of(
-          yup.object().shape({
-            fieldname: yup.string().required().oneOf(["profileImage"]),
-            originalname: yup.string().required(),
-            mimetype: yup.string().required(),
-            encoding: yup.string().required(),
-            size: yup.number().required(),
-          })
-        )
-        .notRequired(),
-      gallery: yup
-        .array()
-        .max(5)
-        .of(
-          yup.object().shape({
-            fieldname: yup.string().required().oneOf(["gallery"]),
-            originalname: yup.string().required(),
-            mimetype: yup.string().required(),
-            encoding: yup.string().required(),
-            size: yup.number().required(),
-          })
-          // yup.object().shape({
-          //   name: yup.string().required(),
-          //   image: yup
-          //     .mixed<Express.Multer.File>()
-          //     .required("Image is required")
-          //     .test(
-          //       "fileSize",
-          //       "File size is too large",
-          //       (value) => !value || (value && value.size <= 5 * 1024 * 1024) // 5 MB limit
-          //     )
-          //     .test(
-          //       "fileType",
-          //       "Invalid file type. Only images are allowed",
-          //       (value) =>
-          //         !value || (value && value.mimetype.startsWith("image/"))
-          //     ),
-          // })
-        )
-        .notRequired(),
       about: yup.string().notRequired(),
       role: yup
         .number()
@@ -154,19 +111,6 @@ const updateRule = yup.object().shape({
           })
         )
         .notRequired(),
-      visuals: yup
-        .array()
-        .max(5)
-        .of(
-          yup.object().shape({
-            fieldname: yup.string().required().oneOf(["visuals"]),
-            originalname: yup.string().required(),
-            mimetype: yup.string().required(),
-            encoding: yup.string().required(),
-            size: yup.number().required(),
-          })
-        )
-        .notRequired(),
       company: yup
         .object()
         .shape({
@@ -176,77 +120,12 @@ const updateRule = yup.object().shape({
           publication: yup.string(),
         })
         .notRequired(),
-      companyLogo: yup
-        .array()
-        .max(1)
-        .of(
-          yup.object().shape({
-            fieldname: yup.string().required().oneOf(["logo"]),
-            originalname: yup.string().required(),
-            mimetype: yup.string().required(),
-            encoding: yup.string().required(),
-            size: yup.number().required(),
-          })
-        )
-        .notRequired(),
-      companyResume: yup
-        .array()
-        .max(1)
-        .of(
-          yup.object().shape({
-            fieldname: yup.string().required().oneOf(["resume"]),
-            originalname: yup.string().required(),
-            mimetype: yup.string().required(),
-            encoding: yup.string().required(),
-            size: yup.number().required(),
-          })
-        )
-        .notRequired(),
-      certificates: yup
-        .array()
-        .max(5)
-        .of(
-          yup.object().shape({
-            fieldname: yup.string().required().oneOf(["certificates"]),
-            originalname: yup.string().required(),
-            mimetype: yup.string().required(),
-            encoding: yup.string().required(),
-            size: yup.number().required(),
-          })
-        )
-        .notRequired(),
-      licenses: yup
-        .array()
-        .max(5)
-        .of(
-          yup.object().shape({
-            fieldname: yup.string().required().oneOf(["licenses"]),
-            originalname: yup.string().required(),
-            mimetype: yup.string().required(),
-            encoding: yup.string().required(),
-            size: yup.number().required(),
-          })
-        )
-        .notRequired(),
       reference: yup
         .object()
         .shape({
           name: yup.string(),
           contact: yup.string(),
         })
-        .notRequired(),
-      insurances: yup
-        .array()
-        .max(5)
-        .of(
-          yup.object().shape({
-            fieldname: yup.string().required().oneOf(["insurances"]),
-            originalname: yup.string().required(),
-            mimetype: yup.string().required(),
-            encoding: yup.string().required(),
-            size: yup.number().required(),
-          })
-        )
         .notRequired(),
     })
     .noUnknown(),
