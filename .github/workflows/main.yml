@@ -25,5 +25,6 @@ jobs:
             cd /mnt/goollooper
             git pull origin dev
             npm install
+            npm run build
             pm2 restart apis-goollooper
             pm2 list
