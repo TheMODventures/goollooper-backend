@@ -5,6 +5,7 @@ import ServiceRoutes from "./service.route";
 import SubscriptionRoutes from "./subscription.route";
 import ProfileRoutes from "./profile.route";
 import StateRoutes from "./state.route";
+import GolistRoutes from "./golist.route";
 
 class UserRoutes extends BaseRoutes {
   private authRoutes: AuthRoutes;
@@ -13,6 +14,7 @@ class UserRoutes extends BaseRoutes {
   private profileRoutes: ProfileRoutes;
   private stateRoutes: StateRoutes;
   private authorize: Authorize;
+  private golistRoutes: GolistRoutes;
 
   constructor() {
     super();
@@ -22,6 +24,7 @@ class UserRoutes extends BaseRoutes {
     this.profileRoutes = new ProfileRoutes();
     this.stateRoutes = new StateRoutes();
     this.authorize = new Authorize();
+    this.golistRoutes = new GolistRoutes();
     this.initializeRoutes();
   }
 
@@ -32,6 +35,7 @@ class UserRoutes extends BaseRoutes {
     this.router.use("/subscription", this.subscriptionRoutes.router);
     this.router.use("/user", this.profileRoutes.router);
     this.router.use("/location-data", this.stateRoutes.router);
+    this.router.use("/golist", this.golistRoutes.router);
   }
 }
 

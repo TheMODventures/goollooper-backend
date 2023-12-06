@@ -13,7 +13,15 @@ const userModel: Schema = new Schema(
   {
     firstName: { type: String, default: null },
     lastName: { type: String, default: null },
-    username: { type: String, unique: true, trim: true, default: null },
+    username: {
+      type: String,
+      trim: true,
+      default: null,
+      index: {
+        unique: true,
+        partialFilterExpression: { username: { $type: "string" } },
+      },
+    },
     email: {
       type: String,
       unique: true,
