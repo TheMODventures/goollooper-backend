@@ -23,6 +23,7 @@ jobs:
           username: ${{secrets.SSH_USERNAME}}
           script: |
             cd /mnt/goollooper
+            git checkout dev
             git pull origin dev
             npm install
             npm run build

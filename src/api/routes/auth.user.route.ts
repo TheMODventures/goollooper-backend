@@ -31,16 +31,16 @@ class AuthRoutes extends BaseRoutes {
       this.authController.forgetPassword
     );
     this.router.post(
-      "/reset-password",
-      this.validateRequest,
-      this.authController.updateData
-    );
-    this.router.post(
       "/get-new-token",
       this.validateRequest,
       this.authController.getAccessToken
     );
     this.router.use(this.authorize.validateAuth);
+    this.router.post(
+      "/reset-password",
+      this.validateRequest,
+      this.authController.updateData
+    );
     this.router.post(
       "/send-otp",
       this.validateRequest,
