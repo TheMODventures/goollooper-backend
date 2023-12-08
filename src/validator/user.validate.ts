@@ -1,6 +1,6 @@
 import { isObjectIdOrHexString } from "mongoose";
 import * as yup from "yup";
-import { EUserLocationType, EUserRole } from "../database/interfaces/enums";
+import { EUserLocationType, UserRole } from "../database/interfaces/enums";
 
 const paramRule = {
   id: yup
@@ -57,8 +57,8 @@ const updateRule = yup.object().shape({
       phone: yup.string().notRequired(),
       about: yup.string().notRequired(),
       role: yup
-        .number()
-        .oneOf([...Object.values(EUserRole).map((value) => Number(value))])
+        .string()
+        .oneOf([...Object.values(UserRole).map((value) => value?.toString())])
         .notRequired(),
       volunteer: yup
         .array()

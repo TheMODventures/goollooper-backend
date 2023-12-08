@@ -4,6 +4,11 @@ export enum EUserRole {
   serviceProvider = 3,
 }
 
+export enum UserRole {
+  user = 2,
+  serviceProvider = 3,
+}
+
 export enum EUserLocationType {
   global = "global",
   local = "local",
