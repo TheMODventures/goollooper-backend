@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose, { FilterQuery } from "mongoose";
 import { Request } from "express";
 import moment from "moment";
 import crypto from "crypto";
@@ -68,14 +68,25 @@ class AuthService {
   login = async (
     email: string,
     password: string,
-    role: EUserRole
+    role?: EUserRole
   ): Promise<ApiResponse> => {
     try {
+      let filter: FilterQuery<IUser> = {
+        email,
+      };
+      if (role) {
+        filter = {
+          ...filter,
+          role,
+        };
+      } else {
+        filter = {
+          ...filter,
+          $or: [{ role: EUserRole.user }, { role: EUserRole.serviceProvider }],
+        };
+      }
       let response = await this.userRepository.getOne<IUser>(
-        {
-          email: email,
-          role: role,
-        },
+        filter,
         "+password",
         undefined
         // [
