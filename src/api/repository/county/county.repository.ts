@@ -1,3 +1,5 @@
+import { FilterQuery } from "mongoose";
+
 import {
   ICounty,
   ICountyDoc,
@@ -13,4 +15,9 @@ export class CountyRepository
   constructor() {
     super(County);
   }
+
+  getOneByFilter = async (filter: FilterQuery<ICounty>) => {
+    const response = await this.model.findOne<ICounty>(filter);
+    return response;
+  };
 }

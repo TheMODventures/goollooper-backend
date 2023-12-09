@@ -1,3 +1,5 @@
+import multer from "multer";
+
 import { Validation } from "../../middleware/validation.middleware";
 import StateController from "../controllers/state/state.controller";
 import BaseRoutes from "./base.route";
@@ -9,7 +11,7 @@ class StateRoutes extends BaseRoutes {
   constructor() {
     super();
     this.stateController = new StateController();
-    this.validateRequest = new Validation().reporter(true, "auth");
+    this.validateRequest = new Validation().reporter(true, "location");
     this.initializeRoutes();
   }
 
@@ -19,15 +21,21 @@ class StateRoutes extends BaseRoutes {
       this.validateRequest,
       this.stateController.index
     );
-    // this.router.get(
-    //   "/cities",
+    this.router.get(
+      "/cities",
+      this.validateRequest,
+      this.stateController.getCities
+    );
+    this.router.get(
+      "/counties",
+      this.validateRequest,
+      this.stateController.getCounties
+    );
+    // this.router.post(
+    //   "/populate-data",
+    //   multer().single("file"),
     //   this.validateRequest,
-    //   this.StateController.getCities
-    // );
-    // this.router.get(
-    //   "/counties",
-    //   this.validateRequest,
-    //   this.StateController.getCounties
+    //   this.stateController.populateData
     // );
   }
 }

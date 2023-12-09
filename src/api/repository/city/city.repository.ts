@@ -1,3 +1,5 @@
+import { FilterQuery } from "mongoose";
+
 import { ICity, ICityDoc } from "../../../database/interfaces/city.interface";
 import { City } from "../../../database/models/city.model";
 import { BaseRepository } from "../base.repository";
@@ -10,4 +12,9 @@ export class CityRepository
   constructor() {
     super(City);
   }
+
+  getOneByFilter = async (filter: FilterQuery<ICity>) => {
+    const response = await this.model.findOne<ICity>(filter);
+    return response;
+  };
 }
