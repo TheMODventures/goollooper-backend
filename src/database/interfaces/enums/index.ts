@@ -31,3 +31,27 @@ export enum Subscription {
   bsl = "bsl",
   iw = "iw",
 }
+
+export enum Days {
+  monday = "monday",
+  tuesday = "tuesday",
+  wednesday = "wednesday",
+  thursday = "thursday",
+  friday = "friday",
+  saturday = "saturday",
+  sunday = "sunday",
+}
+
+export enum Repetition {
+  none = "none",
+  day = "day",
+  week = "week",
+  month = "month",
+  year = "year",
+  custom = "custom",
+}
+
+export enum RepetitionEvery {
+  week = "week",
+  month = "month",
+}

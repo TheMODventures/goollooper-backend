@@ -1,6 +1,12 @@
 import { isObjectIdOrHexString } from "mongoose";
 import * as yup from "yup";
-import { EUserLocationType, UserRole } from "../database/interfaces/enums";
+import {
+  Days,
+  EUserLocationType,
+  Repetition,
+  RepetitionEvery,
+  UserRole,
+} from "../database/interfaces/enums";
 
 const paramRule = {
   id: yup
@@ -101,6 +107,73 @@ const updateRule = yup.object().shape({
             isSelected: yup.string(),
           })
         )
+        .notRequired(),
+      schedule: yup
+        .object()
+        .shape({
+          startDate: yup
+            .string()
+            .matches(
+              /^(19|20)\d{2}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/,
+              "Please enter a valid start date in the format YYYY-MM-DD"
+            )
+            .required("Start Date is required"),
+          endDate: yup
+            .string()
+            .matches(
+              /^(19|20)\d{2}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/,
+              "Please enter a valid end date in the format YYYY-MM-DD"
+            )
+            .notRequired(),
+          slots: yup
+            .array()
+            .min(1)
+            .of(
+              yup.object().shape({
+                startTime: yup
+                  .string()
+                  .matches(
+                    /^([01]\d|2[0-3]):[0-5]\d$/,
+                    "Invalid start time format. Please use HH:mm format."
+                  )
+                  .required("Start time is required"),
+                endTime: yup
+                  .string()
+                  .matches(
+                    /^([01]\d|2[0-3]):[0-5]\d$/,
+                    "Invalid end time format. Please use HH:mm format."
+                  )
+                  .required("End time is required"),
+              })
+            )
+            .required(),
+          repetition: yup
+            .string()
+            .oneOf([
+              ...Object.values(Repetition).map((value) => value?.toString()),
+            ])
+            .required(),
+          repeatsAfter: yup.string().notRequired(),
+          repeatsEvery: yup
+            .string()
+            .oneOf([
+              ...Object.values(RepetitionEvery).map((value) =>
+                value?.toString()
+              ),
+            ])
+            .notRequired(),
+          repeatsOn: yup
+            .array()
+            .of(
+              yup
+                .string()
+                .oneOf([
+                  ...Object.values(Days).map((value) => value?.toString()),
+                ])
+            )
+            .notRequired(),
+          occurrence: yup.string().notRequired(),
+        })
         .notRequired(),
       zipCode: yup
         .array()

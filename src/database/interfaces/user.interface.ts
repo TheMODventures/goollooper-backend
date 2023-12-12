@@ -1,7 +1,13 @@
 import { Moment } from "moment";
 import mongoose, { Document } from "mongoose";
 
-import { EUserLocationType, EUserRole } from "./enums";
+import {
+  Days,
+  EUserLocationType,
+  EUserRole,
+  Repetition,
+  RepetitionEvery,
+} from "./enums";
 
 interface Location {
   type: string;
@@ -25,6 +31,22 @@ interface Service {
 interface ZipCode {
   code: string;
   isSelected: boolean;
+}
+
+interface Schedule {
+  startDate: string;
+  endDate: string;
+  slots: [
+    {
+      startTime: string;
+      endTime: string;
+    }
+  ];
+  repetition: Repetition;
+  repeatsAfter: string;
+  repeatsEvery: RepetitionEvery;
+  repeatsOn: Days;
+  occurrence: string;
 }
 
 export interface IUser {
@@ -80,6 +102,10 @@ export interface IUser {
   createdAt?: Date | Moment;
   updatedAt?: Date | Moment;
   deletedAt?: Date | Moment | null;
+}
+
+export interface IUserWithSchedule extends IUser {
+  schedule?: Schedule;
 }
 
 export interface IUserDoc extends IUser, Document {
