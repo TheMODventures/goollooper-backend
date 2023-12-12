@@ -50,5 +50,5 @@ export interface IBaseRepository<J, D> {
   getDataByAggregate<T>(
     pipeline?: PipelineStage[],
     options?: AggregateOptions
-  ): Promise<T | null>;
+  ): Promise<T[] | []>;
 }

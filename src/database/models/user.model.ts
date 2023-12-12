@@ -71,6 +71,13 @@ const userModel: Schema = new Schema(
         isSelected: { type: Boolean, default: false },
       },
     ],
+    selectedLocation: {
+      type: { type: String, enum: ["Point"], default: "Point" },
+      coordinates: { type: [Number, Number], default: [0, 0] },
+      state: { type: String, default: null },
+      city: { type: String, default: null },
+      county: { type: String, default: null },
+    },
     zipCode: [
       {
         code: { type: String, default: null },
@@ -112,6 +119,7 @@ const userModel: Schema = new Schema(
 );
 
 userModel.index({ _id: 1, email: 1, role: 1 });
+userModel.index({ selectedLocation: "2dsphere" });
 
 userModel.pre("save", async function (next) {
   // Only hash the password if it has been modified (or is new)
@@ -136,3 +144,4 @@ userModel.pre("save", async function (next) {
 });
 
 export const User = mongoose.model<IUserDoc>("Users", userModel);
+User.ensureIndexes();

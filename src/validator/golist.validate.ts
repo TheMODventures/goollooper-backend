@@ -73,17 +73,50 @@ const updateRule = yup.object().shape({
             }
           )
         )
-        .notRequired(),
+        .required(),
       taskInterests: yup.array().of(paramRule.id).notRequired(),
     })
     .noUnknown(),
   query: yup.object().noUnknown(),
 });
+const getNearestServiceProvidersRule = yup.object().shape({
+  params: yup.object().shape({}).noUnknown(),
+  body: yup.object().shape({}).noUnknown(),
+  query: yup
+    .object()
+    .shape({
+      page: yup.string().required(),
+      limit: yup.string().notRequired(),
+      zipCode: yup.string(),
+      latitude: yup.string(),
+      longitude: yup.string(),
+      service: paramRule.id.required(),
+      subscription: yup.string().notRequired(),
+    })
+    .test(
+      "zipCodeOrCoordinates",
+      "Either zipCode or both latitude and longitude are required",
+      function (value) {
+        const { zipCode, latitude, longitude } = value;
 
+        if (zipCode && (latitude || longitude)) {
+          return this.createError({
+            message:
+              "Either zipCode or both latitude and longitude are required",
+            path: "zipCode",
+          });
+        }
+
+        return true;
+      }
+    )
+    .noUnknown(),
+});
 export = {
   "/": indexRule,
   "/create": createRule,
   "/update": updateRule,
   "/show": showRule,
   "/delete": showRule,
+  "/nearest-service-provider": getNearestServiceProvidersRule,
 };

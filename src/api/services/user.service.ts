@@ -1,4 +1,4 @@
-import mongoose, { FilterQuery } from "mongoose";
+import mongoose, { FilterQuery, PipelineStage } from "mongoose";
 
 import {
   Days,
@@ -128,6 +128,7 @@ class UserService {
     _id: string | mongoose.Types.ObjectId,
     dataset: Partial<IUserWithSchedule>
   ): Promise<ApiResponse> => {
+    console.log(dataset);
     try {
       // checking if subscription is bsp then location should be local
       if (dataset.subscription?.subscription) {
@@ -174,6 +175,9 @@ class UserService {
               "Provide all location details"
             );
           }
+          dataset.location[i].coordinates?.map((e) => parseFloat(e.toString()));
+          if (element.isSelected)
+            dataset.selectedLocation = dataset.location[i];
         }
       }
 
@@ -489,6 +493,7 @@ class UserService {
         response
       );
     } catch (error) {
+      console.log(error);
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   };
@@ -534,6 +539,28 @@ class UserService {
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
+  };
+
+  getDataByAggregate = async (
+    page: number,
+    limit = 10,
+    pipeline?: PipelineStage[]
+  ) => {
+    const countPipeline = (await this.userRepository.getDataByAggregate([
+      ...(pipeline ?? []),
+      { $count: "totalCount" },
+    ])) as any[];
+    const response = await this.userRepository.getDataByAggregate([
+      ...(pipeline ?? []),
+      { $sort: { distance: -1 } },
+      { $skip: (page - 1) * limit },
+      { $limit: limit },
+    ]);
+    return ResponseHelper.sendSuccessResponse(
+      SUCCESS_DATA_LIST_PASSED,
+      response,
+      countPipeline.length > 0 ? countPipeline[0].totalCount : 0
+    );
   };
 }
 

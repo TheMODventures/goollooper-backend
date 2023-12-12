@@ -74,6 +74,7 @@ export interface IUser {
   };
   locationType?: EUserLocationType;
   location?: Location[];
+  selectedLocation?: Location;
   zipCode?: ZipCode[];
   visuals?: string[];
   company?: {

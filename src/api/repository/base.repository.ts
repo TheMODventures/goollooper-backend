@@ -134,8 +134,8 @@ export abstract class BaseRepository<J, D> implements IBaseRepository<J, D> {
   async getDataByAggregate<T>(
     pipeline?: PipelineStage[],
     options?: AggregateOptions
-  ): Promise<T | null> {
+  ): Promise<T[] | []> {
     const result = await this.model.aggregate(pipeline, options).exec();
-    return result as T | null;
+    return result as T[] | [];
   }
 }

@@ -12,6 +12,9 @@ import {
   SUCCESS_DATA_UPDATION_PASSED,
 } from "../../constant";
 import { FilterQuery, PopulateOptions } from "mongoose";
+import UserService from "./user.service";
+import { GoogleMapHelper } from "../helpers/googleMapApi.helper";
+import { ObjectId } from "bson";
 
 class GolistService {
   private golistRepository: GolistRepository;
@@ -116,6 +119,91 @@ class GolistService {
         return ResponseHelper.sendResponse(404);
       }
       return ResponseHelper.sendSuccessResponse(SUCCESS_DATA_DELETION_PASSED);
+    } catch (error) {
+      return ResponseHelper.sendResponse(500, (error as Error).message);
+    }
+  };
+
+  getNearestServiceProviders = async (
+    page: number,
+    limit = 10,
+    userId: string | undefined,
+    serviceId: string | ObjectId,
+    subscription?: string | ObjectId,
+    coordinates?: Number[],
+    zipCode?: string | null
+  ) => {
+    try {
+      if (zipCode) {
+        // coordinates = []
+        const googleCoordinates = (await GoogleMapHelper.searchLocation(
+          zipCode,
+          ""
+        )) as Number[] | null;
+        if (!googleCoordinates)
+          return ResponseHelper.sendResponse(404, "postal code is invalid");
+        coordinates = googleCoordinates;
+      }
+      const match = {
+        _id: { $ne: new ObjectId(userId) },
+        isDeleted: false,
+        role: 3,
+        $or: [
+          { "volunteer.service": new ObjectId(serviceId) },
+          { "volunteer.subService": new ObjectId(serviceId) },
+        ],
+
+        // isActive: true,
+        // isVerified: true,
+      } as any;
+      if (subscription) {
+        match["subscription.subscription"] = subscription;
+      }
+      const users = await new UserService().getDataByAggregate(page, limit, [
+        // {
+        //   $geoNear: {
+        //     near: {
+        //       type: "Point",
+        //       coordinates: coordinates as [number, number],
+        //     },
+        //     distanceField: "distance",
+        //     spherical: true,
+        //     maxDistance: 10000,
+        //   },
+        // },
+        {
+          $match: match,
+        },
+        {
+          $lookup: {
+            as: "subscription",
+            from: "subscriptions",
+            localField: "subscription.subscription",
+            foreignField: "_id",
+          },
+        },
+        {
+          $addFields: {
+            subscription: { $first: "$subscription" },
+          },
+        },
+        {
+          $project: {
+            _id: 1,
+            username: 1,
+            firstName: 1,
+            lastName: 1,
+            email: 1,
+            phone: 1,
+            profileImage: 1,
+            subscriptionName: {
+              $ifNull: ["$subscription.name", null],
+            },
+            distance: 1,
+          },
+        },
+      ]);
+      return users;
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
