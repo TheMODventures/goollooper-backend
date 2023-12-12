@@ -26,4 +26,5 @@ export const {
   AWS_REGION,
   AWS_ENDPOINT,
   AWS_SUB_FOLDER,
+  GOOGLE_MAP_KEY,
 } = process.env;

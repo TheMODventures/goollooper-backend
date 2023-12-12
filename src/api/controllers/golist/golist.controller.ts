@@ -65,5 +65,29 @@ class GolistController {
     const response = await this.golistService.delete(id);
     return res.status(response.code).json(response);
   };
+
+  getNearestServiceProviders = async (req: Request, res: Response) => {
+    const {
+      limit,
+      page,
+      latitude,
+      longitude,
+      zipCode,
+      service = "",
+      subscription = "",
+    } = req.query;
+    const limitNow = limit ? limit : 10;
+    const coordinates = [Number(longitude), Number(latitude)];
+    const response = await this.golistService.getNearestServiceProviders(
+      Number(page),
+      Number(limitNow),
+      req.locals.auth?.userId,
+      service.toString(),
+      subscription?.toString(),
+      coordinates,
+      zipCode?.toString()
+    );
+    return res.status(response.code).json(response);
+  };
 }
 export default GolistController;

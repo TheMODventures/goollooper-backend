@@ -38,6 +38,12 @@ class GolistRoutes extends BaseRoutes {
       this.validateRequest,
       this.golistController.delete
     );
+
+    this.router.get(
+      "/nearest-service-provider",
+      this.validateRequest,
+      this.golistController.getNearestServiceProviders
+    );
   }
 }
 
