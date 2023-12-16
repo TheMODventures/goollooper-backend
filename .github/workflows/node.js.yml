@@ -1,0 +1,40 @@
+name: Node.js CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: self-hosted
+
+    strategy:
+      matrix:
+        node-version: [20.x]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # - name: Create package-lock.json
+      #   run: echo "{}" > package-lock.json
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "npm"
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Create .env file
+        run: echo "${{secrets.PROD_ENV}}" > .env
+
+      - name: Build
+        run: npm run build
+
+      - name: Restart Server
+        run: pm2 restart apis-goolooper
