@@ -18,6 +18,7 @@ class GolistController {
       isDeleted: false,
       $or: [{ deletedAt: { $exists: false } }, { deletedAt: { $eq: null } }],
     };
+    if (type) filter.type = type;
     const response = await this.golistService.index(
       Number(page),
       Number(limitNow),
@@ -73,7 +74,7 @@ class GolistController {
       latitude,
       longitude,
       zipCode,
-      service = "",
+      taskInterests = [],
       subscription = "",
     } = req.query;
     const limitNow = limit ? limit : 10;
@@ -82,7 +83,7 @@ class GolistController {
       Number(page),
       Number(limitNow),
       req.locals.auth?.userId,
-      service.toString(),
+      taskInterests as string[],
       subscription?.toString(),
       coordinates,
       zipCode?.toString()

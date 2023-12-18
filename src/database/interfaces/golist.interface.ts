@@ -8,6 +8,7 @@ export interface IGolist extends JwtToken {
   serviceProviders: mongoose.Types.ObjectId[];
   taskInterests?: mongoose.Types.ObjectId[];
   isDeleted?: boolean;
+  type: Number;
   createdAt?: Date | Moment;
   updatedAt?: Date | Moment;
   deletedAt?: Date | Moment | null;

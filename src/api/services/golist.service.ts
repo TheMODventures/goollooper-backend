@@ -128,7 +128,7 @@ class GolistService {
     page: number,
     limit = 10,
     userId: string | undefined,
-    serviceId: string | ObjectId,
+    serviceId?: string[],
     subscription?: string | ObjectId,
     coordinates?: Number[],
     zipCode?: string | null
@@ -148,10 +148,6 @@ class GolistService {
         _id: { $ne: new ObjectId(userId) },
         isDeleted: false,
         role: 3,
-        $or: [
-          { "volunteer.service": new ObjectId(serviceId) },
-          { "volunteer.subService": new ObjectId(serviceId) },
-        ],
 
         // isActive: true,
         // isVerified: true,
@@ -159,18 +155,33 @@ class GolistService {
       if (subscription) {
         match["subscription.subscription"] = subscription;
       }
+      if (serviceId && serviceId?.length > 0) {
+        const services = serviceId.map((e: string) => new ObjectId(e));
+        match["$or"] = [
+          {
+            "volunteer.service": {
+              $in: services,
+            },
+          },
+          {
+            "volunteer.subService": {
+              $in: services,
+            },
+          },
+        ];
+      }
       const users = await new UserService().getDataByAggregate(page, limit, [
-        // {
-        //   $geoNear: {
-        //     near: {
-        //       type: "Point",
-        //       coordinates: coordinates as [number, number],
-        //     },
-        //     distanceField: "distance",
-        //     spherical: true,
-        //     maxDistance: 10000,
-        //   },
-        // },
+        {
+          $geoNear: {
+            near: {
+              type: "Point",
+              coordinates: coordinates as [number, number],
+            },
+            distanceField: "distance",
+            spherical: true,
+            maxDistance: 10000,
+          },
+        },
         {
           $match: match,
         },
