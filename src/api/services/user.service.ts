@@ -475,7 +475,19 @@ class UserService {
         dataset.completePhone = dataset.phoneCode + dataset.phone;
       }
 
-      return ResponseHelper.sendSuccessResponse(SUCCESS_DATA_UPDATION_PASSED);
+      const response = await this.userRepository.updateById<IUserWithSchedule>(
+        _id as string,
+        dataset
+      );
+
+      if (response === null) {
+        return ResponseHelper.sendResponse(404);
+      }
+
+      return ResponseHelper.sendSuccessResponse(
+        SUCCESS_DATA_UPDATION_PASSED,
+        response
+      );
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
