@@ -1,6 +1,7 @@
 import { isObjectIdOrHexString } from "mongoose";
 import * as yup from "yup";
 import UserService from "../api/services/user.service";
+import { EList } from "../database/interfaces/enums";
 const userService = new UserService();
 const paramRule = {
   id: yup
@@ -30,6 +31,10 @@ const createRule = yup.object().shape({
           )
         )
         .required(),
+      type: yup
+        .number()
+        .oneOf([...Object.values(EList).map((value) => Number(value))])
+        .required(),
       taskInterests: yup.array().of(paramRule.id).notRequired(),
     })
     .noUnknown(),
@@ -46,6 +51,10 @@ const indexRule = yup.object().shape({
       limit: yup.string().notRequired(),
       name: yup.string().notRequired(),
       title: yup.string().notRequired(),
+      type: yup
+        .string()
+        .oneOf([...Object.values(EList).map((value) => value.toString())])
+        .notRequired(),
     })
     .noUnknown(),
 });
@@ -90,7 +99,7 @@ const getNearestServiceProvidersRule = yup.object().shape({
       zipCode: yup.string(),
       latitude: yup.string(),
       longitude: yup.string(),
-      service: paramRule.id.required(),
+      taskInterests: yup.array().of(paramRule.id).notRequired(),
       subscription: yup.string().notRequired(),
     })
     .test(

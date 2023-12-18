@@ -55,3 +55,8 @@ export enum RepetitionEvery {
   week = "week",
   month = "month",
 }
+
+export enum EList {
+  goList = 1,
+  myList = 2,
+}

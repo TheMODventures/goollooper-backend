@@ -35,7 +35,7 @@ class UserRoutes extends BaseRoutes {
     this.router.use("/subscription", this.subscriptionRoutes.router);
     this.router.use("/user", this.profileRoutes.router);
     this.router.use("/location-data", this.stateRoutes.router);
-    this.router.use("/golist", this.golistRoutes.router);
+    this.router.use("/list", this.golistRoutes.router);
   }
 }
 

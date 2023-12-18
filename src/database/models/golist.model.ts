@@ -1,6 +1,7 @@
 import mongoose, { Schema } from "mongoose";
 
 import { IGolistDoc } from "../interfaces/golist.interface";
+import { EList } from "../interfaces/enums";
 
 const schemaOptions = {
   timestamps: true,
@@ -18,6 +19,11 @@ const golistModel: Schema = new Schema(
     title: {
       type: String,
       required: true,
+    },
+    type: {
+      type: Number,
+      required: true,
+      enum: EList,
     },
     serviceProviders: [
       {
