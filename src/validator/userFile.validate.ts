@@ -29,7 +29,7 @@ export const fieldValidationSchemas: Record<string, yup.Schema<any>> = {
             name: "size",
             message: "Profile Image size should be less than 10 MB",
             test: (value) =>
-              typeof value === "number" && value <= 1024 * 1024 * 10,
+              typeof value === "number" && value <= 1024 * 1024 * 10.1,
           }),
       })
     )
@@ -56,12 +56,12 @@ export const fieldValidationSchemas: Record<string, yup.Schema<any>> = {
         size: yup
           .number()
           .required()
-          //   .max(1024 * 1024 * 10) // 10 MB limit
+          //   .max(1024 * 1024 * 10.1) // 10 MB limit
           .test({
             name: "size",
             message: "gallery size should be less than 10 MB", // size must be less than or equal to 10
             test: (value) =>
-              typeof value === "number" && value <= 1024 * 1024 * 10,
+              typeof value === "number" && value <= 1024 * 1024 * 10.1,
           }),
       })
     )
@@ -94,7 +94,7 @@ export const fieldValidationSchemas: Record<string, yup.Schema<any>> = {
             name: "size",
             message: "visuals size should be less than 50 MB",
             test: (value) =>
-              typeof value === "number" && value <= 1024 * 1024 * 50,
+              typeof value === "number" && value <= 1024 * 1024 * 100.1,
           }),
       })
     )
@@ -121,12 +121,12 @@ export const fieldValidationSchemas: Record<string, yup.Schema<any>> = {
         size: yup
           .number()
           .required()
-          //   .max(1024 * 1024 * 10) // 10 MB limit
+          //   .max(1024 * 1024 * 10.1) // 10 MB limit
           .test({
             name: "size",
             message: "company logo size should be less than 10 MB", // size must be less than or equal to 10
             test: (value) =>
-              typeof value === "number" && value <= 1024 * 1024 * 10,
+              typeof value === "number" && value <= 1024 * 1024 * 10.1,
           }),
       })
     )
@@ -159,7 +159,7 @@ export const fieldValidationSchemas: Record<string, yup.Schema<any>> = {
             name: "size",
             message: "company resume size should be less than 10 MB",
             test: (value) =>
-              typeof value === "number" && value <= 1024 * 1024 * 10,
+              typeof value === "number" && value <= 1024 * 1024 * 10.1,
           }),
       })
     )
@@ -192,7 +192,7 @@ export const fieldValidationSchemas: Record<string, yup.Schema<any>> = {
             name: "size",
             message: "certificates size should be less than 10 MB",
             test: (value) =>
-              typeof value === "number" && value <= 1024 * 1024 * 10,
+              typeof value === "number" && value <= 1024 * 1024 * 10.1,
           }),
       })
     )
@@ -225,7 +225,7 @@ export const fieldValidationSchemas: Record<string, yup.Schema<any>> = {
             name: "size",
             message: "licenses size should be less than 10 MB",
             test: (value) =>
-              typeof value === "number" && value <= 1024 * 1024 * 10,
+              typeof value === "number" && value <= 1024 * 1024 * 10.1,
           }),
       })
     )
@@ -258,7 +258,7 @@ export const fieldValidationSchemas: Record<string, yup.Schema<any>> = {
             name: "size",
             message: "insurances size should be less than 10 MB",
             test: (value) =>
-              typeof value === "number" && value <= 1024 * 1024 * 10,
+              typeof value === "number" && value <= 1024 * 1024 * 10.1,
           }),
       })
     )
