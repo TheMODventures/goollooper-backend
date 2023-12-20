@@ -16,6 +16,7 @@ interface Location {
   city?: string;
   county?: string;
   isSelected: boolean;
+  readableLocation?: string;
 }
 
 interface Volunteer {

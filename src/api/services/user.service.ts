@@ -112,13 +112,14 @@ class UserService {
         $or: [{ deletedAt: { $exists: false } }, { deletedAt: { $eq: null } }],
       };
       const response = await this.userRepository.getOne<IUser>(filter);
+
       if (response === null) {
         return ResponseHelper.sendResponse(404);
       }
-      return ResponseHelper.sendSuccessResponse(
-        SUCCESS_DATA_SHOW_PASSED,
-        response
-      );
+
+      const schedules = await this.scheduleRepository.getAll({ user: _id });
+      const res = { ...response, schedule: schedules };
+      return ResponseHelper.sendSuccessResponse(SUCCESS_DATA_SHOW_PASSED, res);
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
@@ -128,7 +129,6 @@ class UserService {
     _id: string | mongoose.Types.ObjectId,
     dataset: Partial<IUserWithSchedule>
   ): Promise<ApiResponse> => {
-    console.log(dataset);
     try {
       // checking if subscription is bsp then location should be local
       if (dataset.subscription?.subscription) {
@@ -184,7 +184,7 @@ class UserService {
       // schedule creation
       if (dataset.schedule) {
         let schedule = dataset.schedule;
-        let noOfDays: number = 70;
+        let noOfDays: number = 60;
         const daysInWeek = 7;
         let startDate = new Date(schedule.startDate);
         const currentDate: Date = new Date();
@@ -436,7 +436,6 @@ class UserService {
                 new Date(schedule.startDate)
               );
               const repeatsAfter = schedule.repeatsAfter || 1; // Default to 1 if repeatsAfter is not provided
-              console.log("000-----");
 
               // Calculate the number of months needed based on the total number of days
               const totalMonths = Math.ceil(
@@ -488,12 +487,17 @@ class UserService {
         return ResponseHelper.sendResponse(404);
       }
 
+      let userResponse = await this.userRepository.getOne<IUser>({
+        _id: _id,
+      });
+      const schedules = await this.scheduleRepository.getAll({ user: _id });
+      const res = { ...userResponse, schedule: schedules };
+
       return ResponseHelper.sendSuccessResponse(
         SUCCESS_DATA_UPDATION_PASSED,
-        response
+        res
       );
     } catch (error) {
-      console.log(error);
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   };

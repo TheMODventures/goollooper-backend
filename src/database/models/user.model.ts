@@ -69,6 +69,7 @@ const userModel: Schema = new Schema(
         city: { type: String, default: null },
         county: { type: String, default: null },
         isSelected: { type: Boolean, default: false },
+        readableLocation: { type: String, default: null },
       },
     ],
     selectedLocation: {
@@ -77,6 +78,7 @@ const userModel: Schema = new Schema(
       state: { type: String, default: null },
       city: { type: String, default: null },
       county: { type: String, default: null },
+      readableLocation: { type: String, default: null },
     },
     zipCode: [
       {
