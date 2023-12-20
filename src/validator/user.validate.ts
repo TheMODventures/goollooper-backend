@@ -105,6 +105,7 @@ const updateRule = yup.object().shape({
             city: yup.string().notRequired(),
             county: yup.string().notRequired(),
             isSelected: yup.string(),
+            readableLocation: yup.string(),
           })
         )
         .notRequired(),

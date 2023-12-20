@@ -7,6 +7,7 @@ import { compare } from "bcrypt";
 import { EUserRole } from "../../database/interfaces/enums";
 import { IUser, IUserDoc } from "../../database/interfaces/user.interface";
 import { UserRepository } from "../repository/user/user.repository";
+import { ScheduleRepository } from "../repository/schedule/schedule.repository";
 import {
   ERROR_LOGIN,
   ERROR_OLD_PASSWORD,
@@ -25,10 +26,12 @@ import TokenService from "./token.service";
 class AuthService {
   private tokenService: TokenService;
   private userRepository: UserRepository;
+  private scheduleRepository: ScheduleRepository;
 
   constructor() {
     this.userRepository = new UserRepository();
     this.tokenService = new TokenService();
+    this.scheduleRepository = new ScheduleRepository();
   }
 
   myDetail = async (userId: string): Promise<IUser | null> => {
@@ -103,6 +106,9 @@ class AuthService {
       }
 
       const userId = new mongoose.Types.ObjectId(response._id!);
+
+      const schedules = await this.scheduleRepository.getAll({ user: userId });
+      const res = { ...response, schedule: schedules };
       const tokenResponse = await this.tokenService.create(
         userId,
         response.role
@@ -111,7 +117,7 @@ class AuthService {
       return ResponseHelper.sendSignTokenResponse(
         200,
         SUCCESS_LOGIN_PASSED,
-        response,
+        res,
         tokenResponse
       );
     } catch (error) {
