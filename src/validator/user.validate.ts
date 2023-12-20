@@ -53,10 +53,10 @@ const updateRule = yup.object().shape({
   body: yup
     .object()
     .shape({
-      firstName: yup.string().required(),
+      firstName: yup.string().notRequired(),
       lastName: yup.string().notRequired(),
-      username: yup.string().min(3).max(20).required(),
-      gender: yup.string().required(),
+      username: yup.string().min(3).max(20).notRequired(),
+      gender: yup.string().notRequired(),
       age: yup.string().notRequired(),
       countryCode: yup.string().notRequired(),
       phoneCode: yup.string().notRequired(),
