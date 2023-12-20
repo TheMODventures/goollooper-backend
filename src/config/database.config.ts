@@ -25,6 +25,7 @@ export class Database {
       family: 4, // Use IPv4, skip trying IPv6
     };
     mongoose
+      .set("strictPopulate", false)
       .connect(mangoUrl, options)
       .then((res) => {
         console.log("db connected");
