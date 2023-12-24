@@ -20,6 +20,11 @@ class GolistRoutes extends BaseRoutes {
       this.validateRequest,
       this.golistController.create
     );
+    this.router.get(
+      "/show/my-list",
+      // this.validateRequest,
+      this.golistController.showMyList
+    );
 
     this.router.get(
       "/show/:id",
