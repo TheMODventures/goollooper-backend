@@ -1,8 +1,11 @@
 import { isObjectIdOrHexString } from "mongoose";
 import * as yup from "yup";
+
 import UserService from "../api/services/user.service";
 import { EList } from "../database/interfaces/enums";
+
 const userService = new UserService();
+
 const paramRule = {
   id: yup
     .string()
@@ -18,9 +21,19 @@ const createRule = yup.object().shape({
     .object()
     .shape({
       title: yup.string().required(),
+      phoneContacts: yup.array().when(["type"], {
+        is: (type: number) => type == EList.myList,
+        then: (schema) => schema.required(),
+        otherwise: (schema) => schema.nullable(),
+      }),
       serviceProviders: yup
         .array()
         .min(1)
+        .when(["type"], {
+          is: (type: number) => type == EList.goList,
+          then: (schema) => schema.required(),
+          otherwise: (schema) => schema.nullable(),
+        })
         .of(
           paramRule.id.test(
             "not exist",
@@ -29,8 +42,7 @@ const createRule = yup.object().shape({
               return (await userService.show(value)).status;
             }
           )
-        )
-        .required(),
+        ),
       type: yup
         .number()
         .oneOf([...Object.values(EList).map((value) => Number(value))])
