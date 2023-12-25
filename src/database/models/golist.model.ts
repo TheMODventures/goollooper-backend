@@ -1,4 +1,6 @@
 import mongoose, { Schema } from "mongoose";
+import mongoosePaginate from "mongoose-paginate-v2";
+import aggregatePaginate from "mongoose-aggregate-paginate-v2";
 
 import { IGolistDoc } from "../interfaces/golist.interface";
 import { EList } from "../interfaces/enums";
@@ -29,6 +31,7 @@ const golistModel: Schema = new Schema(
       {
         type: Schema.Types.ObjectId,
         required: true,
+        ref: "User",
       },
     ],
     taskInterests: [
@@ -42,5 +45,7 @@ const golistModel: Schema = new Schema(
   schemaOptions
 );
 golistModel.index({ _id: 1, title: 1 });
+golistModel.plugin(mongoosePaginate);
+golistModel.plugin(aggregatePaginate);
 
 export const Golist = mongoose.model<IGolistDoc>("Golist", golistModel);

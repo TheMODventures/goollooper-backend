@@ -1,12 +1,12 @@
 import { FilterQuery } from "mongoose";
 import { Request, Response } from "express";
 
-import { IGolist } from "../../../database/interfaces/golist.interface";
 import GolistService from "../../services/golist.service";
+import UserService from "../../services/user.service";
 import { EList } from "../../../database/interfaces/enums";
 import { IUser } from "../../../database/interfaces/user.interface";
-import UserService from "../../services/user.service";
-
+import { IGolist } from "../../../database/interfaces/golist.interface";
+import { ModelHelper } from "../../helpers/model.helper";
 class GolistController {
   protected golistService: GolistService;
   protected userService: UserService;
@@ -72,16 +72,12 @@ class GolistController {
   show = async (req: Request, res: Response) => {
     const { id } = req.params;
     const response = await this.golistService.show(id, [
-      {
-        path: "serviceProviders",
-        model: "Users",
-        select: "username firstName lastName email phone",
-      },
-      {
-        path: "taskInterests",
-        model: "Service",
-        // select: "username firstName lastName email phone",
-      },
+      ModelHelper.populateData(
+        "serviceProviders",
+        ModelHelper.userSelect,
+        "Users"
+      ),
+      ModelHelper.populateData("taskInterests"),
     ]);
     return res.status(response.code).json(response);
   };
@@ -96,16 +92,12 @@ class GolistController {
     const response = await this.golistService.show(
       data.data[0]._id.toString(),
       [
-        {
-          path: "serviceProviders",
-          model: "Users",
-          select: "username firstName lastName email phone",
-        },
-        {
-          path: "taskInterests",
-          model: "Service",
-          // select: "username firstName lastName email phone",
-        },
+        ModelHelper.populateData(
+          "serviceProviders",
+          ModelHelper.userSelect,
+          "Users"
+        ),
+        ModelHelper.populateData("taskInterests"),
       ]
     );
     return res.status(response.code).json(response);
@@ -145,6 +137,16 @@ class GolistController {
       subscription?.toString(),
       coordinates,
       zipCode?.toString()
+    );
+    return res.status(response.code).json(response);
+  };
+
+  shareToMyList = async (req: Request, res: Response) => {
+    const { serviceProviderId, myList } = req.body;
+    const response = await this.golistService.shareToMyList(
+      req.locals.auth?.userId as string,
+      serviceProviderId,
+      myList
     );
     return res.status(response.code).json(response);
   };

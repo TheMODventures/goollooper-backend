@@ -100,6 +100,30 @@ const updateRule = yup.object().shape({
     .noUnknown(),
   query: yup.object().noUnknown(),
 });
+
+const shareRule = yup.object().shape({
+  params: yup.object().shape({}).noUnknown(),
+  body: yup
+    .object()
+    .shape({
+      serviceProviderId: paramRule.id,
+      myList: yup
+        .array()
+        .of(
+          paramRule.id.test(
+            "not exist",
+            "user not exist",
+            async (value: string) => {
+              return (await userService.show(value)).status;
+            }
+          )
+        )
+        .required(),
+    })
+    .noUnknown(),
+  query: yup.object().noUnknown(),
+});
+
 const getNearestServiceProvidersRule = yup.object().shape({
   params: yup.object().shape({}).noUnknown(),
   body: yup.object().shape({}).noUnknown(),
@@ -140,4 +164,5 @@ export = {
   "/show": showRule,
   "/delete": showRule,
   "/nearest-service-provider": getNearestServiceProvidersRule,
+  "/share": shareRule,
 };
