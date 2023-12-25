@@ -49,6 +49,12 @@ class GolistRoutes extends BaseRoutes {
       this.validateRequest,
       this.golistController.getNearestServiceProviders
     );
+
+    this.router.post(
+      "/share",
+      this.validateRequest,
+      this.golistController.shareToMyList
+    );
   }
 }
 

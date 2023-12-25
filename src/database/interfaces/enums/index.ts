@@ -60,3 +60,8 @@ export enum EList {
   goList = 1,
   myList = 2,
 }
+
+export enum NOTIFICATION_TYPES {
+  SHARE_PROVIDER = 1,
+  FRIEND_REQUEST = 2,
+}

@@ -1,7 +1,7 @@
-import {
-  IGolist,
-  IGolistDoc,
-} from "../../database/interfaces/golist.interface";
+import { FilterQuery, PopulateOptions } from "mongoose";
+import { ObjectId } from "bson";
+
+import { IGolist } from "../../database/interfaces/golist.interface";
 import { GolistRepository } from "../repository/golist/golist.repository";
 import { ResponseHelper } from "../helpers/reponseapi.helper";
 import {
@@ -11,16 +11,19 @@ import {
   SUCCESS_DATA_SHOW_PASSED,
   SUCCESS_DATA_UPDATION_PASSED,
 } from "../../constant";
-import { FilterQuery, PopulateOptions } from "mongoose";
 import UserService from "./user.service";
 import { GoogleMapHelper } from "../helpers/googleMapApi.helper";
-import { ObjectId } from "bson";
+import { NotificationRepository } from "../repository/notification/notification.repository";
+import { INotification } from "../../database/interfaces/notification.interface";
+import { EUserRole, NOTIFICATION_TYPES } from "../../database/interfaces/enums";
 
 class GolistService {
   private golistRepository: GolistRepository;
+  private notificationRepository: NotificationRepository;
 
   constructor() {
     this.golistRepository = new GolistRepository();
+    this.notificationRepository = new NotificationRepository();
   }
   index = async (
     page: number,
@@ -29,18 +32,19 @@ class GolistService {
   ): Promise<ApiResponse> => {
     try {
       const getDocCount = await this.golistRepository.getCount(filter);
-      const response = await this.golistRepository.getAll<IGolist>(
-        filter,
-        "",
-        "",
-        {
-          createdAt: "desc",
-        },
-        undefined,
-        true,
-        page,
-        limit
-      );
+      const response =
+        await this.golistRepository.getAllWithPagination<IGolist>(
+          filter,
+          "",
+          "",
+          {
+            createdAt: "desc",
+          },
+          undefined,
+          true,
+          page,
+          limit
+        );
       return ResponseHelper.sendSuccessResponse(
         SUCCESS_DATA_LIST_PASSED,
         response,
@@ -147,7 +151,7 @@ class GolistService {
       const match = {
         _id: { $ne: new ObjectId(userId) },
         isDeleted: false,
-        role: 3,
+        role: EUserRole.serviceProvider,
 
         // isActive: true,
         // isVerified: true,
@@ -218,6 +222,27 @@ class GolistService {
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
+  };
+
+  shareToMyList = async (
+    sender: string,
+    serviceProviderId: string,
+    myList: string[]
+  ): Promise<ApiResponse> => {
+    const list = myList.map((e) => {
+      return {
+        sender,
+        receiver: e,
+        type: NOTIFICATION_TYPES.SHARE_PROVIDER,
+        content: "#sender Shared A Service Provider",
+        data: { serviceProvider: new ObjectId(serviceProviderId) },
+      } as INotification;
+    });
+    const result = await this.notificationRepository.createMany(list);
+    return ResponseHelper.sendSuccessResponse(
+      SUCCESS_DATA_INSERTION_PASSED,
+      result
+    );
   };
 }
 
