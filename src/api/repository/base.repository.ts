@@ -9,6 +9,7 @@ import mongoose, {
 } from "mongoose";
 
 import { IBaseRepository } from "./base.repository.interface";
+import { PaginationHelper } from "../helpers/pagination.helper";
 
 export abstract class BaseRepository<J, D> implements IBaseRepository<J, D> {
   public readonly model: Model<D>;
@@ -137,5 +138,49 @@ export abstract class BaseRepository<J, D> implements IBaseRepository<J, D> {
   ): Promise<T[] | []> {
     const result = await this.model.aggregate(pipeline, options).exec();
     return result as T[] | [];
+  }
+
+  async getAllWithPagination<T>(
+    filter?: FilterQuery<T>,
+    projectField?: string | ProjectionType<T>,
+    select?: string,
+    sort?: QueryOptions<T>,
+    populate?: PopulateOptions | (PopulateOptions | string)[],
+    lean?: boolean,
+    page?: number,
+    limit?: number
+  ): Promise<[] | T[] | any> {
+    const result = await PaginationHelper.getMongoosePaginatedData({
+      model: this.model,
+      query: filter,
+      populate,
+      page,
+      limit,
+      select,
+      sort,
+    });
+    return result;
+  }
+
+  async getAllWithAggregatePagination<T>(
+    pipeline?: PipelineStage[],
+    projectField?: string | ProjectionType<T>,
+    select?: string,
+    sort?: QueryOptions<T>,
+    populate?: PopulateOptions | (PopulateOptions | string)[],
+    lean?: boolean,
+    page?: number,
+    limit?: number
+  ): Promise<[] | T[] | any> {
+    const result = await PaginationHelper.getMongooseAggregatePaginatedData({
+      model: this.model,
+      query: pipeline,
+      populate,
+      page,
+      limit,
+      select,
+      sort,
+    });
+    return result;
   }
 }

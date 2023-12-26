@@ -51,4 +51,15 @@ export interface IBaseRepository<J, D> {
     pipeline?: PipelineStage[],
     options?: AggregateOptions
   ): Promise<T[] | []>;
+
+  getAllWithPagination<T>(
+    filter?: FilterQuery<T>,
+    projectField?: string,
+    select?: string,
+    sort?: QueryOptions<T>,
+    populate?: PopulateOptions | (PopulateOptions | string)[],
+    lean?: boolean,
+    page?: number,
+    limit?: number
+  ): Promise<T[] | []>;
 }

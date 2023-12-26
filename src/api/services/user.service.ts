@@ -176,6 +176,7 @@ class UserService {
             );
           }
           dataset.location[i].coordinates?.map((e) => parseFloat(e.toString()));
+          dataset.location[i].type ??= "Point";
           if (element.isSelected)
             dataset.selectedLocation = dataset.location[i];
         }
@@ -498,6 +499,7 @@ class UserService {
         res
       );
     } catch (error) {
+      console.log(error);
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   };
