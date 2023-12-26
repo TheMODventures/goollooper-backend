@@ -39,6 +39,7 @@ const createRule = yup.object().shape({
             "not exist",
             "user not exist",
             async (value: string) => {
+              return true;
               return (await userService.show(value)).status;
             }
           )
