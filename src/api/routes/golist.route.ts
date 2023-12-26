@@ -15,11 +15,13 @@ class GolistRoutes extends BaseRoutes {
 
   protected routes(): void {
     this.router.get("/", this.validateRequest, this.golistController.index);
+
     this.router.post(
       "/create",
       this.validateRequest,
       this.golistController.create
     );
+
     this.router.get(
       "/show/my-list",
       // this.validateRequest,

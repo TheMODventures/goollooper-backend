@@ -7,6 +7,7 @@ import ProfileRoutes from "./profile.route";
 import StateRoutes from "./state.route";
 import GolistRoutes from "./golist.route";
 import NotificationRoutes from "./notification.route";
+import TaskRoutes from "./task.route";
 
 class UserRoutes extends BaseRoutes {
   private authRoutes: AuthRoutes;
@@ -17,6 +18,7 @@ class UserRoutes extends BaseRoutes {
   private authorize: Authorize;
   private golistRoutes: GolistRoutes;
   private notificationRoutes: NotificationRoutes;
+  private taskRoutes: TaskRoutes;
 
   constructor() {
     super();
@@ -28,6 +30,7 @@ class UserRoutes extends BaseRoutes {
     this.authorize = new Authorize();
     this.golistRoutes = new GolistRoutes();
     this.notificationRoutes = new NotificationRoutes();
+    this.taskRoutes = new TaskRoutes();
     this.initializeRoutes();
   }
 
@@ -40,6 +43,7 @@ class UserRoutes extends BaseRoutes {
     this.router.use("/location-data", this.stateRoutes.router);
     this.router.use("/list", this.golistRoutes.router);
     this.router.use("/notification", this.notificationRoutes.router);
+    this.router.use("/task", this.taskRoutes.router);
   }
 }
 
