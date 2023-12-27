@@ -122,6 +122,10 @@ class UserService {
           model: "Service",
           select: "title subServices",
         },
+        {
+          path: "subscription.subscription",
+          model: "Subscription",
+        },
       ]);
 
       if (response === null) {
@@ -515,6 +519,10 @@ class UserService {
             path: "services.service",
             model: "Service",
             select: "title subServices",
+          },
+          {
+            path: "subscription.subscription",
+            model: "Subscription",
           },
         ]
       );
