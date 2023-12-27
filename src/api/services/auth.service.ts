@@ -103,6 +103,10 @@ class AuthService {
             model: "Service",
             select: "title subServices",
           },
+          {
+            path: "subscription.subscription",
+            model: "Subscription",
+          },
         ]
       );
       if (
