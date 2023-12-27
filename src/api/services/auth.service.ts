@@ -91,12 +91,23 @@ class AuthService {
       let response = await this.userRepository.getOne<IUser>(
         filter,
         "+password",
-        undefined
-        // [
-        //   {
-        //     path: "package",
-        //   },
-        // ]
+        undefined,
+        [
+          {
+            path: "volunteer.service",
+            model: "Service",
+            select: "title subServices",
+          },
+          {
+            path: "services.service",
+            model: "Service",
+            select: "title subServices",
+          },
+          {
+            path: "subscription.subscription",
+            model: "Subscription",
+          },
+        ]
       );
       if (
         response === null ||

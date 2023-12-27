@@ -47,13 +47,13 @@ const userModel: Schema = new Schema(
     volunteer: [
       {
         service: { type: Schema.Types.ObjectId, ref: "Service" },
-        subService: { type: Schema.Types.ObjectId, ref: "SubService" },
+        subService: { type: Schema.Types.ObjectId },
       },
     ],
     services: [
       {
         service: { type: Schema.Types.ObjectId, ref: "Service" },
-        subService: { type: Schema.Types.ObjectId, ref: "SubService" },
+        subService: { type: Schema.Types.ObjectId },
       },
     ],
     subscription: {

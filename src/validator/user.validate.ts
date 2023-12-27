@@ -80,7 +80,7 @@ const updateRule = yup.object().shape({
         .of(
           yup.object().shape({
             service: yup.string().required(),
-            subservice: yup.string().required(),
+            subService: yup.string().required(),
           })
         )
         .notRequired(),

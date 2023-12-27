@@ -111,7 +111,22 @@ class UserService {
         _id: _id,
         $or: [{ deletedAt: { $exists: false } }, { deletedAt: { $eq: null } }],
       };
-      const response = await this.userRepository.getOne<IUser>(filter);
+      const response = await this.userRepository.getOne<IUser>(filter, "", "", [
+        {
+          path: "volunteer.service",
+          model: "Service",
+          select: "title subServices",
+        },
+        {
+          path: "services.service",
+          model: "Service",
+          select: "title subServices",
+        },
+        {
+          path: "subscription.subscription",
+          model: "Subscription",
+        },
+      ]);
 
       if (response === null) {
         return ResponseHelper.sendResponse(404);
@@ -488,9 +503,29 @@ class UserService {
         return ResponseHelper.sendResponse(404);
       }
 
-      let userResponse = await this.userRepository.getOne<IUser>({
-        _id: _id,
-      });
+      let userResponse = await this.userRepository.getOne<IUser>(
+        {
+          _id: _id,
+        },
+        "",
+        "",
+        [
+          {
+            path: "volunteer.service",
+            model: "Service",
+            select: "title subServices",
+          },
+          {
+            path: "services.service",
+            model: "Service",
+            select: "title subServices",
+          },
+          {
+            path: "subscription.subscription",
+            model: "Subscription",
+          },
+        ]
+      );
       const schedules = await this.scheduleRepository.getAll({ user: _id });
       const res = { ...userResponse, schedule: schedules };
 
@@ -499,7 +534,6 @@ class UserService {
         res
       );
     } catch (error) {
-      console.log(error);
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   };
