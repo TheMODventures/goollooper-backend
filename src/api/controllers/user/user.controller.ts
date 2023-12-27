@@ -33,7 +33,7 @@ class UserController {
     const { limit, page, username = "", email = "" } = req.query;
     const limitNow = limit ? limit : 10;
     const filter: FilterQuery<IUser> = {
-      // role: EUserRole.user,
+      $or: [{ role: EUserRole.user }, { role: EUserRole.serviceProvider }],
       email: { $regex: email, $options: "i" },
       isDeleted: false,
     };
