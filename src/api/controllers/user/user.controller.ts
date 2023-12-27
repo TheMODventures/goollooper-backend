@@ -67,7 +67,10 @@ class UserController {
   update = async (req: Request, res: Response) => {
     const { id } = req.params;
     let data: Partial<IUser> = { ...req.body };
-    data.isProfileCompleted = true;
+
+    if (data?.firstName && data?.username) {
+      data.isProfileCompleted = true;
+    }
 
     if (
       _.isArray(req.files) &&
