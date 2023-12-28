@@ -588,6 +588,7 @@ class UserService {
   ) => {
     const countPipeline = (await this.userRepository.getDataByAggregate([
       ...(pipeline ?? []),
+      { $sort: { distance: -1 } },
       { $count: "totalCount" },
     ])) as any[];
     const response = await this.userRepository.getDataByAggregate([

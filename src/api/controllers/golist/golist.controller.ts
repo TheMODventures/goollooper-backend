@@ -87,10 +87,10 @@ class GolistController {
       createdBy: req.locals.auth?.userId,
       type: EList.myList,
     });
-    if (data.data?.length === 0)
+    if (data.total === 0)
       return res.status(data.code).json({ ...data, msg: "Not found" });
     const response = await this.golistService.show(
-      data.data[0]._id.toString(),
+      data.data.result[0]._id.toString(),
       [
         ModelHelper.populateData(
           "serviceProviders",
