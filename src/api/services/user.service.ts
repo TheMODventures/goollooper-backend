@@ -1,4 +1,6 @@
 import mongoose, { FilterQuery, PipelineStage } from "mongoose";
+import { Request } from "express";
+import _ from "lodash";
 
 import {
   Days,
@@ -25,17 +27,20 @@ import {
 import { ResponseHelper } from "../helpers/reponseapi.helper";
 import { ISchedule } from "../../database/interfaces/schedule.interface";
 import { DateHelper } from "../helpers/date.helper";
+import { UploadHelper } from "../helpers/upload.helper";
 
 class UserService {
   private userRepository: UserRepository;
   private subscriptionRepository: SubscriptionRepository;
   private scheduleRepository: ScheduleRepository;
   private dateHelper: DateHelper;
+  private uploadHelper: UploadHelper;
 
   constructor() {
     this.userRepository = new UserRepository();
     this.subscriptionRepository = new SubscriptionRepository();
     this.scheduleRepository = new ScheduleRepository();
+    this.uploadHelper = new UploadHelper("user");
 
     this.dateHelper = new DateHelper();
   }
@@ -142,9 +147,121 @@ class UserService {
 
   update = async (
     _id: string | mongoose.Types.ObjectId,
-    dataset: Partial<IUserWithSchedule>
+    dataset: Partial<IUserWithSchedule>,
+    req?: Request
   ): Promise<ApiResponse> => {
     try {
+      let body: Partial<IUser> = { ...req?.body };
+
+      let userResponse = await this.userRepository.getOne<IUser>({
+        _id: _id,
+      });
+
+      if (req && _.isArray(req.files)) {
+        if (
+          req.files.length &&
+          req.files?.find((file) => file.fieldname === "profileImage")
+        ) {
+          const image = req.files?.filter(
+            (file) => file.fieldname === "profileImage"
+          );
+          let path = await this.uploadHelper.uploadFileFromBuffer(image);
+          dataset.profileImage = path[0];
+        }
+
+        if (
+          req.files.length &&
+          req.files?.find((file) => file.fieldname === "gallery")
+        ) {
+          const image = req.files?.filter(
+            (file) => file.fieldname === "gallery"
+          );
+          let path: any = await this.uploadHelper.uploadFileFromBuffer(image);
+          body.galleryImages?.push(...path);
+          dataset.gallery = body.galleryImages || path;
+        }
+
+        if (
+          req.files.length &&
+          req.files?.find((file) => file.fieldname === "visuals")
+        ) {
+          const image = req.files?.filter(
+            (file) => file.fieldname === "visuals"
+          );
+          let path = await this.uploadHelper.uploadFileFromBuffer(image);
+          body.visualFiles?.push(...path);
+          dataset.visuals = body.visualFiles || path;
+        }
+
+        if (
+          req.files.length &&
+          req.files?.find((file) => file.fieldname === "companyLogo")
+        ) {
+          const image = req.files?.filter(
+            (file) => file.fieldname === "companyLogo"
+          );
+          let path = await this.uploadHelper.uploadFileFromBuffer(image);
+
+          if (!dataset.company) {
+            dataset = { ...dataset, company: { logo: path[0] } };
+          } else {
+            dataset.company.logo = path[0];
+          }
+        }
+
+        if (
+          req.files.length &&
+          req.files?.find((file) => file.fieldname === "companyResume")
+        ) {
+          const image = req.files?.filter(
+            (file) => file.fieldname === "companyResume"
+          );
+          let path = await this.uploadHelper.uploadFileFromBuffer(image);
+
+          if (!dataset.company) {
+            dataset = { ...dataset, company: { resume: path[0] } };
+          } else {
+            dataset.company.resume = path[0];
+          }
+        }
+
+        if (
+          req.files.length &&
+          req.files?.find((file) => file.fieldname === "certificates")
+        ) {
+          const image = req.files?.filter(
+            (file) => file.fieldname === "certificates"
+          );
+          let path = await this.uploadHelper.uploadFileFromBuffer(image);
+          body.certificateFiles?.push(...path);
+          dataset.certificates = body.certificateFiles || path;
+        }
+
+        if (
+          req.files.length &&
+          req.files?.find((file) => file.fieldname === "licenses")
+        ) {
+          const image = req.files?.filter(
+            (file) => file.fieldname === "licenses"
+          );
+          let path = await this.uploadHelper.uploadFileFromBuffer(image);
+          body.licenseFiles?.push(...path);
+          dataset.licenses = body.licenseFiles || path;
+        }
+
+        if (
+          req.files.length &&
+          req.files?.find((file) => file.fieldname === "insurances")
+        ) {
+          const image = req.files?.filter(
+            (file) => file.fieldname === "insurances"
+          );
+          let path = await this.uploadHelper.uploadFileFromBuffer(image);
+          body.insuranceFiles?.push(...path);
+          dataset.insurances = body.insuranceFiles || path;
+        }
+      }
+
       // checking if subscription is bsp then location should be local
       if (dataset.subscription?.subscription) {
         let subscription =
@@ -503,7 +620,124 @@ class UserService {
         return ResponseHelper.sendResponse(404);
       }
 
-      let userResponse = await this.userRepository.getOne<IUser>(
+      if (dataset.profileImage && userResponse?.profileImage) {
+        this.uploadHelper.deleteFile(userResponse.profileImage);
+      }
+
+      if (userResponse?.gallery?.length) {
+        const imagesToDelete = userResponse.gallery.filter(
+          (image) => !body.galleryImages?.includes(image)
+        );
+        for (const imageToDelete of imagesToDelete) {
+          this.uploadHelper.deleteFile(imageToDelete);
+        }
+        let updatedGallery = [];
+        if (dataset.galleryImages?.length) {
+          updatedGallery = dataset.galleryImages.filter(
+            (image) => !imagesToDelete.includes(image)
+          );
+        } else {
+          updatedGallery = userResponse.gallery.filter(
+            (image) => !imagesToDelete.includes(image)
+          );
+        }
+        dataset.gallery = updatedGallery;
+      }
+
+      if (userResponse?.visuals?.length) {
+        const imagesToDelete = userResponse.visuals.filter(
+          (image) => !body.visualFiles?.includes(image)
+        );
+        for (const imageToDelete of imagesToDelete) {
+          this.uploadHelper.deleteFile(imageToDelete);
+        }
+        let updatedFiles = [];
+        if (dataset.visualFiles?.length) {
+          updatedFiles = dataset.visualFiles.filter(
+            (image) => !imagesToDelete.includes(image)
+          );
+        } else {
+          updatedFiles = userResponse.visuals.filter(
+            (image) => !imagesToDelete.includes(image)
+          );
+        }
+        dataset.visuals = updatedFiles;
+      }
+
+      if (dataset.company?.logo && userResponse?.company?.logo) {
+        this.uploadHelper.deleteFile(userResponse?.company?.logo);
+      }
+
+      if (dataset.company?.resume && userResponse?.company?.resume) {
+        this.uploadHelper.deleteFile(userResponse?.company?.resume);
+      }
+
+      if (userResponse?.certificates?.length) {
+        const imagesToDelete = userResponse.certificates.filter(
+          (image) => !body.certificateFiles?.includes(image)
+        );
+        for (const imageToDelete of imagesToDelete) {
+          this.uploadHelper.deleteFile(imageToDelete);
+        }
+        let updatedFiles = [];
+        if (dataset.certificateFiles?.length) {
+          updatedFiles = dataset.certificateFiles.filter(
+            (image) => !imagesToDelete.includes(image)
+          );
+        } else {
+          updatedFiles = userResponse.certificates.filter(
+            (image) => !imagesToDelete.includes(image)
+          );
+        }
+        dataset.certificates = updatedFiles;
+      }
+
+      if (userResponse?.licenses?.length) {
+        const imagesToDelete = userResponse.licenses.filter(
+          (image) => !body.licenseFiles?.includes(image)
+        );
+        for (const imageToDelete of imagesToDelete) {
+          this.uploadHelper.deleteFile(imageToDelete);
+        }
+        let updatedFiles = [];
+        if (dataset.licenseFiles?.length) {
+          updatedFiles = dataset.licenseFiles.filter(
+            (image) => !imagesToDelete.includes(image)
+          );
+        } else {
+          updatedFiles = userResponse.licenses.filter(
+            (image) => !imagesToDelete.includes(image)
+          );
+        }
+        dataset.licenses = updatedFiles;
+      }
+
+      if (userResponse?.insurances?.length) {
+        const imagesToDelete = userResponse.insurances.filter(
+          (image) => !body.insuranceFiles?.includes(image)
+        );
+        for (const imageToDelete of imagesToDelete) {
+          this.uploadHelper.deleteFile(imageToDelete);
+        }
+        let updatedFiles = [];
+        if (dataset.insuranceFiles?.length) {
+          updatedFiles = dataset.insuranceFiles.filter(
+            (image) => !imagesToDelete.includes(image)
+          );
+        } else {
+          updatedFiles = userResponse.insurances.filter(
+            (image) => !imagesToDelete.includes(image)
+          );
+        }
+        dataset.insurances = updatedFiles;
+      }
+
+      await this.userRepository.updateById<IUserWithSchedule>(
+        _id as string,
+        dataset
+      );
+
+      userResponse = await this.userRepository.getOne<IUser>(
         {
           _id: _id,
         },
