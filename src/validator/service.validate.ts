@@ -41,6 +41,7 @@ const createRule = yup.object().shape({
     .shape({
       title: yup.string().required(),
       type: yup.string().required(),
+      parent: yup.string().notRequired(),
     })
     .noUnknown(),
   query: yup.object().noUnknown(),
@@ -73,6 +74,7 @@ const updateRule = yup.object().shape({
     .shape({
       title: yup.string().notRequired(),
       type: yup.string().notRequired(),
+      parent: yup.string().notRequired(),
     })
     .noUnknown(),
   query: yup.object().noUnknown(),

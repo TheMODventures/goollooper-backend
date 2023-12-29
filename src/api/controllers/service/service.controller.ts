@@ -2,10 +2,7 @@ import { Request, Response } from "express";
 import { FilterQuery } from "mongoose";
 
 import ServiceService from "../../services/service.service";
-import {
-  IService,
-  ISubService,
-} from "../../../database/interfaces/service.interface";
+import { IService } from "../../../database/interfaces/service.interface";
 
 class ServiceController {
   protected serviceService: ServiceService;
@@ -21,7 +18,6 @@ class ServiceController {
       title: { $regex: title, $options: "i" },
       type: { $regex: type },
       isDeleted: false,
-      $or: [{ deletedAt: { $exists: false } }, { deletedAt: { $eq: null } }],
     };
     const response = await this.serviceService.index(
       Number(page),
@@ -57,34 +53,17 @@ class ServiceController {
     return res.status(response.code).json(response);
   };
 
-  // sub-services
-  addSubService = async (req: Request, res: Response) => {
-    const { serviceId } = req.params;
-    const payload: ISubService = { ...req.body };
-    const response = await this.serviceService.addSubService(
-      serviceId,
-      payload
-    );
-    return res.status(response.code).json(response);
-  };
-
-  updateSubService = async (req: Request, res: Response) => {
-    const { serviceId, id } = req.params;
-    const dataset: Partial<ISubService> = { ...req.body };
-
-    const response = await this.serviceService.updateSubService(
-      serviceId,
-      id,
-      dataset
-    );
-    return res.status(response.code).json(response);
-  };
-
-  deleteSubService = async (req: Request, res: Response) => {
-    const { serviceId, id } = req.params;
-    const response = await this.serviceService.removeSubService(serviceId, id);
-    return res.status(response.code).json(response);
-  };
+  // populateData = async (req: Request, res: Response) => {
+  //   if (req?.file) {
+  //     let data = JSON.parse(req?.file.buffer.toString());
+  //     const response = await this.serviceService.populateAllData(data);
+  //     return res
+  //       .status(response.code)
+  //       .json({ msg: "Data populated successfully" });
+  //   } else {
+  //     return res.status(500).json({ msg: "Error populating data" });
+  //   }
+  // };
 }
 
 export default ServiceController;

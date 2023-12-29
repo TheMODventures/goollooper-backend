@@ -35,22 +35,12 @@ class ServiceRoutes extends BaseRoutes {
       this.validateRequest,
       this.serviceController.delete
     );
-    // sub-service routes
-    this.router.post(
-      "/sub-service/create/:serviceId",
-      this.validateRequest,
-      this.serviceController.addSubService
-    );
-    this.router.patch(
-      "/sub-service/update/:serviceId/:id",
-      this.validateRequest,
-      this.serviceController.updateSubService
-    );
-    this.router.delete(
-      "/sub-service/delete/:serviceId/:id",
-      this.validateRequest,
-      this.serviceController.deleteSubService
-    );
+    // this.router.post(
+    //   "/populate-data",
+    //   multer().single("file"),
+    //   this.validateRequest,
+    //   this.serviceController.populateData
+    // );
   }
 }
 
