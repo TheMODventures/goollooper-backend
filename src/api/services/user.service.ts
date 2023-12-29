@@ -118,14 +118,14 @@ class UserService {
       };
       const response = await this.userRepository.getOne<IUser>(filter, "", "", [
         {
-          path: "volunteer.service",
+          path: "volunteer",
           model: "Service",
-          select: "title subServices",
+          select: "title type parent",
         },
         {
-          path: "services.service",
+          path: "services",
           model: "Service",
-          select: "title subServices",
+          select: "title type parent",
         },
         {
           path: "subscription.subscription",
@@ -745,14 +745,14 @@ class UserService {
         "",
         [
           {
-            path: "volunteer.service",
+            path: "volunteer",
             model: "Service",
-            select: "title subServices",
+            select: "title type parent",
           },
           {
-            path: "services.service",
+            path: "services",
             model: "Service",
-            select: "title subServices",
+            select: "title type parent",
           },
           {
             path: "subscription.subscription",

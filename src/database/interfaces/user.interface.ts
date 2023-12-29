@@ -19,16 +19,6 @@ interface Location {
   readableLocation?: string;
 }
 
-interface Volunteer {
-  service: string;
-  subService: string;
-}
-
-interface Service {
-  service: string;
-  subService: string;
-}
-
 interface ZipCode {
   code: string;
   isSelected: boolean;
@@ -68,8 +58,8 @@ export interface IUser {
   galleryImages: string[];
   about?: string;
   role: EUserRole;
-  volunteer?: Volunteer[];
-  services?: Service[];
+  volunteer?: string[];
+  services?: string[];
   subscription?: {
     subscription: string;
     plan: string;
