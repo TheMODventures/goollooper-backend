@@ -32,12 +32,9 @@ jobs:
 
       - name: Create .env file
         run: echo "${{secrets.PROD_ENV}}" > .env
-
-      - name: Create .env file
-        run: pwd  
         
       - name:  Edit package
-        run: sed -i 's/LeanDocument/Document/'  node_modules/mongoose-paginate-v2/index.d.ts
+        run: if [ -e "node_modules/mongoose-paginate-v2/index.d.ts" ]; then sed -i 's/LeanDocument/Document/'  node_modules/mongoose-paginate-v2/index.d.ts; else echo "File not found"; fi
 
       - name: Build
         run: npm run build
