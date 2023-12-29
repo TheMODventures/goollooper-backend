@@ -92,8 +92,8 @@ class UserService {
   list = async (selectField: string) => {
     try {
       const filter = {
-        role: EUserRole.user,
-        $or: [{ deletedAt: { $exists: false } }, { deletedAt: { $eq: null } }],
+        isDeleted: false,
+        $or: [{ role: EUserRole.user }, { role: EUserRole.serviceProvider }],
       };
       const response = await this.userRepository.getAll<IUser>(
         filter,
@@ -111,21 +111,21 @@ class UserService {
 
   show = async (_id: string): Promise<ApiResponse> => {
     try {
-      const filter = {
-        role: EUserRole.user,
+      const filter: FilterQuery<IUser> = {
         _id: _id,
-        $or: [{ deletedAt: { $exists: false } }, { deletedAt: { $eq: null } }],
+        isDeleted: false,
+        $or: [{ role: EUserRole.user }, { role: EUserRole.serviceProvider }],
       };
       const response = await this.userRepository.getOne<IUser>(filter, "", "", [
         {
-          path: "volunteer.service",
+          path: "volunteer",
           model: "Service",
-          select: "title subServices",
+          select: "title type parent",
         },
         {
-          path: "services.service",
+          path: "services",
           model: "Service",
-          select: "title subServices",
+          select: "title type parent",
         },
         {
           path: "subscription.subscription",
@@ -745,14 +745,14 @@ class UserService {
         "",
         [
           {
-            path: "volunteer.service",
+            path: "volunteer",
             model: "Service",
-            select: "title subServices",
+            select: "title type parent",
           },
           {
-            path: "services.service",
+            path: "services",
             model: "Service",
-            select: "title subServices",
+            select: "title type parent",
           },
           {
             path: "subscription.subscription",
@@ -775,8 +775,8 @@ class UserService {
   trashIndex = async (page: number, limit = 10): Promise<ApiResponse> => {
     try {
       const filter = {
-        role: EUserRole.user,
-        $and: [{ deletedAt: { $exists: true } }, { deletedAt: { $ne: null } }],
+        isDeleted: false,
+        $or: [{ role: EUserRole.user }, { role: EUserRole.serviceProvider }],
       };
       const getDocCount = await this.userRepository.getCount(filter);
       const response = await this.userRepository.getAll<IUser>(

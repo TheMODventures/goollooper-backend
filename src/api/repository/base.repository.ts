@@ -176,6 +176,7 @@ export abstract class BaseRepository<J, D> implements IBaseRepository<J, D> {
       model: this.model,
       query: pipeline,
       populate,
+      lean,
       page,
       limit,
       select,

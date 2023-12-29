@@ -1,4 +1,4 @@
-import { FilterQuery } from "mongoose";
+import { FilterQuery, PipelineStage } from "mongoose";
 
 import {
   SUCCESS_DATA_DELETION_PASSED,
@@ -6,10 +6,7 @@ import {
   SUCCESS_DATA_SHOW_PASSED,
   SUCCESS_DATA_UPDATION_PASSED,
 } from "../../constant";
-import {
-  IService,
-  ISubService,
-} from "../../database/interfaces/service.interface";
+import { IService } from "../../database/interfaces/service.interface";
 import { ResponseHelper } from "../helpers/reponseapi.helper";
 import { ServiceRepository } from "../repository/service/service.repository";
 
@@ -27,18 +24,87 @@ class ServiceService {
   ): Promise<ApiResponse> => {
     try {
       const getDocCount = await this.serviceRepository.getCount(filter);
-      const response = await this.serviceRepository.getAll<IService>(
-        filter,
-        "",
-        "",
+      const pipeline: PipelineStage[] = [
+        { $match: filter },
         {
-          createdAt: "desc",
+          $lookup: {
+            from: "services",
+            localField: "_id",
+            foreignField: "parent",
+            as: "subServices",
+          },
         },
-        undefined,
-        true,
-        page,
-        limit
-      );
+        {
+          $addFields: {
+            subServices: {
+              $filter: {
+                input: "$subServices",
+                as: "child",
+                cond: { $ne: ["$$child._id", "$_id"] },
+              },
+            },
+          },
+        },
+        {
+          $unwind: "$subServices",
+        },
+        {
+          $group: {
+            _id: "$_id",
+            title: { $first: "$title" },
+            type: { $first: "$type" },
+            subServices: { $push: "$subServices" },
+            matchedServices: {
+              $addToSet: {
+                $cond: {
+                  if: { $ne: ["$_id", "$subServices._id"] },
+                  then: "$_id",
+                  else: null,
+                },
+              },
+            },
+          },
+        },
+        {
+          $unwind: "$matchedServices",
+        },
+        {
+          $match: {
+            matchedServices: { $ne: null },
+          },
+        },
+        {
+          $project: {
+            title: 1,
+            type: 1,
+            subServices: {
+              $map: {
+                input: "$subServices",
+                as: "child",
+                in: {
+                  _id: "$$child._id",
+                  title: "$$child.title",
+                  parent: "$$child.parent",
+                },
+              },
+            },
+          },
+        },
+      ];
+
+      const response =
+        await this.serviceRepository.getAllWithAggregatePagination<IService>(
+          pipeline,
+          "",
+          "",
+          {
+            createdAt: "desc",
+          },
+          undefined,
+          true,
+          page,
+          limit
+        );
       return ResponseHelper.sendSuccessResponse(
         SUCCESS_DATA_LIST_PASSED,
         response,
@@ -111,72 +177,48 @@ class ServiceService {
     }
   };
 
-  addSubService = async (
-    _id: string,
-    dataset: Partial<ISubService>
-  ): Promise<ApiResponse> => {
-    try {
-      const response = await this.serviceRepository.subDocAction<IService>(
-        { _id },
-        { $push: { subServices: dataset } },
-        { new: true }
-      );
-      if (response === null) {
-        return ResponseHelper.sendResponse(404);
-      }
-      return ResponseHelper.sendResponse(201, response);
-    } catch (error) {
-      return ResponseHelper.sendResponse(500, (error as Error).message);
-    }
-  };
+  // populateAllData = async (
+  //   payload: { title: string; type: string; subServices: string[] }[]
+  // ) => {
+  //   try {
+  //     for (let i = 0; i < payload?.length; i++) {
+  //       let element = payload[i];
+  //       const exists = await this.serviceRepository.getOne<IService>({
+  //         title: element?.title,
+  //         type: element?.type,
+  //       });
+  //       let data: IService | null = exists;
 
-  updateSubService = async (
-    serviceId: string,
-    _id: string,
-    dataset: Partial<ISubService>
-  ): Promise<ApiResponse> => {
-    try {
-      // const updatedValues: Record<string, any> = {};
-      // for (let field in dataset) {
-      //   updatedValues[`subServices.$.${field}`] = dataset[field];
-      // }
-      const response = await this.serviceRepository.subDocAction<IService>(
-        { _id: serviceId, "subServices._id": _id },
-        { $set: { "subServices.$.title": dataset.title } }
-      );
-      if (response === null) {
-        return ResponseHelper.sendResponse(404);
-      }
-      return ResponseHelper.sendSuccessResponse(
-        SUCCESS_DATA_UPDATION_PASSED,
-        response
-      );
-    } catch (error) {
-      return ResponseHelper.sendResponse(500, (error as Error).message);
-    }
-  };
+  //       // if service not exists create
+  //       if (!exists) {
+  //         const payloadObj: any = {
+  //           title: element?.title,
+  //           type: element?.type,
+  //         };
+  //         data = await this.serviceRepository.create<IService>(payloadObj);
+  //       }
 
-  removeSubService = async (
-    serviceId: string,
-    _id: string
-  ): Promise<ApiResponse> => {
-    try {
-      const response = await this.serviceRepository.subDocAction<IService>(
-        { _id: serviceId, "subServices._id": _id },
-        { $pull: { subServices: { _id } } }
-      );
-      if (!response) {
-        return ResponseHelper.sendResponse(404);
-      }
-
-      return ResponseHelper.sendSuccessResponse(
-        SUCCESS_DATA_DELETION_PASSED,
-        response
-      );
-    } catch (error) {
-      return ResponseHelper.sendResponse(500, (error as Error).message);
-    }
-  };
+  //       element?.subServices?.forEach(async (field: any) => {
+  //         const subServiceExists =
+  //           await this.serviceRepository.getOne<IService>({
+  //             title: field?.title,
+  //             type: element?.type,
+  //           });
+  //         if (!subServiceExists) {
+  //           const cityPayload: any = {
+  //             title: field?.title,
+  //             type: element?.type,
+  //             parent: data?._id,
+  //           };
+  //           this.serviceRepository.create<IService>(cityPayload);
+  //         }
+  //       });
+  //     }
+  //     return ResponseHelper.sendResponse(201);
+  //   } catch (error) {
+  //     return ResponseHelper.sendResponse(500, (error as Error).message);
+  //   }
+  // };
 }
 
 export default ServiceService;
