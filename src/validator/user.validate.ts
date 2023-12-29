@@ -67,24 +67,8 @@ const updateRule = yup.object().shape({
         .string()
         .oneOf([...Object.values(UserRole).map((value) => value?.toString())])
         .notRequired(),
-      volunteer: yup
-        .array()
-        .of(
-          yup.object().shape({
-            service: yup.string(),
-            subService: yup.string(),
-          })
-        )
-        .notRequired(),
-      services: yup
-        .array()
-        .of(
-          yup.object().shape({
-            service: yup.string().required(),
-            subService: yup.string().required(),
-          })
-        )
-        .notRequired(),
+      volunteer: yup.array().notRequired(),
+      services: yup.array().notRequired(),
       subscription: yup
         .object()
         .shape({
