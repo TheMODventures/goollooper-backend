@@ -31,7 +31,7 @@ class GolistService {
     filter: FilterQuery<IGolist>
   ): Promise<ApiResponse> => {
     try {
-      const getDocCount = await this.golistRepository.getCount(filter);
+      // const getDocCount = await this.golistRepository.getCount(filter);
       const response =
         await this.golistRepository.getAllWithPagination<IGolist>(
           filter,
@@ -48,7 +48,7 @@ class GolistService {
       return ResponseHelper.sendSuccessResponse(
         SUCCESS_DATA_LIST_PASSED,
         response,
-        getDocCount
+        response.pagination.totalItems as number
       );
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);

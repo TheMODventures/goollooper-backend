@@ -52,7 +52,7 @@ class GolistController {
         createdBy: user,
       });
       if (mylist.total && mylist.total !== 0) {
-        const item = mylist.data[0] as IGolist;
+        const item = mylist.data.result[0] as IGolist;
         const response = await this.golistService.update(
           item._id?.toString() ?? "",
           {
@@ -83,14 +83,16 @@ class GolistController {
   };
 
   showMyList = async (req: Request, res: Response) => {
-    const data = await this.golistService.index(1, 1, {
+    const list = await this.golistService.index(1, 1, {
       createdBy: req.locals.auth?.userId,
       type: EList.myList,
     });
-    if (data.total === 0)
-      return res.status(data.code).json({ ...data, msg: "Not found" });
+    if (list.data.pagination.totalItems === 0)
+      return res
+        .status(404)
+        .json({ data: null, status: false, msg: "Not found" });
     const response = await this.golistService.show(
-      data.data.result[0]._id.toString(),
+      list.data.result[0]._id.toString(),
       [
         ModelHelper.populateData(
           "serviceProviders",
