@@ -44,18 +44,8 @@ const userModel: Schema = new Schema(
       default: EUserRole.user,
       enum: EUserRole,
     },
-    volunteer: [
-      {
-        service: { type: Schema.Types.ObjectId, ref: "Service" },
-        subService: { type: Schema.Types.ObjectId },
-      },
-    ],
-    services: [
-      {
-        service: { type: Schema.Types.ObjectId, ref: "Service" },
-        subService: { type: Schema.Types.ObjectId },
-      },
-    ],
+    volunteer: [{ type: Schema.Types.ObjectId, ref: "Service" }],
+    services: [{ type: Schema.Types.ObjectId, ref: "Service" }],
     subscription: {
       subscription: { type: Schema.Types.ObjectId, ref: "Subscription" },
       plan: { type: Schema.Types.ObjectId, ref: "Plan" },
