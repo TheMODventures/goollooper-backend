@@ -65,6 +65,7 @@ export interface IUser {
   completePhone?: string;
   profileImage?: string;
   gallery?: string[];
+  galleryImages: string[];
   about?: string;
   role: EUserRole;
   volunteer?: Volunteer[];
@@ -78,21 +79,25 @@ export interface IUser {
   selectedLocation?: Location;
   zipCode?: ZipCode[];
   visuals?: string[];
+  visualFiles?: string[];
   company?: {
-    name?: String;
-    logo?: String;
-    website?: String;
-    affiliation?: String;
-    publication?: String;
-    resume?: String;
+    name?: string;
+    logo?: string;
+    website?: string;
+    affiliation?: string;
+    publication?: string;
+    resume?: string;
   };
   certificates?: string[];
+  certificateFiles?: string[];
   licenses?: string[];
+  licenseFiles?: string[];
   reference?: {
-    name: String;
-    contact: String;
+    name: string;
+    contact: string;
   };
   insurances?: string[];
+  insuranceFiles?: string[];
   isProfileCompleted?: boolean;
   isVerified?: boolean;
   isActive?: boolean;

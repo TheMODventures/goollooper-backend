@@ -144,7 +144,7 @@ export const fieldValidationSchemas: Record<string, yup.Schema<any>> = {
           .test({
             name: "mimetype",
             message:
-              "Invalid file type of company resume. Only jpg or png allowed",
+              "Invalid file type of company resume. Only jpg, png or pdf allowed",
             test: (value) =>
               typeof value === "string" &&
               (value === "image/png" ||
