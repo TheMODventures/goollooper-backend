@@ -61,6 +61,7 @@ const updateRule = yup.object().shape({
       countryCode: yup.string().notRequired(),
       phoneCode: yup.string().notRequired(),
       phone: yup.string().notRequired(),
+      galleryImages: yup.array().notRequired(),
       about: yup.string().notRequired(),
       role: yup
         .string()
@@ -185,6 +186,7 @@ const updateRule = yup.object().shape({
           })
         )
         .notRequired(),
+      visualFiles: yup.array().notRequired(),
       company: yup
         .object()
         .shape({
@@ -194,6 +196,8 @@ const updateRule = yup.object().shape({
           publication: yup.string(),
         })
         .notRequired(),
+      certificateFiles: yup.array().notRequired(),
+      licenseFiles: yup.array().notRequired(),
       reference: yup
         .object()
         .shape({
@@ -201,6 +205,7 @@ const updateRule = yup.object().shape({
           contact: yup.string(),
         })
         .notRequired(),
+      insuranceFiles: yup.array().notRequired(),
     })
     .noUnknown(),
   query: yup.object().noUnknown(),
