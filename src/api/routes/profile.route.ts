@@ -68,6 +68,13 @@ class ProfileRoutes extends BaseRoutes {
       this.validateRequest,
       this.userController.update
     );
+    this.router.patch(
+      "/schedule/update/:id",
+      multer().any(),
+      this.validateFilesMiddleware,
+      this.validateRequest,
+      this.userController.updateSchedule
+    );
     this.router.delete(
       "/delete/:_id",
       this.validateRequest,
