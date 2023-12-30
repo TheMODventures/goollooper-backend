@@ -4,17 +4,18 @@ import moment from "moment";
 import _ from "lodash";
 
 import UserService from "../../services/user.service";
+import ScheduleService from "../../services/schedule.service";
 import { IUser } from "../../../database/interfaces/user.interface";
+import { ISchedule } from "../../../database/interfaces/schedule.interface";
 import { EUserRole } from "../../../database/interfaces/enums";
-import { UploadHelper } from "../../helpers/upload.helper";
 
 class UserController {
   protected userService: UserService;
-  private uploadHelper: UploadHelper;
+  protected scheduleService: ScheduleService;
 
   constructor() {
     this.userService = new UserService();
-    this.uploadHelper = new UploadHelper("user");
+    this.scheduleService = new ScheduleService();
   }
 
   checkUsername = async (req: Request, res: Response) => {
@@ -73,6 +74,14 @@ class UserController {
     }
 
     const response = await this.userService.update(id, data, req);
+    return res.status(response.code).json(response);
+  };
+
+  updateSchedule = async (req: Request, res: Response) => {
+    const { id } = req.params;
+    let data: Partial<ISchedule> = { ...req.body };
+
+    const response = await this.scheduleService.update(id, data);
     return res.status(response.code).json(response);
   };
 

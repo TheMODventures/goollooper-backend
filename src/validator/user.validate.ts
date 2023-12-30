@@ -195,12 +195,47 @@ const updateRule = yup.object().shape({
   query: yup.object().noUnknown(),
 });
 
+const updateScheduleRule = yup.object().shape({
+  params: yup.object().shape(paramRule).noUnknown(),
+  body: yup.object().shape({
+    date: yup
+      .string()
+      .matches(
+        /^(19|20)\d{2}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/,
+        "Please enter a valid start date in the format YYYY-MM-DD"
+      )
+      .required(),
+    slots: yup
+      .array()
+      .of(
+        yup.object().shape({
+          startTime: yup
+            .string()
+            .matches(
+              /^([01]\d|2[0-3]):[0-5]\d$/,
+              "Invalid start time format. Please use HH:mm format."
+            )
+            .required("Start time is required"),
+          endTime: yup
+            .string()
+            .matches(
+              /^([01]\d|2[0-3]):[0-5]\d$/,
+              "Invalid end time format. Please use HH:mm format."
+            )
+            .required("End time is required"),
+        })
+      )
+      .notRequired(),
+  }),
+});
+
 export = {
   "/check-username": checkUsernameRule,
   "/index": indexRule,
   "/trash-index": indexRule,
   "/show": showRule,
   "/update": updateRule,
+  "/schedule/update": updateScheduleRule,
   "/trash": showRule,
   "/restore": showRule,
   "/delete": showRule,
