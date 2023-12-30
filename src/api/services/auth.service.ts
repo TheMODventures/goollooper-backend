@@ -118,7 +118,10 @@ class AuthService {
 
       const userId = new mongoose.Types.ObjectId(response._id!);
 
-      const schedules = await this.scheduleRepository.getAll({ user: userId });
+      const schedules = await this.scheduleRepository.getAll({
+        user: userId,
+        isActive: true,
+      });
       const res = { ...response, schedule: schedules };
       const tokenResponse = await this.tokenService.create(
         userId,
