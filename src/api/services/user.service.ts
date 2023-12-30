@@ -137,7 +137,10 @@ class UserService {
         return ResponseHelper.sendResponse(404);
       }
 
-      const schedules = await this.scheduleRepository.getAll({ user: _id });
+      const schedules = await this.scheduleRepository.getAll({
+        user: _id,
+        isActive: true,
+      });
       const res = { ...response, schedule: schedules };
       return ResponseHelper.sendSuccessResponse(SUCCESS_DATA_SHOW_PASSED, res);
     } catch (error) {
@@ -760,7 +763,10 @@ class UserService {
           },
         ]
       );
-      const schedules = await this.scheduleRepository.getAll({ user: _id });
+      const schedules = await this.scheduleRepository.getAll({
+        user: _id,
+        isActive: true,
+      });
       const res = { ...userResponse, schedule: schedules };
 
       return ResponseHelper.sendSuccessResponse(
