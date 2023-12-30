@@ -1,4 +1,4 @@
-import { FilterQuery } from "mongoose";
+import mongoose, { FilterQuery } from "mongoose";
 
 import {
   SUCCESS_DATA_LIST_PASSED,
@@ -74,12 +74,28 @@ class ScheduleService {
   };
 
   update = async (
-    _id: string,
+    _id: string | mongoose.Types.ObjectId,
     dataset: Partial<ISchedule>
   ): Promise<ApiResponse> => {
     try {
+      if (!dataset.date)
+        return ResponseHelper.sendResponse(422, "Please Provide date");
+
+      if (!dataset.slots?.length) {
+        dataset.isActive = false;
+      } else {
+        const scheduleResponse =
+          await this.scheduleRepository.getOne<ISchedule>({ _id });
+        await this.scheduleRepository.updateCollidingSchedules(
+          new Date(dataset.date),
+          dataset.slots,
+          scheduleResponse?.user as mongoose.Types.ObjectId
+        );
+        dataset.isActive = true;
+      }
+
       const response = await this.scheduleRepository.updateById<ISchedule>(
-        _id,
+        _id as string,
         dataset
       );
       if (response === null) {

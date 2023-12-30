@@ -94,14 +94,14 @@ class AuthService {
         undefined,
         [
           {
-            path: "volunteer.service",
+            path: "volunteer",
             model: "Service",
-            select: "title subServices",
+            select: "title type parent",
           },
           {
-            path: "services.service",
+            path: "services",
             model: "Service",
-            select: "title subServices",
+            select: "title type parent",
           },
           {
             path: "subscription.subscription",
