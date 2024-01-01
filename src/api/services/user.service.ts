@@ -312,7 +312,7 @@ class UserService {
           }
           dataset.location[i].coordinates?.map((e) => parseFloat(e.toString()));
           dataset.location[i].type ??= "Point";
-          if (element.isSelected)
+          if (element.isSelected === "true")
             dataset.selectedLocation = dataset.location[i];
         }
       }

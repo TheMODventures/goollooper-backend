@@ -15,7 +15,7 @@ interface Location {
   state?: string;
   city?: string;
   county?: string;
-  isSelected: boolean;
+  isSelected: string;
   readableLocation?: string;
 }
 
