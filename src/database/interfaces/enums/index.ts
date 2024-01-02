@@ -66,6 +66,12 @@ export enum ERating {
   highest = -1,
 }
 
+export enum ELiability {
+  yes = 1,
+  no = 2,
+  all = 3,
+}
+
 export enum NOTIFICATION_TYPES {
   SHARE_PROVIDER = 1,
   FRIEND_REQUEST = 2,

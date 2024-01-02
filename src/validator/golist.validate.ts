@@ -2,7 +2,7 @@ import { isObjectIdOrHexString } from "mongoose";
 import * as yup from "yup";
 
 import UserService from "../api/services/user.service";
-import { EList, ERating } from "../database/interfaces/enums";
+import { ELiability, EList, ERating } from "../database/interfaces/enums";
 
 const userService = new UserService();
 
@@ -141,6 +141,24 @@ const getNearestServiceProvidersRule = yup.object().shape({
         .oneOf([...Object.values(ERating).map((value) => value.toString())]),
       taskInterests: yup.array().of(paramRule.id).notRequired(),
       subscription: yup.string().notRequired(),
+      companyLogo: yup.boolean().notRequired(),
+      companyRegistration: yup.boolean().notRequired(),
+      companyWebsite: yup.boolean().notRequired(),
+      companyAffilation: yup.boolean().notRequired(),
+      companyPublication: yup.boolean().notRequired(),
+      companyResume: yup.boolean().notRequired(),
+      certificate: yup
+        .string()
+        .oneOf([...Object.values(ELiability).map((value) => value.toString())]),
+      license: yup
+        .string()
+        .oneOf([...Object.values(ELiability).map((value) => value.toString())]),
+      reference: yup
+        .string()
+        .oneOf([...Object.values(ELiability).map((value) => value.toString())]),
+      insurance: yup
+        .string()
+        .oneOf([...Object.values(ELiability).map((value) => value.toString())]),
     })
     .test(
       "zipCodeOrCoordinates",
