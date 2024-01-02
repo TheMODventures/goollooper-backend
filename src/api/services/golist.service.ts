@@ -16,6 +16,7 @@ import { GoogleMapHelper } from "../helpers/googleMapApi.helper";
 import { NotificationRepository } from "../repository/notification/notification.repository";
 import { INotification } from "../../database/interfaces/notification.interface";
 import {
+  ELiability,
   ERating,
   EUserRole,
   NOTIFICATION_TYPES,
@@ -140,7 +141,17 @@ class GolistService {
     serviceId?: string[],
     subscription?: string | ObjectId,
     zipCode?: string | null,
-    rating?: ERating | undefined
+    rating?: ERating | undefined,
+    companyLogo?: boolean | undefined,
+    companyRegistration?: boolean | undefined,
+    companyWebsite?: boolean | undefined,
+    companyAffilation?: boolean | undefined,
+    companyPublication?: boolean | undefined,
+    companyResume?: boolean | undefined,
+    certificate?: ELiability,
+    license?: ELiability,
+    reference?: ELiability,
+    insurance?: ELiability
   ) => {
     try {
       const query: PipelineStage[] = [];
@@ -175,6 +186,27 @@ class GolistService {
         // isActive: true,
         // isVerified: true,
       } as any;
+
+      if (companyLogo) match["company.logo"] = { $ne: null };
+      if (companyRegistration)
+        match["company.registered"] = companyRegistration;
+      if (companyWebsite) match["company.website"] = { $ne: null };
+      if (companyAffilation) match["company.affiliation"] = { $ne: null };
+      if (companyPublication) match["company.publication"] = { $ne: null };
+      if (companyResume) match["company.resume"] = { $ne: null };
+
+      if (insurance === ELiability.yes) match["insurances"] = { $ne: [] };
+      else if (insurance === ELiability.no) match["insurances"] = [];
+
+      if (certificate === ELiability.yes) match["certificates"] = { $ne: [] };
+      else if (certificate === ELiability.no) match["certificates"] = [];
+
+      if (reference === ELiability.yes) match["reference.name"] = { $ne: null };
+      else if (reference === ELiability.no) match["reference.name"] = null;
+
+      if (license === ELiability.yes) match["licenses"] = { $ne: [] };
+      else if (license === ELiability.no) match["licenses"] = [];
+
       if (subscription) {
         match["subscription.subscription"] = subscription;
       }

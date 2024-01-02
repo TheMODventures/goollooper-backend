@@ -3,7 +3,7 @@ import { Request, Response } from "express";
 
 import GolistService from "../../services/golist.service";
 import UserService from "../../services/user.service";
-import { EList, ERating } from "../../../database/interfaces/enums";
+import { ELiability, EList, ERating } from "../../../database/interfaces/enums";
 import { IUser } from "../../../database/interfaces/user.interface";
 import { IGolist } from "../../../database/interfaces/golist.interface";
 import { ModelHelper } from "../../helpers/model.helper";
@@ -129,6 +129,16 @@ class GolistController {
       taskInterests = [],
       subscription = "",
       rating,
+      companyLogo,
+      companyRegistration,
+      companyWebsite,
+      companyAffilation,
+      companyPublication,
+      companyResume,
+      certificate,
+      license,
+      reference,
+      insurance,
     } = req.query;
     const limitNow = limit ? limit : 10;
     const coordinates = [Number(longitude), Number(latitude)];
@@ -140,7 +150,19 @@ class GolistController {
       taskInterests as string[],
       subscription?.toString(),
       zipCode?.toString(),
-      rating ? (parseInt(rating.toString()) as ERating) : undefined
+      rating ? (parseInt(rating.toString()) as ERating) : undefined,
+      companyLogo as boolean | undefined,
+      companyRegistration as boolean | undefined,
+      companyWebsite as boolean | undefined,
+      companyAffilation as boolean | undefined,
+      companyPublication as boolean | undefined,
+      companyResume as boolean | undefined,
+      certificate
+        ? (parseInt(certificate.toString()) as ELiability)
+        : undefined,
+      license ? (parseInt(license.toString()) as ELiability) : undefined,
+      reference ? (parseInt(reference.toString()) as ELiability) : undefined,
+      insurance ? (parseInt(insurance.toString()) as ELiability) : undefined
     );
     return res.status(response.code).json(response);
   };
