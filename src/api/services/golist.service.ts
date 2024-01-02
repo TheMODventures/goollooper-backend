@@ -1,4 +1,4 @@
-import { FilterQuery, PopulateOptions } from "mongoose";
+import { FilterQuery, PipelineStage, PopulateOptions } from "mongoose";
 import { ObjectId } from "bson";
 
 import { IGolist } from "../../database/interfaces/golist.interface";
@@ -132,12 +132,13 @@ class GolistService {
     page: number,
     limit = 10,
     userId: string | undefined,
+    coordinates: Number[],
     serviceId?: string[],
     subscription?: string | ObjectId,
-    coordinates?: Number[],
     zipCode?: string | null
   ) => {
     try {
+      const query: PipelineStage[] = [];
       if (zipCode) {
         // coordinates = []
         const googleCoordinates = (await GoogleMapHelper.searchLocation(
@@ -147,6 +148,19 @@ class GolistService {
         if (!googleCoordinates)
           return ResponseHelper.sendResponse(404, "postal code is invalid");
         coordinates = googleCoordinates;
+      }
+      if (coordinates?.length !== 0 && !isNaN(coordinates[0] as number)) {
+        query.push({
+          $geoNear: {
+            near: {
+              type: "Point",
+              coordinates: coordinates as [number, number],
+            },
+            distanceField: "distance",
+            spherical: true,
+            maxDistance: 10000,
+          },
+        });
       }
       const match = {
         _id: { $ne: new ObjectId(userId) },
@@ -174,50 +188,46 @@ class GolistService {
           },
         ];
       }
-      const users = await new UserService().getDataByAggregate(page, limit, [
-        {
-          $geoNear: {
-            near: {
-              type: "Point",
-              coordinates: coordinates as [number, number],
+      query.push({
+        $match: match,
+      });
+      query.push(
+        ...[
+          {
+            $lookup: {
+              as: "subscription",
+              from: "subscriptions",
+              localField: "subscription.subscription",
+              foreignField: "_id",
             },
-            distanceField: "distance",
-            spherical: true,
-            maxDistance: 10000,
           },
-        },
-        {
-          $match: match,
-        },
-        {
-          $lookup: {
-            as: "subscription",
-            from: "subscriptions",
-            localField: "subscription.subscription",
-            foreignField: "_id",
-          },
-        },
-        {
-          $addFields: {
-            subscription: { $first: "$subscription" },
-          },
-        },
-        {
-          $project: {
-            _id: 1,
-            username: 1,
-            firstName: 1,
-            lastName: 1,
-            email: 1,
-            phone: 1,
-            profileImage: 1,
-            subscriptionName: {
-              $ifNull: ["$subscription.name", null],
+          {
+            $addFields: {
+              subscription: { $first: "$subscription" },
             },
-            distance: 1,
           },
-        },
-      ]);
+          {
+            $project: {
+              _id: 1,
+              username: 1,
+              firstName: 1,
+              lastName: 1,
+              email: 1,
+              phone: 1,
+              profileImage: 1,
+              subscriptionName: {
+                $ifNull: ["$subscription.name", null],
+              },
+              distance: 1,
+            },
+          },
+        ]
+      );
+      const users = await new UserService().getDataByAggregate(
+        page,
+        limit,
+        query
+      );
       return users;
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);

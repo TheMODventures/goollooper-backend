@@ -135,9 +135,9 @@ class GolistController {
       Number(page),
       Number(limitNow),
       req.locals.auth?.userId,
+      coordinates,
       taskInterests as string[],
       subscription?.toString(),
-      coordinates,
       zipCode?.toString()
     );
     return res.status(response.code).json(response);
