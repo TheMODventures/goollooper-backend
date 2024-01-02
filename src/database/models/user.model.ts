@@ -105,6 +105,8 @@ const userModel: Schema = new Schema(
       type: Number,
       select: false, // exclude from query result
     },
+    averageRating: { type: Number, default: 0 },
+    ratingCount: { type: Number, default: 0 },
     isDeleted: { type: Boolean, default: false },
   },
   schemaOptions

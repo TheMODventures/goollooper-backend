@@ -61,6 +61,11 @@ export enum EList {
   myList = 2,
 }
 
+export enum ERating {
+  lowest = 1,
+  highest = -1,
+}
+
 export enum NOTIFICATION_TYPES {
   SHARE_PROVIDER = 1,
   FRIEND_REQUEST = 2,

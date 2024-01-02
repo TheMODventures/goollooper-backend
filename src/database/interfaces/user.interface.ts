@@ -99,6 +99,8 @@ export interface IUser {
   createdAt?: Date | Moment;
   updatedAt?: Date | Moment;
   deletedAt?: Date | Moment | null;
+  averageRating: number;
+  ratingCount: number;
 }
 
 export interface IUserWithSchedule extends IUser {
