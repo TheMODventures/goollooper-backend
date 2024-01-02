@@ -15,7 +15,11 @@ import UserService from "./user.service";
 import { GoogleMapHelper } from "../helpers/googleMapApi.helper";
 import { NotificationRepository } from "../repository/notification/notification.repository";
 import { INotification } from "../../database/interfaces/notification.interface";
-import { EUserRole, NOTIFICATION_TYPES } from "../../database/interfaces/enums";
+import {
+  ERating,
+  EUserRole,
+  NOTIFICATION_TYPES,
+} from "../../database/interfaces/enums";
 
 class GolistService {
   private golistRepository: GolistRepository;
@@ -135,7 +139,8 @@ class GolistService {
     coordinates: Number[],
     serviceId?: string[],
     subscription?: string | ObjectId,
-    zipCode?: string | null
+    zipCode?: string | null,
+    rating?: ERating | undefined
   ) => {
     try {
       const query: PipelineStage[] = [];
@@ -191,6 +196,9 @@ class GolistService {
       query.push({
         $match: match,
       });
+      if (rating) {
+        query.push({ $sort: { averageRating: rating } });
+      }
       query.push(
         ...[
           {
@@ -214,6 +222,8 @@ class GolistService {
               lastName: 1,
               email: 1,
               phone: 1,
+              ratingCount: 1,
+              averageRating: 1,
               profileImage: 1,
               subscriptionName: {
                 $ifNull: ["$subscription.name", null],

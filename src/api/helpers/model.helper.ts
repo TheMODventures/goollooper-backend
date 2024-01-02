@@ -16,7 +16,7 @@ class ModelHelperC {
   };
 
   readonly userSelect: string =
-    "username firstName lastName email phone profileImage";
+    "username firstName lastName email phone profileImage ratingCount averageRating";
   readonly subscriptionSelect: string = "name";
 }
 

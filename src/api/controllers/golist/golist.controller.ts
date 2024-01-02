@@ -3,7 +3,7 @@ import { Request, Response } from "express";
 
 import GolistService from "../../services/golist.service";
 import UserService from "../../services/user.service";
-import { EList } from "../../../database/interfaces/enums";
+import { EList, ERating } from "../../../database/interfaces/enums";
 import { IUser } from "../../../database/interfaces/user.interface";
 import { IGolist } from "../../../database/interfaces/golist.interface";
 import { ModelHelper } from "../../helpers/model.helper";
@@ -128,6 +128,7 @@ class GolistController {
       zipCode,
       taskInterests = [],
       subscription = "",
+      rating,
     } = req.query;
     const limitNow = limit ? limit : 10;
     const coordinates = [Number(longitude), Number(latitude)];
@@ -138,7 +139,8 @@ class GolistController {
       coordinates,
       taskInterests as string[],
       subscription?.toString(),
-      zipCode?.toString()
+      zipCode?.toString(),
+      rating ? (parseInt(rating.toString()) as ERating) : undefined
     );
     return res.status(response.code).json(response);
   };

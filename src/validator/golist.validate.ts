@@ -2,7 +2,7 @@ import { isObjectIdOrHexString } from "mongoose";
 import * as yup from "yup";
 
 import UserService from "../api/services/user.service";
-import { EList } from "../database/interfaces/enums";
+import { EList, ERating } from "../database/interfaces/enums";
 
 const userService = new UserService();
 
@@ -136,6 +136,9 @@ const getNearestServiceProvidersRule = yup.object().shape({
       zipCode: yup.string(),
       latitude: yup.string(),
       longitude: yup.string(),
+      rating: yup
+        .string()
+        .oneOf([...Object.values(ERating).map((value) => value.toString())]),
       taskInterests: yup.array().of(paramRule.id).notRequired(),
       subscription: yup.string().notRequired(),
     })
