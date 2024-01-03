@@ -76,3 +76,8 @@ export enum NOTIFICATION_TYPES {
   SHARE_PROVIDER = 1,
   FRIEND_REQUEST = 2,
 }
+
+export enum TaskType {
+  normal = "normal",
+  megablast = "megablast",
+}
