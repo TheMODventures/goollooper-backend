@@ -119,6 +119,14 @@ class GolistController {
     return res.status(response.code).json(response);
   };
 
+  checkPostalCode = async (req: Request, res: Response) => {
+    const { zipCode } = req.query;
+    const response = await this.golistService.checkPostalCode(
+      zipCode as string
+    );
+    return res.status(response.code).json(response);
+  };
+
   getNearestServiceProviders = async (req: Request, res: Response) => {
     const {
       limit,

@@ -96,8 +96,8 @@ class UserController {
   };
 
   delete = async (req: Request, res: Response) => {
-    const { _id } = req.params;
-    const response = await this.userService.delete(_id);
+    const { id } = req.params;
+    const response = await this.userService.delete(id);
     return res.status(response.code).json(response);
   };
 

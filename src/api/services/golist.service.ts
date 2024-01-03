@@ -133,6 +133,19 @@ class GolistService {
     }
   };
 
+  checkPostalCode = async (zipCode: string): Promise<ApiResponse> => {
+    const googleCoordinates = (await GoogleMapHelper.searchLocation(
+      zipCode,
+      ""
+    )) as Number[] | null;
+    if (!googleCoordinates)
+      return ResponseHelper.sendResponse(404, "postal code is invalid");
+    return ResponseHelper.sendSuccessResponse("Valid postal code", {
+      latitude: googleCoordinates[1],
+      longitude: googleCoordinates[0],
+    });
+  };
+
   getNearestServiceProviders = async (
     page: number,
     limit = 10,

@@ -41,6 +41,7 @@ class AuthService {
   validateEmail = async (email: string): Promise<Boolean> => {
     const response = await this.userRepository.getOne<IUser>({
       email: email,
+      isDeleted: false,
     });
     return response ? true : false;
   };
@@ -76,6 +77,7 @@ class AuthService {
     try {
       let filter: FilterQuery<IUser> = {
         email,
+        isDeleted: false,
       };
       if (role) {
         filter = {
