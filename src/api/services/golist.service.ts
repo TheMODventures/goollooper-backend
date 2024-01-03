@@ -104,7 +104,7 @@ class GolistService {
   ): Promise<ApiResponse> => {
     try {
       const response = await this.golistRepository.updateByOne<IGolist>(
-        { _id, createdBy: dataset.createdBy },
+        { _id },
         dataset
       );
       if (response === null) {

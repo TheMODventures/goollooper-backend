@@ -1,7 +1,10 @@
+import multer from "multer";
+import { Request, Response, NextFunction } from "express";
+
 import { Validation } from "../../middleware/validation.middleware";
 import BaseRoutes from "./base.route";
 import TaskController from "../controllers/task/task.controller";
-import SearchService from "../services/task.service";
+import { validateFiles } from "../../validator/userFile.validate";
 
 class TaskRoutes extends BaseRoutes {
   private taskController: TaskController;
@@ -14,27 +17,47 @@ class TaskRoutes extends BaseRoutes {
     this.initializeRoutes();
   }
 
+  private validateFilesMiddleware = (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): void => {
+    try {
+      const fields = ["media"];
+
+      fields.forEach((field) => {
+        const files = req?.file?.fieldname === field ? req?.file : undefined;
+        if (files) {
+          validateFiles([files], field, res);
+        }
+      });
+      next();
+    } catch (error) {
+      res.status(500).json({ error: "Internal Server Error" });
+    }
+  };
+
   protected routes(): void {
-    this.router.post("/", this.validateRequest, this.taskController.index);
-
-    this.router.post(
-      "/create",
-      this.validateRequest,
-      this.taskController.create
-    );
-
+    this.router.get("/", this.validateRequest, this.taskController.index);
     this.router.get(
       "/show/:id",
       this.validateRequest,
       this.taskController.show
     );
-
+    this.router.post(
+      "/create",
+      multer().single("media"),
+      this.validateFilesMiddleware,
+      this.validateRequest,
+      this.taskController.create
+    );
     this.router.patch(
       "/update/:id",
+      multer().single("media"),
+      this.validateFilesMiddleware,
       this.validateRequest,
       this.taskController.update
     );
-
     this.router.delete(
       "/delete/:id",
       this.validateRequest,

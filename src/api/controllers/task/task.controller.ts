@@ -26,7 +26,7 @@ class TaskController {
 
   create = async (req: Request, res: Response) => {
     const payload: ITask = { ...req.body };
-    const response = await this.taskService.create(payload);
+    const response = await this.taskService.create(payload, req);
     return res.status(response.code).json(response);
   };
 
@@ -40,7 +40,7 @@ class TaskController {
     const { id } = req.params;
     const dataset: Partial<ITask> = { ...req.body };
 
-    const response = await this.taskService.update(id, dataset);
+    const response = await this.taskService.update(id, dataset, req);
     return res.status(response.code).json(response);
   };
 
