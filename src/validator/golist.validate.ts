@@ -125,6 +125,14 @@ const shareRule = yup.object().shape({
   query: yup.object().noUnknown(),
 });
 
+const checkPostalCodeRule = yup.object().shape({
+  params: yup.object().shape({}).noUnknown(),
+  body: yup.object().shape({}).noUnknown(),
+  query: yup.object().shape({
+    zipCode: yup.string().required(),
+  }),
+});
+
 const getNearestServiceProvidersRule = yup.object().shape({
   params: yup.object().shape({}).noUnknown(),
   body: yup.object().shape({}).noUnknown(),
@@ -185,6 +193,7 @@ export = {
   "/update": updateRule,
   "/show": showRule,
   "/delete": showRule,
+  "/zip-code": checkPostalCodeRule,
   "/nearest-service-provider": getNearestServiceProvidersRule,
   "/share": shareRule,
 };
