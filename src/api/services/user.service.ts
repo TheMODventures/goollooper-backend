@@ -773,7 +773,12 @@ class UserService {
         SUCCESS_DATA_UPDATION_PASSED,
         res
       );
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.code === 11000)
+        return ResponseHelper.sendResponse(
+          409,
+          `This ${Object.keys(error.keyValue)[0]} already exist`
+        );
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   };
