@@ -147,6 +147,7 @@ class GolistController {
       license,
       reference,
       insurance,
+      search,
     } = req.query;
     const limitNow = limit ? limit : 10;
     const coordinates = [Number(longitude), Number(latitude)];
@@ -170,7 +171,8 @@ class GolistController {
         : undefined,
       license ? (parseInt(license.toString()) as ELiability) : undefined,
       reference ? (parseInt(reference.toString()) as ELiability) : undefined,
-      insurance ? (parseInt(insurance.toString()) as ELiability) : undefined
+      insurance ? (parseInt(insurance.toString()) as ELiability) : undefined,
+      search as string
     );
     return res.status(response.code).json(response);
   };
