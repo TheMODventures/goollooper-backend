@@ -167,6 +167,7 @@ const getNearestServiceProvidersRule = yup.object().shape({
       insurance: yup
         .string()
         .oneOf([...Object.values(ELiability).map((value) => value.toString())]),
+      search: yup.string(),
     })
     .test(
       "zipCodeOrCoordinates",

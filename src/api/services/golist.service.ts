@@ -164,7 +164,8 @@ class GolistService {
     certificate?: ELiability,
     license?: ELiability,
     reference?: ELiability,
-    insurance?: ELiability
+    insurance?: ELiability,
+    search?: string
   ) => {
     try {
       const query: PipelineStage[] = [];
@@ -241,6 +242,18 @@ class GolistService {
       query.push({
         $match: match,
       });
+      if (search) {
+        query.push({
+          $match: {
+            $or: [
+              { firstName: { $regex: search, $options: "i" } },
+              { lastName: { $regex: search, $options: "i" } },
+              { username: { $regex: search, $options: "i" } },
+              { email: { $regex: search, $options: "i" } },
+            ],
+          },
+        });
+      }
       if (rating) {
         query.push({ $sort: { averageRating: rating } });
       }
