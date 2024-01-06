@@ -85,6 +85,35 @@ const createRule = yup.object().shape({
       taskInterests: yup.array().of(yup.string().length(24)).default([]),
       goList: yup.string().length(24).required(),
       myList: yup.array().of(yup.string().length(24)).default([]),
+      subTasks: yup
+        .array()
+        .of(
+          yup.object().shape({
+            title: yup.string().required(),
+            noOfServiceProvider: yup.string().notRequired(),
+            note: yup.string().notRequired(),
+            slot: yup
+              .object()
+              .shape({
+                startTime: yup
+                  .string()
+                  .notRequired()
+                  .matches(
+                    /^([01]\d|2[0-3]):[0-5]\d$/,
+                    "Invalid start time format. Please use HH:mm format."
+                  ),
+                endTime: yup
+                  .string()
+                  .notRequired()
+                  .matches(
+                    /^([01]\d|2[0-3]):[0-5]\d$/,
+                    "Invalid end time format. Please use HH:mm format."
+                  ),
+              })
+              .notRequired(),
+          })
+        )
+        .default([]),
     })
     .noUnknown(),
   query: yup.object().noUnknown(),
@@ -139,6 +168,36 @@ const updateRule = yup.object().shape({
       taskInterests: yup.array().of(yup.string().length(24)).default([]),
       goList: yup.string().length(24).notRequired(),
       myList: yup.array().of(yup.string().length(24)).default([]),
+      subTasks: yup
+        .array()
+        .of(
+          yup.object().shape({
+            title: yup.string().required(),
+            noOfServiceProvider: yup.string().notRequired(),
+            note: yup.string().notRequired(),
+            slot: yup
+              .object()
+              .shape({
+                startTime: yup
+                  .string()
+                  .required()
+                  .matches(
+                    /^([01]\d|2[0-3]):[0-5]\d$/,
+                    "Invalid start time format. Please use HH:mm format."
+                  ),
+                endTime: yup
+                  .string()
+                  .required()
+                  .matches(
+                    /^([01]\d|2[0-3]):[0-5]\d$/,
+                    "Invalid end time format. Please use HH:mm format."
+                  ),
+              })
+              .notRequired(),
+          })
+        )
+        .default([])
+        .notRequired(),
     })
     .noUnknown(),
   query: yup.object().noUnknown(),

@@ -93,8 +93,13 @@ class TaskService {
 
   create = async (payload: ITask, req?: Request): Promise<ApiResponse> => {
     try {
-      if (req?.file && req.file?.fieldname === "media") {
-        const image = [req.file];
+      if (
+        req &&
+        _.isArray(req.files) &&
+        req.files?.length &&
+        req.files?.find((file) => file.fieldname === "media")
+      ) {
+        const image = req.files?.filter((file) => file.fieldname === "media");
         let path = await this.uploadHelper.uploadFileFromBuffer(image);
         payload.media = path[0];
       }
@@ -124,6 +129,28 @@ class TaskService {
         };
       }
 
+      if (payload.subTasks?.length) {
+        for (let i = 0; i < payload.subTasks.length; i++) {
+          const element = payload.subTasks[i];
+          if (
+            req &&
+            _.isArray(req.files) &&
+            req.files.length &&
+            req.files?.find(
+              (file) =>
+                file.fieldname === `subTasks[${i}][subTaskMedia]`.toString()
+            )
+          ) {
+            const image = req.files?.filter(
+              (file) =>
+                file.fieldname === `subTasks[${i}][subTaskMedia]`.toString()
+            );
+
+            let path: any = await this.uploadHelper.uploadFileFromBuffer(image);
+            element.media = path[0];
+          }
+        }
+      }
       const data = await this.taskRepository.create<ITask>(payload);
       return ResponseHelper.sendResponse(201, data);
     } catch (error) {
@@ -141,8 +168,13 @@ class TaskService {
         _id: _id,
       });
 
-      if (req?.file && req.file?.fieldname === "media") {
-        const image = [req.file];
+      if (
+        req &&
+        _.isArray(req.files) &&
+        req.files?.length &&
+        req.files?.find((file) => file.fieldname === "media")
+      ) {
+        const image = req.files?.filter((file) => file.fieldname === "media");
         let path = await this.uploadHelper.uploadFileFromBuffer(image);
         dataset.media = path[0];
       }
@@ -174,6 +206,29 @@ class TaskService {
           serviceProviders: goList.serviceProviders,
           taskInterests: goList.taskInterests,
         };
+      }
+
+      if (dataset.subTasks?.length) {
+        for (let i = 0; i < dataset.subTasks.length; i++) {
+          const element = dataset.subTasks[i];
+          if (
+            req &&
+            _.isArray(req.files) &&
+            req.files.length &&
+            req.files?.find(
+              (file) =>
+                file.fieldname === `subTasks[${i}][subTaskMedia]`.toString()
+            )
+          ) {
+            const image = req.files?.filter(
+              (file) =>
+                file.fieldname === `subTasks[${i}][subTaskMedia]`.toString()
+            );
+
+            let path: any = await this.uploadHelper.uploadFileFromBuffer(image);
+            element.media = path[0];
+          }
+        }
       }
 
       const response = await this.taskRepository.updateById<ITask>(

@@ -85,6 +85,29 @@ const taskModel: Schema = new Schema(
         ref: "Golist",
       },
     },
+    subTasks: [
+      {
+        title: { type: String },
+        noOfServiceProvider: { type: Number },
+        note: {
+          type: String,
+          default: null,
+        },
+        slot: {
+          startTime: {
+            type: String,
+            required: false,
+            validate: [timeValidator, "Invalid start time"],
+          },
+          endTime: {
+            type: String,
+            required: false,
+            validate: [timeValidator, "Invalid end time"],
+          },
+        },
+        media: { type: String },
+      },
+    ],
     postedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
