@@ -8,11 +8,28 @@ interface Location {
   readableLocation?: string;
 }
 
+interface Slot {
+  startTime: {
+    type: string;
+  };
+  endTime: {
+    type: string;
+  };
+}
+
 interface GoList {
   title: string;
   serviceProviders: mongoose.Types.ObjectId[];
   taskInterests?: mongoose.Types.ObjectId[];
   goListId: string;
+}
+
+interface SubTask {
+  title: string;
+  noOfServiceProvider: number;
+  note: string;
+  slot: Slot;
+  media: string;
 }
 
 export interface ITask {
@@ -22,20 +39,14 @@ export interface ITask {
   location: Location;
   requirement: string;
   date: string;
-  slot: {
-    startTime: {
-      type: string;
-    };
-    endTime: {
-      type: string;
-    };
-  };
+  slot: Slot;
   noOfServiceProvider: number;
   media: string;
   type: TaskType;
   taskInterests: string[];
   goList: GoList | string;
   myList: string[];
+  subTasks: SubTask[];
   postedBy: string;
   isDeleted?: boolean;
   createdAt?: Date | Moment;

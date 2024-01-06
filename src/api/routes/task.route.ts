@@ -23,12 +23,14 @@ class TaskRoutes extends BaseRoutes {
     next: NextFunction
   ): void => {
     try {
-      const fields = ["media"];
+      const fields = ["media", "subTaskMedia"];
 
       fields.forEach((field) => {
-        const files = req?.file?.fieldname === field ? req?.file : undefined;
+        const files = (req.files as Express.Multer.File[])?.filter(
+          (file) => file.fieldname === field
+        );
         if (files) {
-          validateFiles([files], field, res);
+          validateFiles(files, field, res);
         }
       });
       next();
@@ -46,14 +48,14 @@ class TaskRoutes extends BaseRoutes {
     );
     this.router.post(
       "/create",
-      multer().single("media"),
+      multer().any(),
       this.validateFilesMiddleware,
       this.validateRequest,
       this.taskController.create
     );
     this.router.patch(
       "/update/:id",
-      multer().single("media"),
+      multer().any(),
       this.validateFilesMiddleware,
       this.validateRequest,
       this.taskController.update
