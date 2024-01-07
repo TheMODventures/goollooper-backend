@@ -14,16 +14,21 @@ import { GolistRepository } from "../repository/golist/golist.repository";
 import { ITask } from "../../database/interfaces/task.interface";
 import { UploadHelper } from "../helpers/upload.helper";
 import { IGolist } from "../../database/interfaces/golist.interface";
-import { ETaskUserStatus } from "../../database/interfaces/enums";
+import { ETaskUserStatus, TaskType } from "../../database/interfaces/enums";
+import { CalendarRepository } from "../repository/calendar/calendar.repository";
+import { ICalendar } from "../../database/interfaces/calendar.interface";
+import { ModelHelper } from "../helpers/model.helper";
 
 class TaskService {
   private taskRepository: TaskRepository;
   private golistRepository: GolistRepository;
+  private calendarRepository: CalendarRepository;
   private uploadHelper: UploadHelper;
 
   constructor() {
     this.taskRepository = new TaskRepository();
     this.golistRepository = new GolistRepository();
+    this.calendarRepository = new CalendarRepository();
 
     this.uploadHelper = new UploadHelper("task");
   }
@@ -79,6 +84,7 @@ class TaskService {
           model: "Service",
           select: "title type parent",
         },
+        ModelHelper.populateData("users.user", ModelHelper.userSelect, "Users"),
       ]);
       if (response === null) {
         return ResponseHelper.sendResponse(404);
@@ -153,6 +159,12 @@ class TaskService {
         }
       }
       const data = await this.taskRepository.create<ITask>(payload);
+      if (data.type === TaskType.event)
+        await this.calendarRepository.create({
+          user: payload.postedBy as string,
+          task: data._id,
+          date: data.date,
+        } as ICalendar);
       return ResponseHelper.sendResponse(201, data);
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);
@@ -239,6 +251,17 @@ class TaskService {
       if (response === null) {
         return ResponseHelper.sendResponse(404);
       }
+      if (
+        taskResponse?.type === TaskType.event &&
+        dataset.date &&
+        taskResponse.date !== dataset.date
+      )
+        await this.calendarRepository.updateById(
+          response._id?.toString() ?? "",
+          {
+            date: response.date,
+          } as ICalendar
+        );
       return ResponseHelper.sendSuccessResponse(
         SUCCESS_DATA_UPDATION_PASSED,
         response

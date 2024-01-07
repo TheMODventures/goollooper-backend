@@ -80,6 +80,7 @@ export enum NOTIFICATION_TYPES {
 export enum TaskType {
   normal = "normal",
   megablast = "megablast",
+  event = "megablast",
 }
 
 export enum ETaskUserStatus {
