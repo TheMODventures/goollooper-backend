@@ -3,7 +3,7 @@ import mongoosePaginate from "mongoose-paginate-v2";
 import aggregatePaginate from "mongoose-aggregate-paginate-v2";
 
 import { ITaskDoc } from "../interfaces/task.interface";
-import { TaskType } from "../interfaces/enums";
+import { TaskType, ETaskUserStatus } from "../interfaces/enums";
 
 const schemaOptions = {
   timestamps: true,
@@ -116,6 +116,30 @@ const taskModel: Schema = new Schema(
       type: Boolean,
       default: false,
     },
+    gender: { type: String, default: null },
+    ageFrom: { type: Number, default: null },
+    ageTo: { type: Number, default: null },
+    endDate: { type: Date, required: true },
+    users: {
+      type: [
+        {
+          _id: false,
+          user: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            required: true,
+          },
+          status: {
+            type: Number,
+            enum: Object.values(ETaskUserStatus),
+            default: ETaskUserStatus.PENDING,
+          },
+        },
+      ],
+      default: [],
+    },
+    pendingCount: { type: Number, default: 0 },
+    acceptedCount: { type: Number, default: 0 },
   },
   schemaOptions
 );

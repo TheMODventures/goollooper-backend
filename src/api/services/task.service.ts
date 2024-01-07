@@ -14,6 +14,7 @@ import { GolistRepository } from "../repository/golist/golist.repository";
 import { ITask } from "../../database/interfaces/task.interface";
 import { UploadHelper } from "../helpers/upload.helper";
 import { IGolist } from "../../database/interfaces/golist.interface";
+import { ETaskUserStatus } from "../../database/interfaces/enums";
 
 class TaskService {
   private taskRepository: TaskRepository;
@@ -256,6 +257,72 @@ class TaskService {
         return ResponseHelper.sendResponse(404);
       }
       return ResponseHelper.sendSuccessResponse(SUCCESS_DATA_DELETION_PASSED);
+    } catch (error) {
+      return ResponseHelper.sendResponse(500, (error as Error).message);
+    }
+  };
+
+  requestToAdded = async (_id: string, user: string) => {
+    try {
+      const isExist = await this.taskRepository.exists({
+        _id: new ObjectId(_id),
+        "users.user": new ObjectId(user),
+      });
+      if (isExist)
+        return ResponseHelper.sendResponse(422, "You are already in this task");
+      const response = await this.taskRepository.updateById(_id, {
+        $addToSet: { users: { user } },
+        $inc: { pendingCount: 1 },
+      });
+
+      if (response === null) {
+        return ResponseHelper.sendResponse(404);
+      }
+      return ResponseHelper.sendSuccessResponse(
+        SUCCESS_DATA_UPDATION_PASSED,
+        response
+      );
+    } catch (error) {
+      return ResponseHelper.sendResponse(500, (error as Error).message);
+    }
+  };
+
+  toggleRequest = async (
+    _id: string,
+    loggedInUser: string,
+    user: string,
+    status: number
+  ) => {
+    try {
+      const isExist = await this.taskRepository.exists({
+        _id: new ObjectId(_id),
+        users: { $elemMatch: { user: new ObjectId(user), status } },
+      });
+      if (isExist)
+        return ResponseHelper.sendResponse(422, `Status is already ${status}`);
+      const updateCount: any = { $inc: {} };
+      if (status == ETaskUserStatus.REJECTED)
+        updateCount["$inc"].pendingCount = -1;
+      if (status == ETaskUserStatus.ACCEPTED) {
+        updateCount["$inc"].pendingCount = -1;
+        updateCount["$inc"].acceptedCount = 1;
+      }
+      const response = await this.taskRepository.updateByOne(
+        { _id: new ObjectId(_id) },
+        {
+          $set: { "users.$[users].status": status },
+          ...updateCount,
+        },
+        { arrayFilters: [{ "users.user": new ObjectId(user) }] }
+      );
+
+      if (response === null) {
+        return ResponseHelper.sendResponse(404);
+      }
+      return ResponseHelper.sendSuccessResponse(
+        SUCCESS_DATA_UPDATION_PASSED,
+        response
+      );
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }

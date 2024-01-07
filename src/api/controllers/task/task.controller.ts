@@ -49,6 +49,29 @@ class TaskController {
     const response = await this.taskService.delete(id);
     return res.status(response.code).json(response);
   };
+
+  requestToAdded = async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const response = await this.taskService.requestToAdded(
+      id,
+      req.locals.auth?.userId as string
+    );
+    console.log(id);
+    return res.status(response.code).json(response);
+  };
+
+  toggleRequest = async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const { user, status } = req.body;
+    const response = await this.taskService.toggleRequest(
+      id,
+      req.locals.auth?.userId as string,
+      user as string,
+      status
+    );
+    console.log(id);
+    return res.status(response.code).json(response);
+  };
 }
 
 export default TaskController;
