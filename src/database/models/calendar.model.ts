@@ -3,6 +3,7 @@ import mongoosePaginate from "mongoose-paginate-v2";
 import aggregatePaginate from "mongoose-aggregate-paginate-v2";
 
 import { ICalendarDoc } from "../interfaces/calendar.interface";
+import { ECALENDARTaskType } from "../interfaces/enums";
 
 const schemaOptions = {
   timestamps: true,
@@ -38,6 +39,11 @@ const calendarModel: Schema = new Schema(
     isActive: { type: Boolean, default: true },
     task: { type: mongoose.Schema.Types.ObjectId, ref: "Task", required: true },
     user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    type: {
+      type: String,
+      default: ECALENDARTaskType.request,
+      enum: Object.values(ECALENDARTaskType),
+    },
     isDeleted: { type: Boolean, default: false },
   },
   schemaOptions

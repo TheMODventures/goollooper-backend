@@ -110,6 +110,18 @@ export abstract class BaseRepository<J, D> implements IBaseRepository<J, D> {
     );
   }
 
+  async updateMany<T>(
+    filter: FilterQuery<T>,
+    updateQuery: UpdateQuery<D>,
+    options: QueryOptions<T> = {}
+  ): Promise<T | null> {
+    return (
+      ((await this.model.updateMany(filter, updateQuery, {
+        ...options,
+      })) as T) || null
+    );
+  }
+
   async delete<T>(filter?: FilterQuery<T>): Promise<boolean> {
     const result = await this.model.deleteOne(filter).exec();
     return result.deletedCount === 1 ? true : false;

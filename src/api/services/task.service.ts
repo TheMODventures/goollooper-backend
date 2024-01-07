@@ -14,7 +14,11 @@ import { GolistRepository } from "../repository/golist/golist.repository";
 import { ITask } from "../../database/interfaces/task.interface";
 import { UploadHelper } from "../helpers/upload.helper";
 import { IGolist } from "../../database/interfaces/golist.interface";
-import { ETaskUserStatus, TaskType } from "../../database/interfaces/enums";
+import {
+  ECALENDARTaskType,
+  ETaskUserStatus,
+  TaskType,
+} from "../../database/interfaces/enums";
 import { CalendarRepository } from "../repository/calendar/calendar.repository";
 import { ICalendar } from "../../database/interfaces/calendar.interface";
 import { ModelHelper } from "../helpers/model.helper";
@@ -256,12 +260,9 @@ class TaskService {
         dataset.date &&
         taskResponse.date !== dataset.date
       )
-        await this.calendarRepository.updateById(
-          response._id?.toString() ?? "",
-          {
-            date: response.date,
-          } as ICalendar
-        );
+        await this.calendarRepository.updateMany({ task: response._id }, {
+          date: response.date,
+        } as ICalendar);
       return ResponseHelper.sendSuccessResponse(
         SUCCESS_DATA_UPDATION_PASSED,
         response
@@ -279,6 +280,9 @@ class TaskService {
       if (!response) {
         return ResponseHelper.sendResponse(404);
       }
+      await this.calendarRepository.deleteMany({
+        task: response._id,
+      });
       return ResponseHelper.sendSuccessResponse(SUCCESS_DATA_DELETION_PASSED);
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);
@@ -330,7 +334,7 @@ class TaskService {
         updateCount["$inc"].pendingCount = -1;
         updateCount["$inc"].acceptedCount = 1;
       }
-      const response = await this.taskRepository.updateByOne(
+      const response = await this.taskRepository.updateByOne<ITask>(
         { _id: new ObjectId(_id) },
         {
           $set: { "users.$[users].status": status },
@@ -338,6 +342,20 @@ class TaskService {
         },
         { arrayFilters: [{ "users.user": new ObjectId(user) }] }
       );
+
+      if (response && status == ETaskUserStatus.ACCEPTED) {
+        await this.calendarRepository.create({
+          user,
+          task: response._id,
+          date: response.date ?? "2024-11-11",
+          type: ECALENDARTaskType.accepted,
+        } as ICalendar);
+      } else if (response && status == ETaskUserStatus.REJECTED) {
+        await this.calendarRepository.deleteMany({
+          user: new ObjectId(user),
+          task: response._id,
+        });
+      }
 
       if (response === null) {
         return ResponseHelper.sendResponse(404);

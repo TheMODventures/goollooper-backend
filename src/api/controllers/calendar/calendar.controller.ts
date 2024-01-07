@@ -15,7 +15,6 @@ class CalendarController {
   index = async (req: Request, res: Response) => {
     const { limit, page, date = "" } = req.query;
     const limitNow = limit ? limit : 10;
-    console.log(req.locals.auth?.userId);
     const filter: FilterQuery<ICalendar> = {
       user: req.locals.auth?.userId,
       isDeleted: false,

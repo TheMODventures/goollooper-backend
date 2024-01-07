@@ -89,3 +89,8 @@ export enum ETaskUserStatus {
   STANDBY = 3,
   ACCEPTED = 4,
 }
+
+export enum ECALENDARTaskType {
+  request = "request",
+  accepted = "accepted",
+}

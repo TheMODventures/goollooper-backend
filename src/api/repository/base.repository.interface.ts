@@ -39,6 +39,10 @@ export interface IBaseRepository<J, D> {
     filter: FilterQuery<T>,
     updateQuery: QueryOptions<T>
   ): Promise<T | null>;
+  updateMany<T>(
+    filter: FilterQuery<T>,
+    updateQuery: QueryOptions<T>
+  ): Promise<any | null>;
   subDocAction<T>(
     filter: FilterQuery<T>,
     updateQuery?: QueryOptions<T>,
