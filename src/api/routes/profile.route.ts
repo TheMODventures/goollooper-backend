@@ -76,7 +76,7 @@ class ProfileRoutes extends BaseRoutes {
       this.userController.updateSchedule
     );
     this.router.delete(
-      "/delete/:_id",
+      "/delete/:id",
       this.validateRequest,
       this.userController.delete
     );

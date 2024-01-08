@@ -61,7 +61,36 @@ export enum EList {
   myList = 2,
 }
 
+export enum ERating {
+  lowest = 1,
+  highest = -1,
+}
+
+export enum ELiability {
+  yes = 1,
+  no = 2,
+  all = 3,
+}
+
 export enum NOTIFICATION_TYPES {
   SHARE_PROVIDER = 1,
   FRIEND_REQUEST = 2,
+}
+
+export enum TaskType {
+  normal = "normal",
+  megablast = "megablast",
+  event = "megablast",
+}
+
+export enum ETaskUserStatus {
+  PENDING = 1,
+  REJECTED = 2,
+  STANDBY = 3,
+  ACCEPTED = 4,
+}
+
+export enum ECALENDARTaskType {
+  request = "request",
+  accepted = "accepted",
 }

@@ -1,24 +1,54 @@
-import mongoose from "mongoose";
+import mongoose, { Document } from "mongoose";
 import { Moment } from "moment";
 
+import { TaskType } from "./enums";
+
 interface Location {
-  type: string;
   coordinates: [number, number];
-  state?: string;
-  city?: string;
-  county?: string;
-  isSelected: boolean;
   readableLocation?: string;
 }
 
-export interface ITask extends JwtToken {
+interface Slot {
+  startTime: {
+    type: string;
+  };
+  endTime: {
+    type: string;
+  };
+}
+
+interface GoList {
+  title: string;
+  serviceProviders: mongoose.Types.ObjectId[];
+  taskInterests?: mongoose.Types.ObjectId[];
+  goListId: string;
+}
+
+interface SubTask {
+  title: string;
+  noOfServiceProvider: number;
+  note: string;
+  slot: Slot;
+  media: string;
+}
+
+export interface ITask {
   _id?: mongoose.Types.ObjectId | string;
   title: string;
   description: string;
+  location: Location;
+  requirement: string;
+  date: string;
+  slot: Slot;
+  noOfServiceProvider: number;
+  media: string;
+  type: TaskType;
   taskInterests: string[];
-  taskLocation: Location;
+  goList: GoList | string;
+  myList: string[];
+  subTasks: SubTask[];
   postedBy: string;
-  media: string[];
+  isDeleted?: boolean;
   gender?: string;
   ageFrom?: number;
   ageTo?: number;

@@ -3,7 +3,7 @@ import { Request, Response } from "express";
 
 import GolistService from "../../services/golist.service";
 import UserService from "../../services/user.service";
-import { EList } from "../../../database/interfaces/enums";
+import { ELiability, EList, ERating } from "../../../database/interfaces/enums";
 import { IUser } from "../../../database/interfaces/user.interface";
 import { IGolist } from "../../../database/interfaces/golist.interface";
 import { ModelHelper } from "../../helpers/model.helper";
@@ -119,26 +119,61 @@ class GolistController {
     return res.status(response.code).json(response);
   };
 
+  checkPostalCode = async (req: Request, res: Response) => {
+    const { zipCode } = req.query;
+    const response = await this.golistService.checkPostalCode(
+      zipCode as string
+    );
+    return res.status(response.code).json(response);
+  };
+
   getNearestServiceProviders = async (req: Request, res: Response) => {
+    const { limit, page } = req.query;
     const {
-      limit,
-      page,
       latitude,
       longitude,
       zipCode,
       taskInterests = [],
       subscription = "",
-    } = req.query;
+      rating,
+      companyLogo,
+      companyRegistration,
+      companyWebsite,
+      companyAffilation,
+      companyPublication,
+      companyResume,
+      certificate,
+      license,
+      reference,
+      insurance,
+      search,
+      visualPhotos,
+      visualVideos,
+    } = req.body;
     const limitNow = limit ? limit : 10;
     const coordinates = [Number(longitude), Number(latitude)];
     const response = await this.golistService.getNearestServiceProviders(
       Number(page),
       Number(limitNow),
       req.locals.auth?.userId,
+      coordinates,
       taskInterests as string[],
       subscription?.toString(),
-      coordinates,
-      zipCode?.toString()
+      zipCode?.toString(),
+      rating ? (parseInt(rating.toString()) as ERating) : undefined,
+      companyLogo as boolean | undefined,
+      companyRegistration as boolean | undefined,
+      companyWebsite as boolean | undefined,
+      companyAffilation as boolean | undefined,
+      companyPublication as boolean | undefined,
+      companyResume as boolean | undefined,
+      certificate as boolean | undefined,
+      license as boolean | undefined,
+      reference as boolean | undefined,
+      insurance as boolean | undefined,
+      search as string,
+      visualPhotos as boolean | undefined,
+      visualVideos as boolean | undefined
     );
     return res.status(response.code).json(response);
   };

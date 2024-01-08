@@ -312,7 +312,7 @@ class UserService {
           }
           dataset.location[i].coordinates?.map((e) => parseFloat(e.toString()));
           dataset.location[i].type ??= "Point";
-          if (element.isSelected)
+          if (element.isSelected === "true")
             dataset.selectedLocation = dataset.location[i];
         }
       }
@@ -773,7 +773,12 @@ class UserService {
         SUCCESS_DATA_UPDATION_PASSED,
         res
       );
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.code === 11000)
+        return ResponseHelper.sendResponse(
+          409,
+          `This ${Object.keys(error.keyValue)[0]} already exist`
+        );
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   };

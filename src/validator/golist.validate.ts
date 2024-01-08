@@ -2,7 +2,7 @@ import { isObjectIdOrHexString } from "mongoose";
 import * as yup from "yup";
 
 import UserService from "../api/services/user.service";
-import { EList } from "../database/interfaces/enums";
+import { ELiability, EList, ERating } from "../database/interfaces/enums";
 
 const userService = new UserService();
 
@@ -125,19 +125,40 @@ const shareRule = yup.object().shape({
   query: yup.object().noUnknown(),
 });
 
-const getNearestServiceProvidersRule = yup.object().shape({
+const checkPostalCodeRule = yup.object().shape({
   params: yup.object().shape({}).noUnknown(),
   body: yup.object().shape({}).noUnknown(),
-  query: yup
+  query: yup.object().shape({
+    zipCode: yup.string().required(),
+  }),
+});
+
+const getNearestServiceProvidersRule = yup.object().shape({
+  params: yup.object().shape({}).noUnknown(),
+  body: yup
     .object()
     .shape({
-      page: yup.string().required(),
-      limit: yup.string().notRequired(),
       zipCode: yup.string(),
       latitude: yup.string(),
       longitude: yup.string(),
+      rating: yup
+        .string()
+        .oneOf([...Object.values(ERating).map((value) => value.toString())]),
       taskInterests: yup.array().of(paramRule.id).notRequired(),
       subscription: yup.string().notRequired(),
+      companyLogo: yup.boolean().notRequired(),
+      companyRegistration: yup.boolean().notRequired(),
+      companyWebsite: yup.boolean().notRequired(),
+      companyAffilation: yup.boolean().notRequired(),
+      companyPublication: yup.boolean().notRequired(),
+      companyResume: yup.boolean().notRequired(),
+      certificate: yup.boolean().notRequired(),
+      license: yup.boolean().notRequired(),
+      reference: yup.boolean().notRequired(),
+      insurance: yup.boolean().notRequired(),
+      visualPhotos: yup.boolean().notRequired(),
+      visualVideos: yup.boolean().notRequired(),
+      search: yup.string(),
     })
     .test(
       "zipCodeOrCoordinates",
@@ -157,6 +178,13 @@ const getNearestServiceProvidersRule = yup.object().shape({
       }
     )
     .noUnknown(),
+  query: yup
+    .object()
+    .shape({
+      page: yup.string().required(),
+      limit: yup.string().notRequired(),
+    })
+    .noUnknown(),
 });
 export = {
   "/": indexRule,
@@ -164,6 +192,7 @@ export = {
   "/update": updateRule,
   "/show": showRule,
   "/delete": showRule,
+  "/zip-code": checkPostalCodeRule,
   "/nearest-service-provider": getNearestServiceProvidersRule,
   "/share": shareRule,
 };

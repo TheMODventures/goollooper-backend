@@ -19,12 +19,22 @@ const userModel: Schema = new Schema(
       default: null,
       index: {
         unique: true,
-        partialFilterExpression: { username: { $type: "string" } },
+        partialFilterExpression: {
+          username: { $type: "string" },
+          isDeleted: false,
+        },
       },
     },
     email: {
       type: String,
-      unique: true,
+      // unique: true,
+      index: {
+        unique: true,
+        partialFilterExpression: {
+          email: { $type: "string" },
+          isDeleted: false,
+        },
+      },
       required: true,
       lowercase: true,
       trim: true,
@@ -34,7 +44,18 @@ const userModel: Schema = new Schema(
     age: { type: Number, default: null },
     countryCode: { type: String }, // like 'PK' alpha-2 format
     phoneCode: { type: String }, // like '+92'
-    phone: { type: String, default: null },
+    phone: {
+      type: String,
+      default: null,
+      trime: true,
+      index: {
+        unique: true,
+        partialFilterExpression: {
+          phone: { $type: "string" },
+          isDeleted: false,
+        },
+      },
+    },
     completePhone: { type: String, select: false },
     profileImage: { type: String },
     gallery: [String],
@@ -105,12 +126,26 @@ const userModel: Schema = new Schema(
       type: Number,
       select: false, // exclude from query result
     },
+    averageRating: { type: Number, default: 0 },
+    ratingCount: { type: Number, default: 0 },
     isDeleted: { type: Boolean, default: false },
   },
   schemaOptions
 );
 
 userModel.index({ _id: 1, email: 1, role: 1 });
+userModel.index(
+  { email: 1, phone: 1, username: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      isDeleted: false,
+      // phone: { $type: "string" },
+      // email: { $type: "string" },
+      // username: { $type: "string" },
+    },
+  }
+);
 userModel.index({ selectedLocation: "2dsphere" });
 
 userModel.pre("save", async function (next) {

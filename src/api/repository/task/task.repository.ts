@@ -13,8 +13,7 @@ export class TaskRepository
     super(Task);
   }
 
-  getOneByFilter = async (filter: FilterQuery<ITask>) => {
-    const response = await this.model.findOne<ITask>(filter);
-    return response;
+  exists = async (filter: FilterQuery<ITask>): Promise<boolean> => {
+    return (await Task.exists(filter)) != null;
   };
 }

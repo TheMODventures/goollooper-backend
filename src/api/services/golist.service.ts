@@ -1,4 +1,4 @@
-import { FilterQuery, PopulateOptions } from "mongoose";
+import { FilterQuery, PipelineStage, PopulateOptions } from "mongoose";
 import { ObjectId } from "bson";
 
 import { IGolist } from "../../database/interfaces/golist.interface";
@@ -15,7 +15,11 @@ import UserService from "./user.service";
 import { GoogleMapHelper } from "../helpers/googleMapApi.helper";
 import { NotificationRepository } from "../repository/notification/notification.repository";
 import { INotification } from "../../database/interfaces/notification.interface";
-import { EUserRole, NOTIFICATION_TYPES } from "../../database/interfaces/enums";
+import {
+  ERating,
+  EUserRole,
+  NOTIFICATION_TYPES,
+} from "../../database/interfaces/enums";
 
 class GolistService {
   private golistRepository: GolistRepository;
@@ -99,7 +103,7 @@ class GolistService {
   ): Promise<ApiResponse> => {
     try {
       const response = await this.golistRepository.updateByOne<IGolist>(
-        { _id, createdBy: dataset.createdBy },
+        { _id },
         dataset
       );
       if (response === null) {
@@ -128,16 +132,44 @@ class GolistService {
     }
   };
 
+  checkPostalCode = async (zipCode: string): Promise<ApiResponse> => {
+    const googleCoordinates = (await GoogleMapHelper.searchLocation(
+      zipCode,
+      ""
+    )) as Number[] | null;
+    if (!googleCoordinates)
+      return ResponseHelper.sendResponse(404, "postal code is invalid");
+    return ResponseHelper.sendSuccessResponse("Valid postal code", {
+      latitude: googleCoordinates[1],
+      longitude: googleCoordinates[0],
+    });
+  };
+
   getNearestServiceProviders = async (
     page: number,
     limit = 10,
     userId: string | undefined,
+    coordinates: Number[],
     serviceId?: string[],
     subscription?: string | ObjectId,
-    coordinates?: Number[],
-    zipCode?: string | null
+    zipCode?: string | null,
+    rating?: ERating | undefined,
+    companyLogo?: boolean | undefined,
+    companyRegistration?: boolean | undefined,
+    companyWebsite?: boolean | undefined,
+    companyAffilation?: boolean | undefined,
+    companyPublication?: boolean | undefined,
+    companyResume?: boolean | undefined,
+    certificate?: boolean | undefined,
+    license?: boolean | undefined,
+    reference?: boolean | undefined,
+    insurance?: boolean | undefined,
+    search?: string,
+    visualPhotos?: boolean | undefined,
+    visualVideos?: boolean | undefined
   ) => {
     try {
+      const query: PipelineStage[] = [];
       if (zipCode) {
         // coordinates = []
         const googleCoordinates = (await GoogleMapHelper.searchLocation(
@@ -148,6 +180,19 @@ class GolistService {
           return ResponseHelper.sendResponse(404, "postal code is invalid");
         coordinates = googleCoordinates;
       }
+      if (coordinates?.length !== 0 && !isNaN(coordinates[0] as number)) {
+        query.push({
+          $geoNear: {
+            near: {
+              type: "Point",
+              coordinates: coordinates as [number, number],
+            },
+            distanceField: "distance",
+            spherical: true,
+            maxDistance: 10000,
+          },
+        });
+      }
       const match = {
         _id: { $ne: new ObjectId(userId) },
         isDeleted: false,
@@ -156,6 +201,41 @@ class GolistService {
         // isActive: true,
         // isVerified: true,
       } as any;
+
+      if (companyLogo) match["company.logo"] = { $ne: null };
+      if (companyRegistration)
+        match["company.registered"] = companyRegistration;
+      if (companyWebsite) match["company.website"] = { $ne: null };
+      if (companyAffilation) match["company.affiliation"] = { $ne: null };
+      if (companyPublication) match["company.publication"] = { $ne: null };
+      if (companyResume) match["company.resume"] = { $ne: null };
+
+      if (insurance) match["insurances"] = { $ne: [] };
+      else if (insurance === false) match["insurances"] = [];
+
+      if (certificate) match["certificates"] = { $ne: [] };
+      else if (certificate === false) match["certificates"] = [];
+
+      if (reference) match["reference.name"] = { $ne: null };
+      else if (reference === false) match["reference.name"] = null;
+
+      if (license) match["licenses"] = { $ne: [] };
+      else if (license === false) match["licenses"] = [];
+
+      if (visualPhotos)
+        match["visuals"] = { $regex: /\.(jpg|jpeg|png|gif|bmp)$/i };
+      else if (visualPhotos === false && visualVideos === false)
+        match["visuals"] = [];
+
+      if (visualVideos) match["visuals"] = { $regex: /\.(mp4|avi|mov|mkv)$/i };
+      else if (visualPhotos === false && visualVideos === false)
+        match["visuals"] = [];
+
+      if (visualPhotos && visualVideos)
+        match["visuals"] = {
+          $regex: /\.(mp4|avi|mov|mkv|jpg|jpeg|png|gif|bmp)$/i,
+        };
+
       if (subscription) {
         match["subscription.subscription"] = subscription;
       }
@@ -174,50 +254,63 @@ class GolistService {
           },
         ];
       }
-      const users = await new UserService().getDataByAggregate(page, limit, [
-        {
-          $geoNear: {
-            near: {
-              type: "Point",
-              coordinates: coordinates as [number, number],
+      query.push({
+        $match: match,
+      });
+      if (search) {
+        query.push({
+          $match: {
+            $or: [
+              { firstName: { $regex: search, $options: "i" } },
+              { lastName: { $regex: search, $options: "i" } },
+              { username: { $regex: search, $options: "i" } },
+              { email: { $regex: search, $options: "i" } },
+            ],
+          },
+        });
+      }
+      if (rating) {
+        query.push({ $sort: { averageRating: rating } });
+      }
+      query.push(
+        ...[
+          {
+            $lookup: {
+              as: "subscription",
+              from: "subscriptions",
+              localField: "subscription.subscription",
+              foreignField: "_id",
             },
-            distanceField: "distance",
-            spherical: true,
-            maxDistance: 10000,
           },
-        },
-        {
-          $match: match,
-        },
-        {
-          $lookup: {
-            as: "subscription",
-            from: "subscriptions",
-            localField: "subscription.subscription",
-            foreignField: "_id",
-          },
-        },
-        {
-          $addFields: {
-            subscription: { $first: "$subscription" },
-          },
-        },
-        {
-          $project: {
-            _id: 1,
-            username: 1,
-            firstName: 1,
-            lastName: 1,
-            email: 1,
-            phone: 1,
-            profileImage: 1,
-            subscriptionName: {
-              $ifNull: ["$subscription.name", null],
+          {
+            $addFields: {
+              subscription: { $first: "$subscription" },
             },
-            distance: 1,
           },
-        },
-      ]);
+          {
+            $project: {
+              _id: 1,
+              username: 1,
+              firstName: 1,
+              lastName: 1,
+              email: 1,
+              phone: 1,
+              ratingCount: 1,
+              averageRating: 1,
+              profileImage: 1,
+              subscriptionName: {
+                $ifNull: ["$subscription.name", null],
+              },
+              distance: 1,
+            },
+          },
+        ]
+      );
+      const users = await new UserService().getDataByAggregate(
+        page,
+        limit,
+        query
+      );
       return users;
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);
