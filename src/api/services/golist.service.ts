@@ -16,7 +16,6 @@ import { GoogleMapHelper } from "../helpers/googleMapApi.helper";
 import { NotificationRepository } from "../repository/notification/notification.repository";
 import { INotification } from "../../database/interfaces/notification.interface";
 import {
-  ELiability,
   ERating,
   EUserRole,
   NOTIFICATION_TYPES,
@@ -161,11 +160,13 @@ class GolistService {
     companyAffilation?: boolean | undefined,
     companyPublication?: boolean | undefined,
     companyResume?: boolean | undefined,
-    certificate?: ELiability,
-    license?: ELiability,
-    reference?: ELiability,
-    insurance?: ELiability,
-    search?: string
+    certificate?: boolean | undefined,
+    license?: boolean | undefined,
+    reference?: boolean | undefined,
+    insurance?: boolean | undefined,
+    search?: string,
+    visualPhotos?: boolean | undefined,
+    visualVideos?: boolean | undefined
   ) => {
     try {
       const query: PipelineStage[] = [];
@@ -209,17 +210,31 @@ class GolistService {
       if (companyPublication) match["company.publication"] = { $ne: null };
       if (companyResume) match["company.resume"] = { $ne: null };
 
-      if (insurance === ELiability.yes) match["insurances"] = { $ne: [] };
-      else if (insurance === ELiability.no) match["insurances"] = [];
+      if (insurance) match["insurances"] = { $ne: [] };
+      else if (insurance === false) match["insurances"] = [];
 
-      if (certificate === ELiability.yes) match["certificates"] = { $ne: [] };
-      else if (certificate === ELiability.no) match["certificates"] = [];
+      if (certificate) match["certificates"] = { $ne: [] };
+      else if (certificate === false) match["certificates"] = [];
 
-      if (reference === ELiability.yes) match["reference.name"] = { $ne: null };
-      else if (reference === ELiability.no) match["reference.name"] = null;
+      if (reference) match["reference.name"] = { $ne: null };
+      else if (reference === false) match["reference.name"] = null;
 
-      if (license === ELiability.yes) match["licenses"] = { $ne: [] };
-      else if (license === ELiability.no) match["licenses"] = [];
+      if (license) match["licenses"] = { $ne: [] };
+      else if (license === false) match["licenses"] = [];
+
+      if (visualPhotos)
+        match["visuals"] = { $regex: /\.(jpg|jpeg|png|gif|bmp)$/i };
+      else if (visualPhotos === false && visualVideos === false)
+        match["visuals"] = [];
+
+      if (visualVideos) match["visuals"] = { $regex: /\.(mp4|avi|mov|mkv)$/i };
+      else if (visualPhotos === false && visualVideos === false)
+        match["visuals"] = [];
+
+      if (visualPhotos && visualVideos)
+        match["visuals"] = {
+          $regex: /\.(mp4|avi|mov|mkv|jpg|jpeg|png|gif|bmp)$/i,
+        };
 
       if (subscription) {
         match["subscription.subscription"] = subscription;

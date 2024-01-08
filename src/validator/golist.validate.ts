@@ -135,12 +135,9 @@ const checkPostalCodeRule = yup.object().shape({
 
 const getNearestServiceProvidersRule = yup.object().shape({
   params: yup.object().shape({}).noUnknown(),
-  body: yup.object().shape({}).noUnknown(),
-  query: yup
+  body: yup
     .object()
     .shape({
-      page: yup.string().required(),
-      limit: yup.string().notRequired(),
       zipCode: yup.string(),
       latitude: yup.string(),
       longitude: yup.string(),
@@ -155,18 +152,12 @@ const getNearestServiceProvidersRule = yup.object().shape({
       companyAffilation: yup.boolean().notRequired(),
       companyPublication: yup.boolean().notRequired(),
       companyResume: yup.boolean().notRequired(),
-      certificate: yup
-        .string()
-        .oneOf([...Object.values(ELiability).map((value) => value.toString())]),
-      license: yup
-        .string()
-        .oneOf([...Object.values(ELiability).map((value) => value.toString())]),
-      reference: yup
-        .string()
-        .oneOf([...Object.values(ELiability).map((value) => value.toString())]),
-      insurance: yup
-        .string()
-        .oneOf([...Object.values(ELiability).map((value) => value.toString())]),
+      certificate: yup.boolean().notRequired(),
+      license: yup.boolean().notRequired(),
+      reference: yup.boolean().notRequired(),
+      insurance: yup.boolean().notRequired(),
+      visualPhotos: yup.boolean().notRequired(),
+      visualVideos: yup.boolean().notRequired(),
       search: yup.string(),
     })
     .test(
@@ -186,6 +177,13 @@ const getNearestServiceProvidersRule = yup.object().shape({
         return true;
       }
     )
+    .noUnknown(),
+  query: yup
+    .object()
+    .shape({
+      page: yup.string().required(),
+      limit: yup.string().notRequired(),
+    })
     .noUnknown(),
 });
 export = {

@@ -128,9 +128,8 @@ class GolistController {
   };
 
   getNearestServiceProviders = async (req: Request, res: Response) => {
+    const { limit, page } = req.query;
     const {
-      limit,
-      page,
       latitude,
       longitude,
       zipCode,
@@ -148,7 +147,9 @@ class GolistController {
       reference,
       insurance,
       search,
-    } = req.query;
+      visualPhotos,
+      visualVideos,
+    } = req.body;
     const limitNow = limit ? limit : 10;
     const coordinates = [Number(longitude), Number(latitude)];
     const response = await this.golistService.getNearestServiceProviders(
@@ -166,13 +167,13 @@ class GolistController {
       companyAffilation as boolean | undefined,
       companyPublication as boolean | undefined,
       companyResume as boolean | undefined,
-      certificate
-        ? (parseInt(certificate.toString()) as ELiability)
-        : undefined,
-      license ? (parseInt(license.toString()) as ELiability) : undefined,
-      reference ? (parseInt(reference.toString()) as ELiability) : undefined,
-      insurance ? (parseInt(insurance.toString()) as ELiability) : undefined,
-      search as string
+      certificate as boolean | undefined,
+      license as boolean | undefined,
+      reference as boolean | undefined,
+      insurance as boolean | undefined,
+      search as string,
+      visualPhotos as boolean | undefined,
+      visualVideos as boolean | undefined
     );
     return res.status(response.code).json(response);
   };

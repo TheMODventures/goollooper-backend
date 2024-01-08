@@ -52,7 +52,7 @@ class GolistRoutes extends BaseRoutes {
       this.golistController.checkPostalCode
     );
 
-    this.router.get(
+    this.router.post(
       "/nearest-service-provider",
       this.validateRequest,
       this.golistController.getNearestServiceProviders
