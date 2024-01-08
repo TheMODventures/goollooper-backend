@@ -1,7 +1,7 @@
 import { isObjectIdOrHexString } from "mongoose";
 import * as yup from "yup";
 
-import { TaskType } from "../database/interfaces/enums";
+import { ETaskUserStatus, TaskType } from "../database/interfaces/enums";
 
 const paramRule = {
   id: yup
@@ -203,10 +203,31 @@ const updateRule = yup.object().shape({
   query: yup.object().noUnknown(),
 });
 
+const toggleRequestRule = yup.object().shape({
+  params: yup.object().shape(paramRule).noUnknown(),
+  body: yup
+    .object()
+    .shape({
+      user: paramRule.id,
+      status: yup
+        .number()
+        .oneOf([
+          ETaskUserStatus.ACCEPTED,
+          ETaskUserStatus.REJECTED,
+          ETaskUserStatus.STANDBY,
+        ])
+        .required(),
+    })
+    .noUnknown(),
+  query: yup.object().noUnknown(),
+});
+
 export = {
   "/": indexRule,
   "/show": showRule,
   "/create": createRule,
   "/update": updateRule,
   "/delete": showRule,
+  "/toggle-request": toggleRequestRule,
+  "/request": showRule,
 };

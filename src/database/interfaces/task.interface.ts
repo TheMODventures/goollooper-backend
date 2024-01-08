@@ -49,6 +49,10 @@ export interface ITask {
   subTasks: SubTask[];
   postedBy: string;
   isDeleted?: boolean;
+  gender?: string;
+  ageFrom?: number;
+  ageTo?: number;
+  endDate?: Date | Moment;
   createdAt?: Date | Moment;
   updatedAt?: Date | Moment;
 }

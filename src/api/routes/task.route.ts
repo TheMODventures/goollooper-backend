@@ -65,6 +65,18 @@ class TaskRoutes extends BaseRoutes {
       this.validateRequest,
       this.taskController.delete
     );
+
+    this.router.put(
+      "/request/:id",
+      this.validateRequest,
+      this.taskController.requestToAdded
+    );
+
+    this.router.put(
+      "/toggle-request/:id",
+      this.validateRequest,
+      this.taskController.toggleRequest
+    );
   }
 }
 

@@ -80,4 +80,17 @@ export enum NOTIFICATION_TYPES {
 export enum TaskType {
   normal = "normal",
   megablast = "megablast",
+  event = "megablast",
+}
+
+export enum ETaskUserStatus {
+  PENDING = 1,
+  REJECTED = 2,
+  STANDBY = 3,
+  ACCEPTED = 4,
+}
+
+export enum ECALENDARTaskType {
+  request = "request",
+  accepted = "accepted",
 }

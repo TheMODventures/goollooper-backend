@@ -14,15 +14,25 @@ import { GolistRepository } from "../repository/golist/golist.repository";
 import { ITask } from "../../database/interfaces/task.interface";
 import { UploadHelper } from "../helpers/upload.helper";
 import { IGolist } from "../../database/interfaces/golist.interface";
+import {
+  ECALENDARTaskType,
+  ETaskUserStatus,
+  TaskType,
+} from "../../database/interfaces/enums";
+import { CalendarRepository } from "../repository/calendar/calendar.repository";
+import { ICalendar } from "../../database/interfaces/calendar.interface";
+import { ModelHelper } from "../helpers/model.helper";
 
 class TaskService {
   private taskRepository: TaskRepository;
   private golistRepository: GolistRepository;
+  private calendarRepository: CalendarRepository;
   private uploadHelper: UploadHelper;
 
   constructor() {
     this.taskRepository = new TaskRepository();
     this.golistRepository = new GolistRepository();
+    this.calendarRepository = new CalendarRepository();
 
     this.uploadHelper = new UploadHelper("task");
   }
@@ -78,6 +88,7 @@ class TaskService {
           model: "Service",
           select: "title type parent",
         },
+        ModelHelper.populateData("users.user", ModelHelper.userSelect, "Users"),
       ]);
       if (response === null) {
         return ResponseHelper.sendResponse(404);
@@ -152,6 +163,12 @@ class TaskService {
         }
       }
       const data = await this.taskRepository.create<ITask>(payload);
+      if (data.type === TaskType.event)
+        await this.calendarRepository.create({
+          user: payload.postedBy as string,
+          task: data._id,
+          date: data.date,
+        } as ICalendar);
       return ResponseHelper.sendResponse(201, data);
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);
@@ -238,6 +255,14 @@ class TaskService {
       if (response === null) {
         return ResponseHelper.sendResponse(404);
       }
+      if (
+        taskResponse?.type === TaskType.event &&
+        dataset.date &&
+        taskResponse.date !== dataset.date
+      )
+        await this.calendarRepository.updateMany({ task: response._id }, {
+          date: response.date,
+        } as ICalendar);
       return ResponseHelper.sendSuccessResponse(
         SUCCESS_DATA_UPDATION_PASSED,
         response
@@ -255,7 +280,90 @@ class TaskService {
       if (!response) {
         return ResponseHelper.sendResponse(404);
       }
+      await this.calendarRepository.deleteMany({
+        task: response._id,
+      });
       return ResponseHelper.sendSuccessResponse(SUCCESS_DATA_DELETION_PASSED);
+    } catch (error) {
+      return ResponseHelper.sendResponse(500, (error as Error).message);
+    }
+  };
+
+  requestToAdded = async (_id: string, user: string) => {
+    try {
+      const isExist = await this.taskRepository.exists({
+        _id: new ObjectId(_id),
+        "users.user": new ObjectId(user),
+      });
+      if (isExist)
+        return ResponseHelper.sendResponse(422, "You are already in this task");
+      const response = await this.taskRepository.updateById(_id, {
+        $addToSet: { users: { user } },
+        $inc: { pendingCount: 1 },
+      });
+
+      if (response === null) {
+        return ResponseHelper.sendResponse(404);
+      }
+      return ResponseHelper.sendSuccessResponse(
+        SUCCESS_DATA_UPDATION_PASSED,
+        response
+      );
+    } catch (error) {
+      return ResponseHelper.sendResponse(500, (error as Error).message);
+    }
+  };
+
+  toggleRequest = async (
+    _id: string,
+    loggedInUser: string,
+    user: string,
+    status: number
+  ) => {
+    try {
+      const isExist = await this.taskRepository.exists({
+        _id: new ObjectId(_id),
+        users: { $elemMatch: { user: new ObjectId(user), status } },
+      });
+      if (isExist)
+        return ResponseHelper.sendResponse(422, `Status is already ${status}`);
+      const updateCount: any = { $inc: {} };
+      if (status == ETaskUserStatus.REJECTED)
+        updateCount["$inc"].pendingCount = -1;
+      if (status == ETaskUserStatus.ACCEPTED) {
+        updateCount["$inc"].pendingCount = -1;
+        updateCount["$inc"].acceptedCount = 1;
+      }
+      const response = await this.taskRepository.updateByOne<ITask>(
+        { _id: new ObjectId(_id) },
+        {
+          $set: { "users.$[users].status": status },
+          ...updateCount,
+        },
+        { arrayFilters: [{ "users.user": new ObjectId(user) }] }
+      );
+
+      if (response && status == ETaskUserStatus.ACCEPTED) {
+        await this.calendarRepository.create({
+          user,
+          task: response._id,
+          date: response.date ?? "2024-11-11",
+          type: ECALENDARTaskType.accepted,
+        } as ICalendar);
+      } else if (response && status == ETaskUserStatus.REJECTED) {
+        await this.calendarRepository.deleteMany({
+          user: new ObjectId(user),
+          task: response._id,
+        });
+      }
+
+      if (response === null) {
+        return ResponseHelper.sendResponse(404);
+      }
+      return ResponseHelper.sendSuccessResponse(
+        SUCCESS_DATA_UPDATION_PASSED,
+        response
+      );
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }

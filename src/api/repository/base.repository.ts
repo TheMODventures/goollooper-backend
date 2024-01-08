@@ -6,6 +6,7 @@ import mongoose, {
   PopulateOptions,
   QueryOptions,
   ProjectionType,
+  UpdateQuery,
 } from "mongoose";
 
 import { IBaseRepository } from "./base.repository.interface";
@@ -84,24 +85,39 @@ export abstract class BaseRepository<J, D> implements IBaseRepository<J, D> {
 
   async updateById<T>(
     id: string,
-    updateQuery: QueryOptions<T>
+    updateQuery: UpdateQuery<D>,
+    options: QueryOptions<T> = {}
   ): Promise<T | null> {
     return (
       ((await this.model.findByIdAndUpdate(
         id,
         { ...updateQuery },
-        { new: true }
+        { new: true, ...options }
       )) as T) || null
     );
   }
 
   async updateByOne<T>(
     filter: FilterQuery<T>,
-    updateQuery: QueryOptions<T>
+    updateQuery: UpdateQuery<D>,
+    options: QueryOptions<T> = {}
   ): Promise<T | null> {
     return (
       ((await this.model.findOneAndUpdate(filter, updateQuery, {
         new: true,
+        ...options,
+      })) as T) || null
+    );
+  }
+
+  async updateMany<T>(
+    filter: FilterQuery<T>,
+    updateQuery: UpdateQuery<D>,
+    options: QueryOptions<T> = {}
+  ): Promise<T | null> {
+    return (
+      ((await this.model.updateMany(filter, updateQuery, {
+        ...options,
       })) as T) || null
     );
   }
