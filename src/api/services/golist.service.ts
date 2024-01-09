@@ -151,6 +151,7 @@ class GolistService {
     userId: string | undefined,
     coordinates: Number[],
     serviceId?: string[],
+    volunteerIds?: string[],
     subscription?: string | ObjectId,
     zipCode?: string | null,
     rating?: ERating | undefined,
@@ -237,19 +238,24 @@ class GolistService {
         };
 
       if (subscription) {
-        match["subscription.subscription"] = subscription;
+        match["subscription.subscription"] = new ObjectId(subscription);
       }
       if (serviceId && serviceId?.length > 0) {
         const services = serviceId.map((e: string) => new ObjectId(e));
         match["$or"] = [
           {
-            "volunteer.service": {
+            services: {
               $in: services,
             },
           },
+        ];
+      }
+      if (volunteerIds && volunteerIds?.length > 0) {
+        const volunteers = volunteerIds.map((e: string) => new ObjectId(e));
+        match["$or"] = [
           {
-            "volunteer.subService": {
-              $in: services,
+            volunteer: {
+              $in: volunteers,
             },
           },
         ];
