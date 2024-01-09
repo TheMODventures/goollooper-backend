@@ -4,17 +4,20 @@ import morgan from "morgan";
 import bodyParser from "body-parser";
 import path from "path";
 import session from "express-session";
+import { Server as SocketIOServer, Socket } from "socket.io";
 
 import { APP_HOST, APP_PORT } from "./config/environment.config";
 import { Database } from "./config/database.config";
 import AdminRoutes from "./api/routes/admin/admin.route";
 import UserRoutes from "./api/routes/user.route";
+import ChatService from "./api/services/chat.service";
 
 class App {
   protected app: Application;
   protected database: Database;
   protected adminRoutes: AdminRoutes;
   protected userRoutes: UserRoutes;
+  protected io: SocketIOServer;
 
   constructor() {
     this.app = express();
@@ -37,9 +40,11 @@ class App {
   }
   public start(): void {
     const appPort = Number(APP_PORT);
-    this.app.listen(appPort, APP_HOST!, () => {
+    const httpServer = this.app.listen(appPort, APP_HOST!, () => {
       console.log(`Server running at http://${APP_HOST}:${appPort}/`);
     });
+    this.io = new SocketIOServer(httpServer);
+    ChatService(this.io);
   }
 }
 
