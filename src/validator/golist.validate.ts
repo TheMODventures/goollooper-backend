@@ -145,6 +145,7 @@ const getNearestServiceProvidersRule = yup.object().shape({
         .string()
         .oneOf([...Object.values(ERating).map((value) => value.toString())]),
       taskInterests: yup.array().of(paramRule.id).notRequired(),
+      volunteers: yup.array().of(paramRule.id).notRequired(),
       subscription: yup.string().notRequired(),
       companyLogo: yup.boolean().notRequired(),
       companyRegistration: yup.boolean().notRequired(),
