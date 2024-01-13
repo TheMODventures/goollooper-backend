@@ -266,22 +266,23 @@ class UserService {
       }
 
       // checking if subscription is bsp then location should be local
-      if (dataset.subscription?.subscription) {
-        let subscription =
-          await this.subscriptionRepository.getById<ISubscription>(
-            dataset.subscription.subscription
-          );
+      // removing condition because of frontend
+      // if (dataset.subscription?.subscription) {
+      // let subscription =
+      //   await this.subscriptionRepository.getById<ISubscription>(
+      //     dataset.subscription.subscription
+      //   );
 
-        if (
-          subscription &&
-          subscription.name.toLowerCase() === Subscription.bsl &&
-          dataset?.locationType !== EUserLocationType.local
-        )
-          return ResponseHelper.sendResponse(
-            422,
-            "Location should be local while subscribing to BSL"
-          );
-      }
+      // if (
+      //   subscription &&
+      //   subscription.name.toLowerCase() === Subscription.bsl &&
+      //   dataset?.locationType !== EUserLocationType.local
+      // )
+      //   return ResponseHelper.sendResponse(
+      //     422,
+      //     "Location should be local while subscribing to BSL"
+      //   );
+      // }
 
       // checking if location is local then all location details should be provided
       if (

@@ -39,4 +39,32 @@ export class Authorize {
       });
     }
   };
+
+  validateAuthSocket: any = (authtoken: string) => {
+    if (!authtoken) {
+      const response = ResponseHelper.sendResponse(400);
+      return response.msg;
+    }
+    const token = authtoken.split(" ")[1];
+    if (token) {
+      // verifies secret and checks exp
+      return jwt.verify(token, JWT_SECRET_KEY!, async function (err, decoded) {
+        if (err || typeof decoded === "string") {
+          const response = ResponseHelper.sendResponse(401);
+          return response.msg;
+        }
+
+        const exists = await new TokenService().validateToken(
+          decoded?.userId,
+          token
+        );
+        if (exists === null) {
+          const response = ResponseHelper.sendResponse(401);
+          return response.msg;
+        }
+
+        return decoded;
+      });
+    }
+  };
 }
