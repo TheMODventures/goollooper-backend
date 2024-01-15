@@ -420,6 +420,7 @@ export class ChatRepository {
               ...newMessage,
               name,
               firstName: name,
+              createdAt: new Date(),
             });
             // this.io?.emit(
             //   `getChats/${participant.user}`, await this.getChats(participant.user)

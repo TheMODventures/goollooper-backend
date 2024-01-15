@@ -5,7 +5,7 @@ import {
   S3Client,
 } from "@aws-sdk/client-s3";
 import { StorageEngine } from "multer";
-import { uuid } from "uuidv4";
+import { v4 } from "uuid";
 
 import {
   APP_MODE,
@@ -48,7 +48,7 @@ export class UploadHelper {
       let keys: string[] = [];
       let key = "";
       const params = files.map((file) => {
-        key = `${AWS_SUB_FOLDER!}/${APP_MODE}/${this.subPart}/${uuid()}-${
+        key = `${AWS_SUB_FOLDER!}/${APP_MODE}/${this.subPart}/${v4()}-${
           file.originalname
         }`;
         return {
