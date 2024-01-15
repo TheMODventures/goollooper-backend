@@ -91,7 +91,7 @@ export interface IUser {
   isProfileCompleted?: boolean;
   isVerified?: boolean;
   isActive?: boolean;
-  fcmToken?: string;
+  fcmTokens?: string[];
   refreshToken?: string;
   otpCode?: number | null;
   otpExpiredAt?: number | null;

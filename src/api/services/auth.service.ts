@@ -55,6 +55,7 @@ class AuthService {
         otpCode: Number(createCode),
         otpExpiredAt: moment().add(60, "seconds").valueOf(),
       };
+      if (req.body.fcmToken) user.fcmTokens = [req.body.fcmToken];
       const data = await this.userRepository.create<IUser>(user);
       const userId = new mongoose.Types.ObjectId(data._id!);
       const tokenResponse = await this.tokenService.create(userId, role);
@@ -72,7 +73,8 @@ class AuthService {
   login = async (
     email: string,
     password: string,
-    role?: EUserRole
+    role?: EUserRole,
+    fcmToken?: string
   ): Promise<ApiResponse> => {
     try {
       let filter: FilterQuery<IUser> = {
@@ -129,6 +131,10 @@ class AuthService {
         userId,
         response.role
       );
+      if (fcmToken)
+        this.userRepository.updateById(response._id?.toString() ?? "", {
+          $addToSet: { fcmTokens: fcmToken },
+        });
 
       return ResponseHelper.sendSignTokenResponse(
         200,

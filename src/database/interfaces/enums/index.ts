@@ -74,11 +74,6 @@ export enum ELiability {
   all = 3,
 }
 
-export enum NOTIFICATION_TYPES {
-  SHARE_PROVIDER = 1,
-  FRIEND_REQUEST = 2,
-}
-
 export enum TaskType {
   normal = "normal",
   megablast = "megablast",
@@ -134,4 +129,12 @@ export enum EMessageStatus {
 
 export enum EParticipantStatus {
   ACTIVE = "active",
+}
+
+export enum ENOTIFICATION_TYPES {
+  SHARE_PROVIDER = 1,
+  FRIEND_REQUEST = 2,
+  MESSAGE_REQUEST = 3,
+  MESSAGE_REQUEST_ACCEPT = 4,
+  TASK_ACCEPTED = 5,
 }
