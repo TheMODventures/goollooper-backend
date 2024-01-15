@@ -1,6 +1,6 @@
 import * as SocketIO from "socket.io";
 
-import { ChatRepository } from "../repository/chat/chatRepository";
+import { ChatRepository } from "../repository/chat/chat.repository";
 import { Authorize } from "../../middleware/authorize.middleware";
 interface CustomSocket extends SocketIO.Socket {
   user?: any; // Adjust the type according to your user structure
