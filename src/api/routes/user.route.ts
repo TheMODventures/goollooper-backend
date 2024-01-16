@@ -10,6 +10,7 @@ import NotificationRoutes from "./notification.route";
 import TaskRoutes from "./task.route";
 import RatingRoutes from "./rating.route";
 import CalendarRoutes from "./calendar.route";
+import ChatRoutes from "./chat.route";
 
 class UserRoutes extends BaseRoutes {
   private authRoutes: AuthRoutes;
@@ -23,6 +24,7 @@ class UserRoutes extends BaseRoutes {
   private taskRoutes: TaskRoutes;
   private ratingRoutes: RatingRoutes;
   private calendarRoutes: CalendarRoutes;
+  private chatRoutes: ChatRoutes;
 
   constructor() {
     super();
@@ -37,6 +39,7 @@ class UserRoutes extends BaseRoutes {
     this.taskRoutes = new TaskRoutes();
     this.ratingRoutes = new RatingRoutes();
     this.calendarRoutes = new CalendarRoutes();
+    this.chatRoutes = new ChatRoutes();
     this.initializeRoutes();
   }
 
@@ -52,6 +55,7 @@ class UserRoutes extends BaseRoutes {
     this.router.use("/task", this.taskRoutes.router);
     this.router.use("/rating", this.ratingRoutes.router);
     this.router.use("/calendar", this.calendarRoutes.router);
+    this.router.use("/chat", this.chatRoutes.router);
   }
 }
 

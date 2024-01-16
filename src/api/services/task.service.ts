@@ -11,6 +11,8 @@ import {
 } from "../../constant";
 import { TaskRepository } from "../repository/task/task.repository";
 import { GolistRepository } from "../repository/golist/golist.repository";
+import { CalendarRepository } from "../repository/calendar/calendar.repository";
+import { ChatRepository } from "../repository/chat/chatRepository";
 import { ITask } from "../../database/interfaces/task.interface";
 import { UploadHelper } from "../helpers/upload.helper";
 import { IGolist } from "../../database/interfaces/golist.interface";
@@ -19,7 +21,6 @@ import {
   ETaskUserStatus,
   TaskType,
 } from "../../database/interfaces/enums";
-import { CalendarRepository } from "../repository/calendar/calendar.repository";
 import { ICalendar } from "../../database/interfaces/calendar.interface";
 import { ModelHelper } from "../helpers/model.helper";
 
@@ -28,11 +29,13 @@ class TaskService {
   private golistRepository: GolistRepository;
   private calendarRepository: CalendarRepository;
   private uploadHelper: UploadHelper;
+  private chatRepository: ChatRepository;
 
   constructor() {
     this.taskRepository = new TaskRepository();
     this.golistRepository = new GolistRepository();
     this.calendarRepository = new CalendarRepository();
+    this.chatRepository = new ChatRepository();
 
     this.uploadHelper = new UploadHelper("task");
   }
@@ -104,6 +107,7 @@ class TaskService {
 
   create = async (payload: ITask, req?: Request): Promise<ApiResponse> => {
     try {
+      const userId = req?.locals?.auth?.userId!;
       if (
         req &&
         _.isArray(req.files) &&
@@ -126,19 +130,16 @@ class TaskService {
         });
       }
 
-      if (payload.goList) {
-        const goList: IGolist | null = await this.golistRepository.getById(
-          payload.goList as string
-        );
-        if (!goList)
-          return ResponseHelper.sendResponse(404, "GoList not found");
-        payload.goList = {
-          goListId: payload.goList as string,
-          title: goList.title,
-          serviceProviders: goList.serviceProviders,
-          taskInterests: goList.taskInterests,
-        };
-      }
+      const goList: IGolist | null = await this.golistRepository.getById(
+        payload.goList as string
+      );
+      if (!goList) return ResponseHelper.sendResponse(404, "GoList not found");
+      payload.goList = {
+        goListId: payload.goList as string,
+        title: goList.title,
+        serviceProviders: goList.serviceProviders,
+        taskInterests: goList.taskInterests,
+      };
 
       if (payload.subTasks?.length) {
         for (let i = 0; i < payload.subTasks.length; i++) {
@@ -163,6 +164,14 @@ class TaskService {
         }
       }
       const data = await this.taskRepository.create<ITask>(payload);
+
+      await this.chatRepository.createChatForTask({
+        user: userId,
+        task: data._id as string,
+        participants: payload.goList?.serviceProviders ?? [],
+        groupName: payload.title,
+      });
+
       if (data.type === TaskType.event)
         await this.calendarRepository.create({
           user: payload.postedBy as string,
