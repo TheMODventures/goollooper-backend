@@ -593,10 +593,11 @@ export class ChatRepository
   }
 
   // Delete a message for a user
-  async deleteAllMessage(chatId: string, user: string) {
+  async deleteAllMessage(chatId: string, user: string | ObjectId) {
     try {
+      user = new ObjectId(user);
       const filter = {
-        _id: chatId,
+        _id: new ObjectId(chatId),
         // $or: [
         //   {
         //     "messages.receivedBy.user": user,
