@@ -8,8 +8,7 @@ import {
   IMessage,
   IRequest,
 } from "../../database/interfaces/chat.interface";
-import { ChatRepository } from "../repository/chat/chatRepository";
-import { ChatRepository as DefaultChatRepository } from "../repository/chat/chat.repository";
+import { ChatRepository } from "../repository/chat/chat.repository";
 import { Authorize } from "../../middleware/authorize.middleware";
 import { ResponseHelper } from "../helpers/reponseapi.helper";
 import { UploadHelper } from "../helpers/upload.helper";
@@ -184,11 +183,11 @@ export default (io: SocketIO.Server) => {
 };
 
 export class ChatService {
-  private chatRepository: DefaultChatRepository;
+  private chatRepository: ChatRepository;
   private uploadHelper: UploadHelper;
 
   constructor() {
-    this.chatRepository = new DefaultChatRepository();
+    this.chatRepository = new ChatRepository();
 
     this.uploadHelper = new UploadHelper("chat");
   }
