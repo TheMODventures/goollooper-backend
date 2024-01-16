@@ -3,20 +3,31 @@ import { Server } from "socket.io";
 
 import {
   IChat,
+  IChatDoc,
+  IChatPayload,
+  IMessage,
   IParticipant,
 } from "../../../database/interfaces/chat.interface";
-import { Chat } from "../../../database/models/chat.model";
-import { UserRepository } from "../user/user.repository";
+import { IChatRepository } from "./chat.repository.interface";
 import { IUser } from "../../../database/interfaces/user.interface";
+import { Chat } from "../../../database/models/chat.model";
 import { ModelHelper } from "../../helpers/model.helper";
-
-export class ChatRepository {
+import { BaseRepository } from "../base.repository";
+import { UserRepository } from "../user/user.repository";
+import { ResponseHelper } from "../../helpers/reponseapi.helper";
+export class ChatRepository
+  extends BaseRepository<IChat, IChatDoc>
+  implements IChatRepository
+{
   private io?: Server;
   private userRepo: UserRepository;
+  private userRepository: UserRepository;
 
   constructor(io?: Server) {
+    super(Chat);
     this.io = io;
     this.userRepo = new UserRepository();
+    this.userRepository = new UserRepository();
   }
 
   async getChats(
@@ -24,7 +35,8 @@ export class ChatRepository {
     page = 1,
     pageSize = 20,
     chatSupport = false,
-    chatId = null
+    chatId = null,
+    search?: string
   ) {
     try {
       const skip = (page - 1) * pageSize;
@@ -33,7 +45,7 @@ export class ChatRepository {
         isChatSupport: chatSupport == true,
       };
       if (chatId) chatSupportPip._id = new ObjectId(chatId);
-      const result = await Chat.aggregate([
+      const query: any = [
         {
           $match: {
             ...chatSupportPip,
@@ -62,6 +74,9 @@ export class ChatRepository {
         },
         { $sort: { lastUpdatedAt: -1 } },
         { $skip: skip },
+      ];
+
+      const remainingQuery = [
         { $limit: parseInt(pageSize.toString()) },
         {
           $lookup: {
@@ -80,7 +95,7 @@ export class ChatRepository {
                   firstName: 1,
                   lastName: 1,
                   email: 1,
-                  photo: 1,
+                  profileImage: 1,
                 },
               },
             ],
@@ -222,10 +237,10 @@ export class ChatRepository {
                 "Unknown User",
               ],
             },
-            "lastMessage.photo": {
+            "lastMessage.profileImage": {
               $cond: [
                 { $ne: ["$sender", null] },
-                { $concat: ["$sender.photo"] },
+                { $concat: ["$sender.profileImage"] },
                 "Unknown User",
               ],
             },
@@ -265,7 +280,90 @@ export class ChatRepository {
             unReadCount: 1,
           },
         },
-      ]);
+      ];
+      if (search) {
+        query.push(
+          ...[
+            {
+              $lookup: {
+                from: "users",
+                let: {
+                  participantIds: "$participants.user",
+                  isMuted: "$participants.isMuted",
+                },
+                pipeline: [
+                  {
+                    $match: {
+                      $expr: {
+                        $in: ["$_id", "$$participantIds"],
+                      },
+                    },
+                  },
+                  {
+                    $project: {
+                      firstName: 1,
+                      lastName: 1,
+                      username: 1,
+                      fullName: {
+                        $concat: ["$firstName", " ", "$lastName"],
+                      },
+                      email: 1,
+                      profileImage: 1,
+                      photoUrl: 1,
+                      isMuted: {
+                        $arrayElemAt: [
+                          "$$isMuted",
+                          {
+                            $indexOfArray: ["$$participantIds", "$_id"],
+                          },
+                        ],
+                      },
+                    },
+                  },
+                ],
+                as: "participantsData",
+              },
+            },
+            {
+              $match: {
+                $or: [
+                  {
+                    groupName: {
+                      $regex: search,
+                      $options: "i",
+                    },
+                  },
+                  {
+                    "participantsData.firstName": {
+                      $regex: search,
+                      $options: "i",
+                    },
+                  },
+                  {
+                    "participantsData.lastName": {
+                      $regex: search,
+                      $options: "i",
+                    },
+                  },
+                  {
+                    "participantsData.username": {
+                      $regex: search,
+                      $options: "i",
+                    },
+                  },
+                  {
+                    "participantsData.email": { $regex: search, $options: "i" },
+                  },
+                  // { email: { $regex: q, $options: 'i' } },
+                ],
+              },
+            },
+          ]
+        );
+        remainingQuery.splice(1, 1);
+      }
+      query.push(...remainingQuery);
+      const result = await Chat.aggregate(query);
       if (this.io) this.io?.emit(`getChats/${user}`, result);
       return result;
     } catch (error) {
@@ -420,6 +518,7 @@ export class ChatRepository {
               ...newMessage,
               name,
               firstName: name,
+              createdAt: new Date(),
             });
             // this.io?.emit(
             //   `getChats/${participant.user}`, await this.getChats(participant.user)
@@ -628,7 +727,7 @@ export class ChatRepository {
         .select("-messages")
         .populate({
           path: "participants.user",
-          select: "username firstName lastName _id photo",
+          select: "username firstName lastName _id profileImage",
         });
 
       const msg = {
@@ -705,7 +804,7 @@ export class ChatRepository {
         .select("-messages")
         .populate({
           path: "participants.user",
-          select: "username firstName lastName _id  photo",
+          select: "username firstName lastName _id  profileImage",
         });
       // // console.log(result)
       const msg = {
@@ -732,7 +831,7 @@ export class ChatRepository {
           createdBy: result.participants[0].user._id,
         }).populate({
           path: "participants.user",
-          select: "username firstName lastName _id  photo status",
+          select: "username firstName lastName _id  profileImage status",
         });
       // // console.log(result.participants);
       if (this.io) {
@@ -991,6 +1090,75 @@ export class ChatRepository {
     }
   }
 
+  async createChatForTask(payload: IChatPayload) {
+    try {
+      let payloadData: any = payload;
+      let messages: IMessage[] = [];
+      if (payload.participants.length && payload.participants.length === 1) {
+        delete payload.groupName;
+        let user = await this.userRepo.getById<IUser>(
+          payload.participants[0] as string
+        );
+        if (!user)
+          return ResponseHelper.sendResponse(
+            404,
+            `Participant with Id ${payload.participants[0]} not found`
+          );
+        payload.chatType = "one-to-one";
+        let msg: IMessage = {
+          body: `Hey ${
+            user?.username || user?.firstName
+          }, I think you are a good candidate for this task. I am looking forward in working with you on this task.`,
+          sentBy: payload.user,
+        };
+        messages.push(msg);
+      } else if (payload.participants.length) {
+        payload.chatType = "group";
+        let msg: IMessage = {
+          body: `Hey, I think you guys are good candidates for this task. I am looking forward in working with you all this task.`,
+          sentBy: payload.user,
+        };
+        messages.push(msg);
+      }
+
+      const data = await Chat.create({
+        ...payload,
+        participants: payload.participants.map((e) => ({
+          user: e,
+          status: "active",
+        })),
+        messages: messages,
+        createdBy: payload.user,
+      });
+
+      const d = await Chat.aggregate(findUserpipeline({ _id: data._id }));
+      if (this.io)
+        payload.participants.forEach((e) => {
+          this.io?.emit(`createChat/${e}`, {
+            message: "chat created",
+            data: d[0],
+          });
+        });
+      if (payload.chatType === "group") {
+        this.sendNotificationMsg(
+          {
+            userIds: payloadData.participants.filter(
+              (item: any) => item !== payload.user
+            ),
+            title: payload.groupName,
+            body: "You are added to a group",
+            chatId: d[0]._id,
+          },
+          d[0]
+        );
+      }
+      return d[0];
+    } catch (error) {
+      console.log({ error });
+      throw ResponseHelper.sendResponse(500, (error as Error).message);
+    }
+  }
+
   async getChatMedia(chatId: string, user: string) {
     // Assuming you have the chatId or any other identifier for the desired chat
     // const chatId = 'your_chat_id_here';
@@ -1162,7 +1330,7 @@ function findUserpipeline(match: any) {
               firstName: 1,
               lastName: 1,
               email: 1,
-              photo: 1,
+              profileImage: 1,
             },
           },
         ],

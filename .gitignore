@@ -9,3 +9,5 @@ dbconfig.js
 package-lock.json
 .env
 my.txt
+src/api/helpers/goollooper-service.json
+src/api/helpers/notification.helper.ts

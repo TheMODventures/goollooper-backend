@@ -3,6 +3,7 @@ import mongoosePaginate from "mongoose-paginate-v2";
 import aggregatePaginate from "mongoose-aggregate-paginate-v2";
 
 import { IChat, IChatDoc } from "../interfaces/chat.interface";
+import { Request, RequestStatus, MessageType } from "../interfaces/enums";
 
 const deleteFields = {
   deleted: {
@@ -85,6 +86,12 @@ const chatSchema = new Schema(
             ...deleteFields,
           },
         ],
+        type: {
+          type: String,
+          enum: MessageType,
+          default: MessageType.message,
+          required: true,
+        },
         ...deleteFields,
       },
     ],
@@ -109,6 +116,36 @@ const chatSchema = new Schema(
         isBlocked: {
           type: Boolean,
           default: false,
+        },
+      },
+    ],
+    task: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Task",
+      default: null,
+    },
+    requests: [
+      {
+        title: { type: String, default: null },
+        mediaUrl: { type: String, default: null },
+        amount: { type: String, default: null },
+        type: {
+          type: String,
+          enum: Request,
+          required: true,
+        },
+        status: {
+          type: String,
+          enum: RequestStatus,
+          default: null,
+        },
+        createdBy: {
+          type: Schema.Types.ObjectId,
+          ref: "User",
+        },
+        createdAt: {
+          type: Date,
+          default: Date.now,
         },
       },
     ],
