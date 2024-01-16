@@ -122,7 +122,7 @@ const chatSchema = new Schema(
     task: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Task",
-      required: true,
+      default: null,
     },
     requests: [
       {
