@@ -41,7 +41,7 @@ const createRule = yup.object().shape({
   body: yup
     .object()
     .shape({
-      title: yup.string().notRequired(),
+      title: yup.string().required(),
       description: yup.string().notRequired(),
       location: yup
         .object()
@@ -78,6 +78,7 @@ const createRule = yup.object().shape({
         })
         .required(),
       noOfServiceProvider: yup.string().notRequired(),
+      commercial: yup.boolean().notRequired(),
       type: yup
         .string()
         .oneOf([...Object.values(TaskType).map((value) => value?.toString())])
@@ -161,6 +162,7 @@ const updateRule = yup.object().shape({
         })
         .notRequired(),
       noOfServiceProvider: yup.string().notRequired(),
+      commercial: yup.boolean().notRequired(),
       type: yup
         .string()
         .oneOf([...Object.values(TaskType).map((value) => value?.toString())])

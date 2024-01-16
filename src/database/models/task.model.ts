@@ -48,6 +48,7 @@ const taskModel: Schema = new Schema(
     },
     noOfServiceProvider: { type: Number },
     media: { type: String },
+    commercial: { type: Boolean, default: false },
     type: {
       type: String,
       required: true,
@@ -119,7 +120,7 @@ const taskModel: Schema = new Schema(
     gender: { type: String, default: null },
     ageFrom: { type: Number, default: null },
     ageTo: { type: Number, default: null },
-    endDate: { type: Date, required: true },
+    endDate: { type: Date, required: false },
     users: {
       type: [
         {
