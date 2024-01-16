@@ -43,13 +43,17 @@ export default (io: SocketIO.Server) => {
         userId: string;
         page?: number;
         chatSupport?: boolean;
+        chatId?: string;
+        search?: string | undefined;
       }) => {
         clients[data.userId] = socket.id;
         await chatRepository.getChats(
           data.userId,
           data.page ?? 0,
           20,
-          data.chatSupport ?? false
+          data.chatSupport ?? false,
+          null,
+          data.search
         );
       }
     );

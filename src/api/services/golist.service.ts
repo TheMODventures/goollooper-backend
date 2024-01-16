@@ -201,6 +201,7 @@ class GolistService {
 
         // isActive: true,
         // isVerified: true,
+        isProfileCompleted: true,
       } as any;
 
       if (companyLogo) match["company.logo"] = { $ne: null };
