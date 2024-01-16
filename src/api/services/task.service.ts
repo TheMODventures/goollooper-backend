@@ -168,7 +168,8 @@ class TaskService {
       await this.chatRepository.createChatForTask({
         user: userId,
         task: data._id as string,
-        participants: payload.goList?.serviceProviders ?? [],
+        participants:
+          [new ObjectId(userId), ...payload.goList?.serviceProviders] ?? [],
         groupName: payload.title,
       });
 

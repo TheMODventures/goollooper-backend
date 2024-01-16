@@ -205,8 +205,7 @@ class GolistService {
       } as any;
 
       if (companyLogo) match["company.logo"] = { $ne: null };
-      if (companyRegistration)
-        match["company.registered"] = companyRegistration;
+      if (companyRegistration) match["company.name"] = { $ne: null };
       if (companyWebsite) match["company.website"] = { $ne: null };
       if (companyAffilation) match["company.affiliation"] = { $ne: null };
       if (companyPublication) match["company.publication"] = { $ne: null };
