@@ -3,20 +3,31 @@ import { Server } from "socket.io";
 
 import {
   IChat,
+  IChatDoc,
+  IChatPayload,
+  IMessage,
   IParticipant,
 } from "../../../database/interfaces/chat.interface";
-import { Chat } from "../../../database/models/chat.model";
-import { UserRepository } from "../user/user.repository";
+import { IChatRepository } from "./chat.repository.interface";
 import { IUser } from "../../../database/interfaces/user.interface";
+import { Chat } from "../../../database/models/chat.model";
 import { ModelHelper } from "../../helpers/model.helper";
-
-export class ChatRepository {
+import { BaseRepository } from "../base.repository";
+import { UserRepository } from "../user/user.repository";
+import { ResponseHelper } from "../../helpers/reponseapi.helper";
+export class ChatRepository
+  extends BaseRepository<IChat, IChatDoc>
+  implements IChatRepository
+{
   private io?: Server;
   private userRepo: UserRepository;
+  private userRepository: UserRepository;
 
   constructor(io?: Server) {
+    super(Chat);
     this.io = io;
     this.userRepo = new UserRepository();
+    this.userRepository = new UserRepository();
   }
 
   async getChats(
@@ -989,6 +1000,75 @@ export class ChatRepository {
     } catch (e) {
       // console.log(e);
       return e;
+    }
+  }
+
+  async createChatForTask(payload: IChatPayload) {
+    try {
+      let payloadData: any = payload;
+      let messages: IMessage[] = [];
+      if (payload.participants.length && payload.participants.length === 1) {
+        delete payload.groupName;
+        let user = await this.userRepo.getById<IUser>(
+          payload.participants[0] as string
+        );
+        if (!user)
+          return ResponseHelper.sendResponse(
+            404,
+            `Participant with Id ${payload.participants[0]} not found`
+          );
+        payload.chatType = "one-to-one";
+        let msg: IMessage = {
+          body: `Hey ${
+            user?.username || user?.firstName
+          }, I think you are a good candidate for this task. I am looking forward in working with you on this task.`,
+          sentBy: payload.user,
+        };
+        messages.push(msg);
+      } else if (payload.participants.length) {
+        payload.chatType = "group";
+        let msg: IMessage = {
+          body: `Hey, I think you guys are good candidates for this task. I am looking forward in working with you all this task.`,
+          sentBy: payload.user,
+        };
+        messages.push(msg);
+      }
+
+      const data = await Chat.create({
+        ...payload,
+        participants: payload.participants.map((e) => ({
+          user: e,
+          status: "active",
+        })),
+        messages: messages,
+        createdBy: payload.user,
+      });
+
+      const d = await Chat.aggregate(findUserpipeline({ _id: data._id }));
+      if (this.io)
+        payload.participants.forEach((e) => {
+          this.io?.emit(`createChat/${e}`, {
+            message: "chat created",
+            data: d[0],
+          });
+        });
+      if (payload.chatType === "group") {
+        this.sendNotificationMsg(
+          {
+            userIds: payloadData.participants.filter(
+              (item: any) => item !== payload.user
+            ),
+            title: payload.groupName,
+            body: "You are added to a group",
+            chatId: d[0]._id,
+          },
+          d[0]
+        );
+      }
+      return d[0];
+    } catch (error) {
+      console.log({ error });
+      throw ResponseHelper.sendResponse(500, (error as Error).message);
     }
   }
 

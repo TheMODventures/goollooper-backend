@@ -94,3 +94,27 @@ export enum ECALENDARTaskType {
   request = "request",
   accepted = "accepted",
 }
+
+export enum Request {
+  REQUEST = 1,
+  PAUSE = 2,
+  RELIEVE = 3,
+  PROCEED = 4,
+  INVOICE = 5,
+}
+
+export enum RequestStatus {
+  CLIENT_REQUEST = 1,
+  SERVICE_PROVIDER_REQUEST = 2,
+  CLIENT_INVOICE_REQUEST = 3,
+  SERVICE_PROVIDER_INVOICE_REQUEST = 4,
+}
+
+export enum MessageType {
+  message = "message",
+  request = "request",
+  pause = "pause",
+  relieve = "relieve",
+  proceed = "proceed",
+  invoice = "invoice",
+}

@@ -1,7 +1,19 @@
 import * as SocketIO from "socket.io";
+import { Request } from "express";
+import _ from "lodash";
 
+import { SUCCESS_DATA_UPDATION_PASSED } from "../../constant";
+import {
+  IChat,
+  IMessage,
+  IRequest,
+} from "../../database/interfaces/chat.interface";
 import { ChatRepository } from "../repository/chat/chat.repository";
 import { Authorize } from "../../middleware/authorize.middleware";
+import { ResponseHelper } from "../helpers/reponseapi.helper";
+import { UploadHelper } from "../helpers/upload.helper";
+import { MessageType } from "../../database/interfaces/enums";
+
 interface CustomSocket extends SocketIO.Socket {
   user?: any; // Adjust the type according to your user structure
 }
@@ -169,3 +181,92 @@ export default (io: SocketIO.Server) => {
     });
   });
 };
+
+export class ChatService {
+  private chatRepository: ChatRepository;
+  private uploadHelper: UploadHelper;
+
+  constructor() {
+    this.chatRepository = new ChatRepository();
+
+    this.uploadHelper = new UploadHelper("chat");
+  }
+
+  addRequest = async (
+    _id: string,
+    dataset: Partial<IRequest>,
+    req?: Request
+  ): Promise<ApiResponse> => {
+    try {
+      const userId = req?.locals?.auth?.userId!;
+      if (req && _.isArray(req.files)) {
+        if (
+          req.files.length &&
+          req.files?.find((file) => file.fieldname === "media")
+        ) {
+          const image = req.files?.filter((file) => file.fieldname === "media");
+          let path = await this.uploadHelper.uploadFileFromBuffer(image);
+          dataset.mediaUrl = path[0];
+        }
+      }
+
+      let msg: IMessage = {
+        body: "Request",
+        sentBy: _id,
+      };
+      switch (dataset.type?.toString()) {
+        case "1":
+          msg.type = MessageType.request;
+          if (dataset.mediaUrl) {
+            msg.body = "This is my Request";
+            msg.mediaUrls = [dataset.mediaUrl];
+          }
+          break;
+
+        case "2":
+          msg.body = "Pause";
+          msg.type = MessageType.pause;
+          break;
+
+        case "3":
+          msg.body = "Relieve";
+          msg.type = MessageType.relieve;
+          break;
+
+        case "4":
+          msg.body = "Proceed";
+          msg.type = MessageType.proceed;
+          break;
+
+        case "5":
+          msg.type = MessageType.invoice;
+          if (!dataset.amount)
+            return ResponseHelper.sendResponse(404, "Amount is required");
+          if (dataset.mediaUrl) {
+            msg.body = dataset.amount;
+            msg.mediaUrls = [dataset.mediaUrl];
+          }
+          break;
+
+        default:
+          break;
+      }
+
+      dataset.createdBy = userId;
+      const response = await this.chatRepository.subDocAction<IChat>(
+        { _id },
+        { $push: { requests: dataset, messages: msg } },
+        { new: true }
+      );
+      if (response === null) {
+        return ResponseHelper.sendResponse(404);
+      }
+      return ResponseHelper.sendSuccessResponse(
+        SUCCESS_DATA_UPDATION_PASSED,
+        response
+      );
+    } catch (error) {
+      return ResponseHelper.sendResponse(500, (error as Error).message);
+    }
+  };
+}
