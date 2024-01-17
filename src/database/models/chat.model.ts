@@ -3,7 +3,14 @@ import mongoosePaginate from "mongoose-paginate-v2";
 import aggregatePaginate from "mongoose-aggregate-paginate-v2";
 
 import { IChat, IChatDoc } from "../interfaces/chat.interface";
-import { Request, RequestStatus, MessageType } from "../interfaces/enums";
+import {
+  Request,
+  RequestStatus,
+  MessageType,
+  EChatType,
+  EMessageStatus,
+  EParticipantStatus,
+} from "../interfaces/enums";
 
 const deleteFields = {
   deleted: {
@@ -21,7 +28,7 @@ const chatSchema = new Schema(
       type: String,
       index: true,
       required: function (this: IChat) {
-        return this.chatType === "group";
+        return this.chatType === EChatType.GROUP;
       },
     },
     isChatSupport: {
@@ -37,14 +44,14 @@ const chatSchema = new Schema(
     },
     chatType: {
       type: String,
-      enum: ["one-to-one", "group"],
-      default: "one-to-one",
+      enum: [EChatType.ONE_TO_ONE, EChatType.GROUP],
+      default: EChatType.ONE_TO_ONE,
     },
     createdBy: {
       type: Schema.Types.ObjectId,
       ref: "User",
       required: function (this: IChat) {
-        return this.chatType === "group";
+        return this.chatType === EChatType.GROUP;
       },
     },
     messages: [
@@ -65,7 +72,7 @@ const chatSchema = new Schema(
           type: Schema.Types.ObjectId,
           ref: "User",
           required: function (this: IChat) {
-            return this.chatType === "one-to-one";
+            return this.chatType === EChatType.ONE_TO_ONE;
           },
         },
         receivedBy: [
@@ -76,8 +83,8 @@ const chatSchema = new Schema(
             },
             status: {
               type: String,
-              enum: ["sent", "delivered", "seen"],
-              default: "sent",
+              enum: EMessageStatus,
+              default: EMessageStatus.SENT,
             },
             createdAt: {
               type: Date,
@@ -104,10 +111,11 @@ const chatSchema = new Schema(
         user: {
           type: Schema.Types.ObjectId,
           ref: "User",
+          required: true,
         },
         status: {
           type: String,
-          default: "active",
+          default: EParticipantStatus.ACTIVE,
         },
         isMuted: {
           type: Boolean,

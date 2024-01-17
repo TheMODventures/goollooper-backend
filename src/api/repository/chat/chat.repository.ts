@@ -15,18 +15,21 @@ import { ModelHelper } from "../../helpers/model.helper";
 import { BaseRepository } from "../base.repository";
 import { UserRepository } from "../user/user.repository";
 import { ResponseHelper } from "../../helpers/reponseapi.helper";
+import {
+  EChatType,
+  EMessageStatus,
+  EParticipantStatus,
+} from "../../../database/interfaces/enums";
 export class ChatRepository
   extends BaseRepository<IChat, IChatDoc>
   implements IChatRepository
 {
   private io?: Server;
-  private userRepo: UserRepository;
   private userRepository: UserRepository;
 
   constructor(io?: Server) {
     super(Chat);
     this.io = io;
-    this.userRepo = new UserRepository();
     this.userRepository = new UserRepository();
   }
 
@@ -53,8 +56,8 @@ export class ChatRepository
               {
                 $and: [
                   { "participants.user": currentUserId },
-                  { "participants.status": "active" },
-                  { chatType: "one-to-one" },
+                  { "participants.status": EParticipantStatus.ACTIVE },
+                  { chatType: EChatType.ONE_TO_ONE },
                 ],
               },
               {
@@ -66,7 +69,7 @@ export class ChatRepository
                       { "messages.sentBy": currentUserId },
                     ],
                   },
-                  { chatType: "group" },
+                  { chatType: EChatType.GROUP },
                 ],
               },
             ],
@@ -193,7 +196,10 @@ export class ChatRepository
                       { $in: [currentUserId, "$$this.receivedBy.user"] },
                       {
                         $not: {
-                          $in: ["seen", "$$this.receivedBy.status"],
+                          $in: [
+                            EMessageStatus.SEEN,
+                            "$$this.receivedBy.status",
+                          ],
                         },
                       },
                     ],
@@ -207,8 +213,12 @@ export class ChatRepository
         {
           $match: {
             $or: [
-              { chatType: "group" },
-              { $and: [{ chatType: "one-to-one", messages: { $ne: [] } }] },
+              { chatType: EChatType.GROUP },
+              {
+                $and: [
+                  { chatType: EChatType.ONE_TO_ONE, messages: { $ne: [] } },
+                ],
+              },
             ],
           },
         },
@@ -486,10 +496,13 @@ export class ChatRepository
         return "cannot send message due to block";
       }
       chat.participants.forEach((participant: IParticipant) => {
-        if (participant.status == "active" && participant.user != senderId) {
+        if (
+          participant.status == EParticipantStatus.ACTIVE &&
+          participant.user != senderId
+        ) {
           newMessage.receivedBy.push({
             user: new ObjectId(participant.user),
-            status: "sent",
+            status: EMessageStatus.SENT,
             deleted: false,
           });
         }
@@ -510,7 +523,10 @@ export class ChatRepository
       );
       const userIds: any[] = [];
       chat.participants.forEach(async (participant: IParticipant) => {
-        if (participant.status == "active" && participant.user != senderId) {
+        if (
+          participant.status == EParticipantStatus.ACTIVE &&
+          participant.user != senderId
+        ) {
           if (!participant.isMuted) userIds.push(participant.user);
           // // console.log(`newMessage/${chatId}/${participant.user}`)
           if (this.io) {
@@ -551,7 +567,7 @@ export class ChatRepository
       // const filter = {
       //   _id: chatId,
       //   "messages.receivedBy.user": user,
-      //   "messages.receivedBy.status": { $ne: "seen" },
+      //   "messages.receivedBy.status": { $ne: EMessageStatus.SEEN },
       //   "messages.receivedBy.deleted": { $ne: true },
       // };
       const filter = {
@@ -559,13 +575,16 @@ export class ChatRepository
         messages: {
           $elemMatch: {
             "receivedBy.user": user,
-            "receivedBy.status": { $ne: "seen" },
+            "receivedBy.status": { $ne: EMessageStatus.SEEN },
             "receivedBy.deleted": { $ne: true },
           },
         },
       };
       const update = {
-        $set: { "messages.$[msgElem].receivedBy.$[recElem].status": "seen" },
+        $set: {
+          "messages.$[msgElem].receivedBy.$[recElem].status":
+            EMessageStatus.SEEN,
+        },
       };
 
       const options = {
@@ -698,7 +717,7 @@ export class ChatRepository
     try {
       // console.log({ chatId, participantIds });
       const filter = { _id: chatId };
-      const participantsToAdd: any[] = await this.userRepo.getAll(
+      const participantsToAdd: any[] = await this.userRepository.getAll(
         { _id: participantIds },
         undefined,
         ModelHelper.userSelect,
@@ -718,7 +737,7 @@ export class ChatRepository
           participants: {
             $each: participantIds.map((user) => ({
               user,
-              status: "active",
+              status: EParticipantStatus.ACTIVE,
             })),
           },
         },
@@ -739,7 +758,7 @@ export class ChatRepository
         sentBy: null,
         receivedBy: result.participants.map((e: IParticipant) => ({
           user: e.user,
-          status: "seen",
+          status: EMessageStatus.SEEN,
         })),
       };
 
@@ -753,7 +772,7 @@ export class ChatRepository
 
       if (this.io) {
         result.participants.forEach(async (participant: any) => {
-          if (participant.status == "active") {
+          if (participant.status == EParticipantStatus.ACTIVE) {
             this.io?.emit(
               `newMessage/${chatId}/${participant.user._id.toString()}`,
               msg
@@ -783,7 +802,7 @@ export class ChatRepository
     try {
       // console.log({ chatId, participantIds });
       const filter = { _id: chatId /*admins: user*/ };
-      const u: any[] = await this.userRepo.getAll(
+      const u: any[] = await this.userRepository.getAll(
         { _id: participantIds },
         undefined,
         ModelHelper.userSelect,
@@ -816,7 +835,7 @@ export class ChatRepository
         sentBy: null,
         receivedBy: result.participants.map((e: IParticipant) => ({
           user: e.user,
-          status: "seen",
+          status: EMessageStatus.SEEN,
         })),
       };
       await result.update({
@@ -837,7 +856,7 @@ export class ChatRepository
       // // console.log(result.participants);
       if (this.io) {
         result.participants.forEach(async (participant: any) => {
-          if (participant.status == "active") {
+          if (participant.status == EParticipantStatus.ACTIVE) {
             // // console.log(participant.user._id.toString())
             if (
               participantIds[0] !== participant.user._id &&
@@ -887,7 +906,7 @@ export class ChatRepository
   //     try {
   //       const filter = {
   //         _id: chatId,
-  //         chatType: "group",
+  //         chatType: EChatType.GROUP,
   //         admins: user,
   //       };
   //       const update = {
@@ -918,7 +937,7 @@ export class ChatRepository
   //       const filter = {
   //         _id: chatId,
   //         admins: user,
-  //         chatType: "group",
+  //         chatType: EChatType.GROUP,
   //         createdBy: { $nin: adminIds },
   //       };
   //       const update = {
@@ -959,7 +978,7 @@ export class ChatRepository
       });
       return check;
     }
-    const u = (await this.userRepo.getAll(
+    const u = (await this.userRepository.getAll(
       { role: "admin", isActive: true },
       undefined,
       ModelHelper.userSelect,
@@ -972,15 +991,18 @@ export class ChatRepository
     // // console.log(u)
     let data: any = await Chat.create({
       groupName: topic,
-      chatType: "group",
+      chatType: EChatType.GROUP,
       isChatSupport: true,
       // groupImageUrl,
       participants: [
         {
           user: user,
-          status: "active",
+          status: EParticipantStatus.ACTIVE,
         },
-        ...u.map((e: IUser) => ({ user: e._id, status: "active" })),
+        ...u.map((e: IUser) => ({
+          user: e._id,
+          status: EParticipantStatus.ACTIVE,
+        })),
       ],
       createdBy: user,
       messages: [
@@ -995,7 +1017,7 @@ export class ChatRepository
           deleted: false,
         },
       ],
-      // admins: chatType == "one-to-one" ? [] : [user],
+      // admins: chatType == EChatType.ONE_TO_ONE ? [] : [user],
     });
     data = await Chat.aggregate(findUserpipeline({ _id: data._id }));
     if (this.io)
@@ -1038,8 +1060,8 @@ export class ChatRepository
         deleted: false,
       };
       let check: any = null;
-      if (chatType == "one-to-one") {
-        match.chatType = "one-to-one";
+      if (chatType == EChatType.ONE_TO_ONE) {
+        match.chatType = EChatType.ONE_TO_ONE;
         check = await Chat.findOne(match);
       }
       if (check) {
@@ -1059,10 +1081,10 @@ export class ChatRepository
         groupImageUrl,
         participants: participantIds.map((e) => ({
           user: e,
-          status: "active",
+          status: EParticipantStatus.ACTIVE,
         })),
-        createdBy: chatType == "one-to-one" ? null : user,
-        admins: chatType == "one-to-one" ? [] : [user],
+        createdBy: chatType == EChatType.ONE_TO_ONE ? null : user,
+        admins: chatType == EChatType.ONE_TO_ONE ? [] : [user],
       });
       const d = await Chat.aggregate(findUserpipeline({ _id: data._id }));
       if (this.io)
@@ -1073,7 +1095,7 @@ export class ChatRepository
             data: d[0],
           });
         });
-      if (chatType === "group") {
+      if (chatType === EChatType.GROUP) {
         this.sendNotificationMsg(
           {
             userIds: participantIds.filter((item) => item !== user),
@@ -1095,17 +1117,17 @@ export class ChatRepository
     try {
       let payloadData: any = payload;
       let messages: IMessage[] = [];
-      if (payload.participants.length && payload.participants.length === 1) {
+      if (payload.participants.length && payload.participants.length === 2) {
         delete payload.groupName;
-        let user = await this.userRepo.getById<IUser>(
-          payload.participants[0] as string
+        let user = await this.userRepository.getById<IUser>(
+          payload.participants[1] as string
         );
         if (!user)
           return ResponseHelper.sendResponse(
             404,
             `Participant with Id ${payload.participants[0]} not found`
           );
-        payload.chatType = "one-to-one";
+        payload.chatType = EChatType.ONE_TO_ONE;
         let msg: IMessage = {
           body: `Hey ${
             user?.username || user?.firstName
@@ -1114,7 +1136,7 @@ export class ChatRepository
         };
         messages.push(msg);
       } else if (payload.participants.length) {
-        payload.chatType = "group";
+        payload.chatType = EChatType.GROUP;
         let msg: IMessage = {
           body: `Hey, I think you guys are good candidates for this task. I am looking forward in working with you all this task.`,
           sentBy: payload.user,
@@ -1126,7 +1148,7 @@ export class ChatRepository
         ...payload,
         participants: payload.participants.map((e) => ({
           user: e,
-          status: "active",
+          status: EParticipantStatus.ACTIVE,
         })),
         messages: messages,
         createdBy: payload.user,
@@ -1140,7 +1162,7 @@ export class ChatRepository
             data: d[0],
           });
         });
-      if (payload.chatType === "group") {
+      if (payload.chatType === EChatType.GROUP) {
         this.sendNotificationMsg(
           {
             userIds: payloadData.participants.filter(
@@ -1235,7 +1257,7 @@ export class ChatRepository
     if (groupName) data.groupName = groupName;
     if (image) data.groupImageUrl = image;
     let m: any = await Chat.updateOne(
-      { _id: chatId, chatType: "group" },
+      { _id: chatId, chatType: EChatType.GROUP },
       { ...data }
     );
     m = null;
@@ -1248,7 +1270,7 @@ export class ChatRepository
     // // console.log(m)
     this.io?.emit(`updateChat/${chatId}`, m);
     m.participants.forEach(async (e: IParticipant) => {
-      if (e.status == "active")
+      if (e.status == EParticipantStatus.ACTIVE)
         // this.io?.emit(`getChats/${e.user.toString()}`, await this.getChats(e.user))
         await this.getChats(e.user.toString());
     });
@@ -1289,7 +1311,7 @@ export class ChatRepository
   }
 
   async sendNotificationMsg(data: any, chat = {}) {
-    const users = await this.userRepo.getAll(
+    const users = await this.userRepository.getAll(
       { _id: data.userIds },
       undefined,
       `fcmToken _id`,
