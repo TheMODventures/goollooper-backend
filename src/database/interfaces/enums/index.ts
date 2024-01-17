@@ -1,3 +1,5 @@
+import { EncodingType } from "@aws-sdk/client-s3";
+
 export enum EUserRole {
   admin = 1,
   user = 2,
@@ -117,4 +119,19 @@ export enum MessageType {
   relieve = "relieve",
   proceed = "proceed",
   invoice = "invoice",
+}
+
+export enum EChatType {
+  GROUP = "group",
+  ONE_TO_ONE = "one-to-one",
+}
+
+export enum EMessageStatus {
+  SENT = "sent",
+  DELIVERED = "delivered",
+  SEEN = "seen",
+}
+
+export enum EParticipantStatus {
+  ACTIVE = "active",
 }
