@@ -1,9 +1,15 @@
 import mongoose, { Document, Types } from "mongoose";
-import { MessageType, Request, RequestStatus } from "./enums";
+import {
+  EChatType,
+  EMessageStatus,
+  MessageType,
+  Request,
+  RequestStatus,
+} from "./enums";
 
 export interface IReceivedBy {
   user: string | Types.ObjectId;
-  status: "sent" | "delivered" | "seen";
+  status: EMessageStatus;
   createdAt: Date;
   deleted: boolean;
   deletedAt?: Date;
@@ -43,7 +49,7 @@ export interface IChat extends Document {
   isChatSupport: boolean;
   isTicketClosed: boolean;
   groupImageUrl?: string;
-  chatType: "group" | "one-to-one";
+  chatType: EChatType;
   createdBy?: string | Types.ObjectId;
   messages: IMessage[];
   lastUpdatedAt: Date;
@@ -59,7 +65,7 @@ export interface IChatPayload {
   isChatSupport?: boolean;
   isTicketClosed?: boolean;
   groupImageUrl?: string;
-  chatType?: "group" | "one-to-one";
+  chatType?: EChatType;
   createdBy?: string | Types.ObjectId;
   messages?: IMessage[];
   lastUpdatedAt?: Date;
