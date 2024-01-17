@@ -129,6 +129,7 @@ const userModel: Schema = new Schema(
     averageRating: { type: Number, default: 0 },
     ratingCount: { type: Number, default: 0 },
     isDeleted: { type: Boolean, default: false },
+    isContactPermission: { type: Boolean, default: true },
   },
   schemaOptions
 );

@@ -190,6 +190,7 @@ const updateRule = yup.object().shape({
         })
         .notRequired(),
       insuranceFiles: yup.array().notRequired(),
+      isContactPermission: yup.boolean().notRequired(),
     })
     .noUnknown(),
   query: yup.object().noUnknown(),
