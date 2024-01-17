@@ -20,6 +20,7 @@ import {
   EMessageStatus,
   EParticipantStatus,
 } from "../../../database/interfaces/enums";
+import { NotificationHelper } from "../../helpers/notification.helper";
 export class ChatRepository
   extends BaseRepository<IChat, IChatDoc>
   implements IChatRepository
@@ -1314,22 +1315,19 @@ export class ChatRepository
     const users = await this.userRepository.getAll(
       { _id: data.userIds },
       undefined,
-      `fcmToken _id`,
+      `fcmTokens _id`,
       undefined,
       undefined,
-      true,
-      1,
-      200
+      true
     );
-    // console.log(users);
-    // users.forEach((e: IUser) => {
-    //   sendNotification({
-    //     title: data.title,
-    //     body: data.body,
-    //     fcmToken: e.fcmToken,
-    //     data: { chatId: data.chatId, user: e._id },
-    //   });
-    // });
+    users.forEach((e: any) => {
+      NotificationHelper.sendNotification({
+        title: data.title,
+        body: data.body,
+        tokens: e.fcmTokens,
+        data: { chatId: data.chatId.toString(), user: e._id.toString() },
+      });
+    });
   }
 }
 

@@ -46,6 +46,7 @@
     "ejs": "^3.1.9",
     "express": "^4.18.2",
     "express-session": "^1.17.3",
+    "firebase-admin": "^12.0.0",
     "fs-extra": "^11.1.0",
     "jsonwebtoken": "^9.0.0",
     "lint-staged": "^13.2.0",
@@ -57,11 +58,11 @@
     "morgan": "^1.10.0",
     "multer": "^1.4.5-lts.1",
     "phone": "^3.1.41",
+    "socket.io": "^4.5.2",
     "ts-node": "^10.9.1",
     "typescript": "^4.9.5",
     "uuidv4": "^6.2.13",
-    "yup": "^1.3.2",
-    "socket.io": "^4.5.2"
+    "yup": "^1.3.2"
   },
   "devDependencies": {
     "@types/mongoose-aggregate-paginate-v2": "^1.0.12",

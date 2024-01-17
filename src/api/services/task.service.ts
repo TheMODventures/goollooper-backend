@@ -18,16 +18,21 @@ import { UploadHelper } from "../helpers/upload.helper";
 import { IGolist } from "../../database/interfaces/golist.interface";
 import {
   ECALENDARTaskType,
+  ENOTIFICATION_TYPES,
   ETaskUserStatus,
   TaskType,
 } from "../../database/interfaces/enums";
 import { ICalendar } from "../../database/interfaces/calendar.interface";
 import { ModelHelper } from "../helpers/model.helper";
+import NotificationService, {
+  NotificationParams,
+} from "./notification.service";
 
 class TaskService {
   private taskRepository: TaskRepository;
   private golistRepository: GolistRepository;
   private calendarRepository: CalendarRepository;
+  private notificationService: NotificationService;
   private uploadHelper: UploadHelper;
   private chatRepository: ChatRepository;
 
@@ -36,6 +41,7 @@ class TaskService {
     this.golistRepository = new GolistRepository();
     this.calendarRepository = new CalendarRepository();
     this.chatRepository = new ChatRepository();
+    this.notificationService = new NotificationService();
 
     this.uploadHelper = new UploadHelper("task");
   }
@@ -360,6 +366,12 @@ class TaskService {
           date: response.date ?? "2024-11-11",
           type: ECALENDARTaskType.accepted,
         } as ICalendar);
+        this.notificationService.createAndSendNotification({
+          senderId: response.postedBy,
+          receiverId: user,
+          type: ENOTIFICATION_TYPES.TASK_ACCEPTED,
+          data: { task: response._id?.toString() },
+        } as NotificationParams);
       } else if (response && status == ETaskUserStatus.REJECTED) {
         await this.calendarRepository.deleteMany({
           user: new ObjectId(user),

@@ -18,16 +18,20 @@ import { INotification } from "../../database/interfaces/notification.interface"
 import {
   ERating,
   EUserRole,
-  NOTIFICATION_TYPES,
+  ENOTIFICATION_TYPES,
 } from "../../database/interfaces/enums";
+import { NotificationHelper } from "../helpers/notification.helper";
+import { UserRepository } from "../repository/user/user.repository";
 
 class GolistService {
   private golistRepository: GolistRepository;
   private notificationRepository: NotificationRepository;
+  private userRepository: UserRepository;
 
   constructor() {
     this.golistRepository = new GolistRepository();
     this.notificationRepository = new NotificationRepository();
+    this.userRepository = new UserRepository();
   }
   index = async (
     page: number,
@@ -332,12 +336,29 @@ class GolistService {
       return {
         sender,
         receiver: e,
-        type: NOTIFICATION_TYPES.SHARE_PROVIDER,
+        type: ENOTIFICATION_TYPES.SHARE_PROVIDER,
         content: "#sender Shared A Service Provider",
         data: { serviceProvider: new ObjectId(serviceProviderId) },
       } as INotification;
     });
     const result = await this.notificationRepository.createMany(list);
+    const users = await this.userRepository.getAll(
+      { _id: myList },
+      undefined,
+      "fcmTokens"
+    );
+    users.forEach((e: any) => {
+      if (e.fcmTokens && e.fcmTokens.length > 0)
+        NotificationHelper.sendNotification({
+          title: "",
+          tokens: e?.fcmTokens,
+          body: "#sender Shared A Service Provider",
+          data: {
+            serviceProvider: serviceProviderId,
+            type: ENOTIFICATION_TYPES.SHARE_PROVIDER,
+          },
+        });
+    });
     return ResponseHelper.sendSuccessResponse(
       SUCCESS_DATA_INSERTION_PASSED,
       result

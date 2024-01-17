@@ -10,7 +10,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-
       - name: Install Node.js
         uses: actions/setup-node@v2
         with:
@@ -27,6 +26,7 @@ jobs:
             git checkout dev
             git pull origin dev
             npm install
+            echo "${{secrets.SERVICE_ACCOUNT}}" > src/api/helpers/goollooper-service.json
             npm run build
             pm2 restart apis-goollooper
             pm2 list

@@ -116,7 +116,7 @@ const userModel: Schema = new Schema(
     isProfileCompleted: { type: Boolean, default: false },
     isVerified: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true },
-    fcmToken: { type: String },
+    fcmTokens: [{ type: String }],
     refreshToken: { type: String, select: false },
     otpCode: {
       type: Number,
