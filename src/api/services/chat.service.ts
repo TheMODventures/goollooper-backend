@@ -8,11 +8,13 @@ import {
   IMessage,
   IRequest,
 } from "../../database/interfaces/chat.interface";
+import { ITask } from "../../database/interfaces/task.interface";
 import { ChatRepository } from "../repository/chat/chat.repository";
+import { TaskRepository } from "../repository/task/task.repository";
 import { Authorize } from "../../middleware/authorize.middleware";
 import { ResponseHelper } from "../helpers/reponseapi.helper";
 import { UploadHelper } from "../helpers/upload.helper";
-import { MessageType } from "../../database/interfaces/enums";
+import { ETaskStatus, MessageType } from "../../database/interfaces/enums";
 
 interface CustomSocket extends SocketIO.Socket {
   user?: any; // Adjust the type according to your user structure
@@ -188,10 +190,12 @@ export default (io: SocketIO.Server) => {
 
 export class ChatService {
   private chatRepository: ChatRepository;
+  private taskRepository: TaskRepository;
   private uploadHelper: UploadHelper;
 
   constructor() {
     this.chatRepository = new ChatRepository();
+    this.taskRepository = new TaskRepository();
 
     this.uploadHelper = new UploadHelper("chat");
   }
@@ -203,6 +207,9 @@ export class ChatService {
   ): Promise<ApiResponse> => {
     try {
       const userId = req?.locals?.auth?.userId!;
+      let chat: IChat | any = await this.chatRepository.getOne({ _id });
+      if (!chat) return ResponseHelper.sendResponse(404, "Chat not found");
+
       if (req && _.isArray(req.files)) {
         if (
           req.files.length &&
@@ -240,6 +247,9 @@ export class ChatService {
         case "4":
           msg.body = "Proceed";
           msg.type = MessageType.proceed;
+          await this.taskRepository.updateById<ITask>(chat?.task, {
+            status: ETaskStatus.assigned,
+          });
           break;
 
         case "5":
@@ -250,6 +260,9 @@ export class ChatService {
             msg.body = dataset.amount;
             msg.mediaUrls = [dataset.mediaUrl];
           }
+          await this.taskRepository.updateById<ITask>(chat?.task, {
+            status: ETaskStatus.completed,
+          });
           break;
 
         default:
