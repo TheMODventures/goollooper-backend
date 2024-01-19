@@ -15,7 +15,7 @@ const ratingModel: Schema = new Schema(
     description: { type: String, default: null },
     by: { type: Schema.Types.ObjectId, ref: "User", required: true },
     to: { type: Schema.Types.ObjectId, ref: "User", required: true },
-    // service: { type: Schema.Types.ObjectId, ref: "Service", required: true },
+    task: { type: Schema.Types.ObjectId, ref: "Task", required: true },
   },
   schemaOptions
 );
