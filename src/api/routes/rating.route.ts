@@ -19,11 +19,15 @@ class RatingRoutes extends BaseRoutes {
       this.validateRequest,
       this.ratingController.index
     );
-
     this.router.post(
       "/create",
       this.validateRequest,
       this.ratingController.create
+    );
+    this.router.post(
+      "/create/multiple",
+      this.validateRequest,
+      this.ratingController.createMultiple
     );
   }
 }

@@ -80,6 +80,12 @@ export enum TaskType {
   event = "megablast",
 }
 
+export enum ETaskStatus {
+  pending = "pending",
+  assigned = "assigned",
+  completed = "completed",
+}
+
 export enum ETaskUserStatus {
   PENDING = 1,
   REJECTED = 2,
