@@ -267,10 +267,16 @@ class GolistService {
       query.push({
         $match: match,
       });
+      query.push({
+        $addFields: {
+          fullName: { $concat: ["$firstName", " ", "$lastName"] },
+        },
+      });
       if (search) {
         query.push({
           $match: {
             $or: [
+              { fullName: { $regex: search, $options: "i" } },
               { firstName: { $regex: search, $options: "i" } },
               { lastName: { $regex: search, $options: "i" } },
               { username: { $regex: search, $options: "i" } },
