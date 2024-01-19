@@ -101,6 +101,7 @@ export interface IUser {
   deletedAt?: Date | Moment | null;
   averageRating: number;
   ratingCount: number;
+  isContactPermission?: boolean;
 }
 
 export interface IUserWithSchedule extends IUser {

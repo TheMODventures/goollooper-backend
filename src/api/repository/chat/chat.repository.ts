@@ -7,6 +7,7 @@ import {
   IChatPayload,
   IMessage,
   IParticipant,
+  IReceivedBy,
 } from "../../../database/interfaces/chat.interface";
 import { IChatRepository } from "./chat.repository.interface";
 import { IUser } from "../../../database/interfaces/user.interface";
@@ -213,14 +214,19 @@ export class ChatRepository
         },
         {
           $match: {
-            $or: [
-              { chatType: EChatType.GROUP },
-              {
-                $and: [
-                  { chatType: EChatType.ONE_TO_ONE, messages: { $ne: [] } },
+            $or: search
+              ? [{ _id: { $ne: null } }]
+              : [
+                  { chatType: EChatType.GROUP, messages: { $ne: [] } },
+                  {
+                    $and: [
+                      {
+                        chatType: EChatType.ONE_TO_ONE,
+                        messages: { $ne: [] },
+                      },
+                    ],
+                  },
                 ],
-              },
-            ],
           },
         },
         {
@@ -1084,7 +1090,7 @@ export class ChatRepository
           user: e,
           status: EParticipantStatus.ACTIVE,
         })),
-        createdBy: chatType == EChatType.ONE_TO_ONE ? null : user,
+        createdBy: user,
         admins: chatType == EChatType.ONE_TO_ONE ? [] : [user],
       });
       const d = await Chat.aggregate(findUserpipeline({ _id: data._id }));
@@ -1134,6 +1140,11 @@ export class ChatRepository
             user?.username || user?.firstName
           }, I think you are a good candidate for this task. I am looking forward in working with you on this task.`,
           sentBy: payload.user,
+          receivedBy: payload.participants
+            .slice(1)
+            .map(
+              (e) => ({ user: e, status: EMessageStatus.SENT } as IReceivedBy)
+            ),
         };
         messages.push(msg);
       } else if (payload.participants.length) {
@@ -1141,6 +1152,11 @@ export class ChatRepository
         let msg: IMessage = {
           body: `Hey, I think you guys are good candidates for this task. I am looking forward in working with you all this task.`,
           sentBy: payload.user,
+          receivedBy: payload.participants
+            .slice(1)
+            .map(
+              (e) => ({ user: e, status: EMessageStatus.SENT } as IReceivedBy)
+            ),
         };
         messages.push(msg);
       }

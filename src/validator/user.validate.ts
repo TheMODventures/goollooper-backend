@@ -174,10 +174,10 @@ const updateRule = yup.object().shape({
       company: yup
         .object()
         .shape({
-          name: yup.string().notRequired(),
-          website: yup.string(),
-          affiliation: yup.string(),
-          publication: yup.string(),
+          name: yup.string().min(3).notRequired(),
+          website: yup.string().min(3),
+          affiliation: yup.string().min(3),
+          publication: yup.string().min(3),
         })
         .notRequired(),
       certificateFiles: yup.array().notRequired(),
@@ -185,11 +185,12 @@ const updateRule = yup.object().shape({
       reference: yup
         .object()
         .shape({
-          name: yup.string(),
-          contact: yup.string(),
+          name: yup.string().min(3),
+          contact: yup.string().min(3),
         })
         .notRequired(),
       insuranceFiles: yup.array().notRequired(),
+      isContactPermission: yup.boolean().notRequired(),
     })
     .noUnknown(),
   query: yup.object().noUnknown(),
