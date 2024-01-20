@@ -24,6 +24,18 @@ class TaskController {
     return res.status(response.code).json(response);
   };
 
+  myTasks = async (req: Request, res: Response) => {
+    const { limit, page, type } = req.query;
+    const limitNow = limit ? limit : 10;
+    const response = await this.taskService.myTasks(
+      Number(page),
+      Number(limitNow),
+      type as string,
+      req.locals.auth?.userId as string
+    );
+    return res.status(response.code).json(response);
+  };
+
   create = async (req: Request, res: Response) => {
     const payload: ITask = { ...req.body };
     const response = await this.taskService.create(payload, req);

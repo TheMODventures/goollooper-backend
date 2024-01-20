@@ -36,6 +36,19 @@ const indexRule = yup.object().shape({
     .noUnknown(),
 });
 
+const myTaskRule = yup.object().shape({
+  params: yup.object().noUnknown(),
+  body: yup.object().shape({}).noUnknown(),
+  query: yup
+    .object()
+    .shape({
+      page: yup.string().required(),
+      limit: yup.string().notRequired(),
+      type: yup.string().oneOf(["accepted", "created"]).required(),
+    })
+    .noUnknown(),
+});
+
 const createRule = yup.object().shape({
   params: yup.object().noUnknown(),
   body: yup
@@ -226,6 +239,7 @@ const toggleRequestRule = yup.object().shape({
 
 export = {
   "/": indexRule,
+  "/my-task": myTaskRule,
   "/show": showRule,
   "/create": createRule,
   "/update": updateRule,

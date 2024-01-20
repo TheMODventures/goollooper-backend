@@ -1,5 +1,6 @@
 import { ObjectId } from "mongodb";
 import { Request } from "express";
+import { FilterQuery } from "mongoose";
 import _ from "lodash";
 
 import { ResponseHelper } from "../helpers/reponseapi.helper";
@@ -80,6 +81,38 @@ class TaskService {
     }
   };
 
+  myTasks = async (
+    page: number,
+    limit: number,
+    type: string,
+    user: string
+  ): Promise<ApiResponse> => {
+    try {
+      const match: any = { isDeleted: false };
+      const userId = new ObjectId(user);
+      if (type === "accepted") {
+        match["goList.serviceProviders"] = userId;
+      } else {
+        match.postedBy = { $eq: userId };
+      }
+      console.log({ match });
+
+      const data = await this.taskRepository.getAllWithPagination(
+        match,
+        undefined,
+        undefined,
+        { createdAt: -1 },
+        undefined,
+        true,
+        page,
+        limit
+      );
+      return ResponseHelper.sendSuccessResponse(SUCCESS_DATA_LIST_PASSED, data);
+    } catch (err) {
+      return ResponseHelper.sendResponse(500, (err as Error).message);
+    }
+  };
+
   show = async (_id: string): Promise<ApiResponse> => {
     try {
       const filter = {
@@ -114,6 +147,7 @@ class TaskService {
   create = async (payload: ITask, req?: Request): Promise<ApiResponse> => {
     try {
       const userId = req?.locals?.auth?.userId!;
+      payload.postedBy = userId;
       if (
         req &&
         _.isArray(req.files) &&
