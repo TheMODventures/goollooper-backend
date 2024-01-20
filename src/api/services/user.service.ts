@@ -668,11 +668,21 @@ class UserService {
         dataset.visuals = updatedFiles;
       }
 
-      if (dataset.company?.logo && userResponse?.company?.logo) {
+      if (
+        _.isArray(req?.files) &&
+        req?.files?.find((file) => file.fieldname === "companyLogo") &&
+        dataset.company?.logo &&
+        userResponse?.company?.logo
+      ) {
         this.uploadHelper.deleteFile(userResponse?.company?.logo);
       }
 
-      if (dataset.company?.resume && userResponse?.company?.resume) {
+      if (
+        _.isArray(req?.files) &&
+        req?.files?.find((file) => file.fieldname === "companyResume") &&
+        dataset.company?.resume &&
+        userResponse?.company?.resume
+      ) {
         this.uploadHelper.deleteFile(userResponse?.company?.resume);
       }
 
