@@ -112,6 +112,7 @@ const taskModel: Schema = new Schema(
     postedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
+      required: true,
     },
     gender: { type: String, default: null },
     ageFrom: { type: Number, default: null },
