@@ -1,4 +1,4 @@
-import mongoose, { FilterQuery, QueryOptions } from "mongoose";
+import mongoose, { FilterQuery, ObjectId, QueryOptions } from "mongoose";
 
 import { IUser, IUserDoc } from "../../../database/interfaces/user.interface";
 import { IUserRepository } from "./user.repository.interface";
@@ -32,4 +32,8 @@ export class UserRepository
     }
     return (data as T) || null;
   }
+
+  getCallToken = async (user: string | ObjectId) => {
+    return await this.model.findById(user).select("callToken callDeviceType");
+  };
 }

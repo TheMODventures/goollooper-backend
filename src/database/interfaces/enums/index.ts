@@ -151,3 +151,8 @@ export enum EGUIDELINE {
   FAQS = 3,
   ABOUT = 4,
 }
+
+export enum ECALLDEVICETYPE {
+  ios,
+  android,
+}

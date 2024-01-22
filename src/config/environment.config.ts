@@ -27,4 +27,9 @@ export const {
   AWS_ENDPOINT,
   AWS_SUB_FOLDER,
   GOOGLE_MAP_KEY,
+  IOS_KEY,
+  IOS_KEY_ID,
+  IOS_TEAM_ID,
+  APP_ID,
+  APP_CERTIFICATE,
 } = process.env;
