@@ -20,7 +20,7 @@ export interface IMessage {
   createdAt?: Date;
   mediaUrls?: string[];
   mediaType?: string;
-  sentBy: string | Types.ObjectId;
+  sentBy?: string | Types.ObjectId;
   type?: MessageType;
   receivedBy?: IReceivedBy[];
   deleted?: boolean;

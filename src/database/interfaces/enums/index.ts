@@ -120,6 +120,7 @@ export enum MessageType {
   relieve = "relieve",
   proceed = "proceed",
   invoice = "invoice",
+  system = "system",
 }
 
 export enum EChatType {

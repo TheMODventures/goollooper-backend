@@ -25,6 +25,7 @@ import {
   EChatType,
   EMessageStatus,
   EParticipantStatus,
+  MessageType,
 } from "../../../database/interfaces/enums";
 import {
   NotificationHelper,
@@ -1097,6 +1098,41 @@ export class ChatRepository
           });
         return check[0];
       }
+      const messages: IMessage[] = [];
+      let usernames = "";
+      let createdByUsername = "";
+      const users = await this.userRepository.getAll(
+        {
+          _id: participantIds.map((e: string) => new ObjectId(e)),
+        },
+        undefined,
+        ModelHelper.userSelect
+      );
+      users.forEach((e: any) => {
+        if (e._id.toString() !== user)
+          usernames += `${e.firstName ?? ""} ${e.lastName ?? ""}, `;
+        else createdByUsername = `${e.firstName ?? ""} ${e.lastName ?? ""}`;
+      });
+      participantIds.forEach(async (participant: string) => {
+        const welcomeMessageBody = `you ${
+          chatType == EChatType.GROUP ? "created a group" : "started a"
+        } chat with ${usernames}`;
+
+        // Add the welcome message to the chat
+        const welcomeMessage: IMessage = {
+          body: welcomeMessageBody.slice(0, welcomeMessageBody.length - 2),
+          type: MessageType.system,
+          receivedBy: [
+            { user: participant, status: EMessageStatus.SENT },
+          ] as IReceivedBy[],
+        };
+
+        if (participant !== user) {
+          welcomeMessage.body = `${createdByUsername} started a chat with you`;
+        }
+
+        messages.push(welcomeMessage);
+      });
       const data = await Chat.create({
         groupName,
         chatType,
@@ -1107,6 +1143,7 @@ export class ChatRepository
         })),
         createdBy: user,
         admins: chatType == EChatType.ONE_TO_ONE ? [] : [user],
+        messages,
       });
       const d = await Chat.aggregate(findUserpipeline({ _id: data._id }));
       if (this.io)
