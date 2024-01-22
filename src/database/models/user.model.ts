@@ -130,6 +130,8 @@ const userModel: Schema = new Schema(
     ratingCount: { type: Number, default: 0 },
     isDeleted: { type: Boolean, default: false },
     isContactPermission: { type: Boolean, default: true },
+    callToken: { type: String, default: null },
+    callDeviceType: { type: String, default: null },
   },
   schemaOptions
 );

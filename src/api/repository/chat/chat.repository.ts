@@ -1,5 +1,9 @@
 import { ObjectId } from "bson";
 import { Server } from "socket.io";
+import { RtcRole, RtcTokenBuilder } from "agora-access-token";
+import { uuid } from "uuidv4";
+import { Request } from "express";
+import * as apn from "apn";
 
 import {
   IChat,
@@ -17,11 +21,22 @@ import { BaseRepository } from "../base.repository";
 import { UserRepository } from "../user/user.repository";
 import { ResponseHelper } from "../../helpers/reponseapi.helper";
 import {
+  ECALLDEVICETYPE,
   EChatType,
   EMessageStatus,
   EParticipantStatus,
 } from "../../../database/interfaces/enums";
-import { NotificationHelper } from "../../helpers/notification.helper";
+import {
+  NotificationHelper,
+  PushNotification,
+} from "../../helpers/notification.helper";
+import {
+  APP_CERTIFICATE,
+  APP_ID,
+  IOS_KEY,
+  IOS_KEY_ID,
+  IOS_TEAM_ID,
+} from "../../../config/environment.config";
 export class ChatRepository
   extends BaseRepository<IChat, IChatDoc>
   implements IChatRepository
@@ -1344,6 +1359,250 @@ export class ChatRepository
         data: { chatId: data.chatId.toString(), user: e._id.toString() },
       });
     });
+  }
+
+  async getAgoraToken(req: Request) {
+    if (req && req.body) {
+      const userId = req.body.user;
+      // TODO: move them to env in future
+      const { calleeInfo, videoSDKInfo } = req.body;
+      let calleeID = req.body?.calleeID;
+      const channelName = req.query?.channelName;
+      const uid = req.query?.uid;
+      const notifyOther = req.query?.notifyOther;
+
+      const role = RtcRole?.PUBLISHER;
+      const expirationTimeInSeconds = 60 * 60;
+      const currentTimestamp = Math.floor(Date.now() / 1000);
+      const privilegeExpiredTs = currentTimestamp + expirationTimeInSeconds;
+      const tokenA = RtcTokenBuilder?.buildTokenWithAccount(
+        APP_ID as string,
+        APP_CERTIFICATE as string,
+        channelName as string,
+        uid as string,
+        role,
+        privilegeExpiredTs
+      );
+      // const tokenA = "";
+
+      console.log("Token with integer number Uid: " + tokenA);
+
+      if (notifyOther) {
+        if (calleeID?.length) {
+          calleeID?.forEach((calleeID: string) => {
+            this.userRepository.getCallToken(calleeID).then((v: any) => {
+              if (v)
+                this.userRepository
+                  .getById(userId)
+                  .then(({ firstName, lastName }: any) => {
+                    if ((v as any).callDeviceType === ECALLDEVICETYPE.ios) {
+                      const callerInfo = {
+                        chatId: req.query.channelName,
+                        title: firstName + " " + lastName,
+                        isGroup: req.body?.isGroup ? true : false,
+                        participants: req.body?.participants,
+                      };
+                      const info = JSON.stringify({
+                        callerInfo,
+                        videoSDKInfo: {},
+                        type: "CALL_INITIATED",
+                      });
+
+                      // let deviceToken = calleeInfo.APN;
+
+                      // TODO: change environement i.e: production or debug
+                      const options: any = {
+                        token: {
+                          key: IOS_KEY, // path of .p8 file
+                          keyId: IOS_KEY_ID,
+                          teamId: IOS_TEAM_ID,
+                        },
+                        production: false,
+                      };
+
+                      var apnProvider = new apn.Provider({ ...options } as any);
+
+                      var note = new apn.Notification();
+
+                      note.expiry = Math.floor(Date.now() / 1000) + 3600; // Expires 1 hour from now.
+                      note.badge = 1;
+                      note.sound = "ping.aiff";
+                      note.alert = "You have a new message";
+                      note.rawPayload = {
+                        callerName: callerInfo?.title ?? "hello",
+                        aps: {
+                          "content-available": 1,
+                        },
+                        handle: callerInfo?.title ?? "hello",
+                        callerInfo,
+                        videoSDKInfo,
+                        data: { info, type: "CALL_INITIATED" },
+                        type: "CALL_INITIATED",
+                        uuid: uuid(),
+                      };
+                      // note.pushType = "voip";
+                      note.topic = "org.goollooper.app.voip";
+                      apnProvider
+                        .send(note, v.callToken)
+                        .then((result: any) => {
+                          console.log("RESULT", result);
+                          if (result.failed && result.failed.length > 0) {
+                            console.log("FAILED", result.failed);
+                          }
+                        });
+                    } else {
+                      const info = JSON.stringify({
+                        callerInfo: {
+                          chatId: req.query.channelName,
+                          title: firstName + " " + lastName,
+                          isGroup: req.body?.isGroup ? true : false,
+                          participants: req.body?.participants,
+                        },
+                        videoSDKInfo: {},
+                        type: "CALL_INITIATED",
+                      });
+                      const message = {
+                        data: { info },
+                        android: { priority: "high" },
+                        registration_ids: [v.callToken],
+                      };
+                      NotificationHelper.sendNotification({
+                        data: message.data,
+                        tokens: message.registration_ids,
+                      } as PushNotification);
+                      // fcm.send(message, function (err, res) {
+                      //   if (err) {
+                      //     console.log("Error: " + err);
+                      //   } else {
+                      //     console.log("Success: " + res);
+                      //   }
+                      // });
+                    }
+                  });
+            });
+          });
+        }
+      }
+
+      return ResponseHelper.sendSuccessResponse(
+        "agora user token from user id",
+        tokenA
+      );
+    }
+    return ResponseHelper.sendResponse(400, "Agora token failed");
+  }
+
+  async endCall(req: Request) {
+    // const userId = req.body.user;
+    const chatId = req.body.chatId;
+    // const calleeId = req.body.callee;
+    const { videoSDKInfo } = req.body;
+
+    const calleeID = req.body?.calleeID;
+    const notifyOther = req.query?.notifyOther;
+
+    if (notifyOther) {
+      if (calleeID?.length) {
+        calleeID?.forEach((calleeId: string) => {
+          this.userRepository.getCallToken(calleeId).then((v: any) => {
+            if (v)
+              if (v.callDeviceType === ECALLDEVICETYPE.ios) {
+                const callerInfo = {
+                  chatId: req.query.channelName,
+                  title: "Call ended",
+                  isGroup: req.body?.isGroup ? true : false,
+                  participants: req.body?.participants,
+                };
+                const info = JSON.stringify({
+                  callerInfo,
+                  videoSDKInfo: {},
+                  type: "CALL_DECLINED",
+                });
+
+                const options: any = {
+                  token: {
+                    key: IOS_KEY, // path of .p8 file
+                    keyId: IOS_KEY_ID,
+                    teamId: IOS_TEAM_ID,
+                  },
+                  production: false,
+                };
+
+                var apnProvider = new apn.Provider({ ...options });
+
+                var note = new apn.Notification();
+
+                note.expiry = Math.floor(Date.now() / 1000) + 3600; // Expires 1 hour from now.
+                note.badge = 1;
+                note.sound = "ping.aiff";
+                note.alert = "You have a new message";
+                note.rawPayload = {
+                  callerName: callerInfo.title,
+                  aps: {
+                    "content-available": 1,
+                  },
+                  handle: callerInfo?.title ?? "hello",
+                  callerInfo,
+                  videoSDKInfo,
+                  data: { info, type: "CALL_DECLINED" },
+                  type: "CALL_DECLINED",
+                  uuid: uuid(),
+                };
+                // note.pushType = "voip";
+                note.topic = "org.goollooper.app.voip";
+                apnProvider.send(note, v.callToken).then((result) => {
+                  console.log("RESULT", result);
+                  if (result.failed && result.failed.length > 0) {
+                    console.log("FAILED", result.failed);
+                  }
+                });
+              } else {
+                const info = JSON.stringify({
+                  callerInfo: {
+                    chatId: chatId,
+                    title: null,
+                    isGroup: false,
+                    participants: [],
+                  },
+                  videoSDKInfo: {},
+                  type: "CALL_DECLINED",
+                });
+                const message = {
+                  data: { info },
+                  android: { priority: "high" },
+                  registration_ids: [v.callToken],
+                };
+                NotificationHelper.sendNotification({
+                  data: message.data,
+                  tokens: message.registration_ids,
+                } as PushNotification);
+                // fcm.send(message, function (err, res) {
+                //   if (err) {
+                //     console.log("Error: " + err);
+                //   } else {
+                //     console.log("Success: " + res);
+                //   }
+                // });
+              }
+          });
+        });
+        // console.log(
+        //   "🚀 ~ file: videoController.js:335 ~ calleeID?.forEach ~ calleeID:",
+        //   calleeID
+        // );
+      }
+    }
+    return ResponseHelper.sendSuccessResponse("call ended Successfully");
+  }
+
+  async updateCallToken(req: Request) {
+    const user = await this.userRepository.updateById(
+      req.locals.auth?.userId as string,
+      req.body
+    );
+    if (user)
+      return ResponseHelper.sendSuccessResponse("call token updated", user);
+    return ResponseHelper.sendResponse(400, "Call token update failed");
   }
 }
 

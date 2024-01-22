@@ -102,6 +102,8 @@ export interface IUser {
   averageRating: number;
   ratingCount: number;
   isContactPermission?: boolean;
+  callToken?: string;
+  callDeviceType?: string;
 }
 
 export interface IUserWithSchedule extends IUser {
