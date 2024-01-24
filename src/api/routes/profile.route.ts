@@ -4,16 +4,19 @@ import { Request, Response, NextFunction } from "express";
 import { validateFiles } from "../../validator/userFile.validate";
 import { Validation } from "../../middleware/validation.middleware";
 import UserController from "../controllers/user/user.controller";
+import AuthController from "../controllers/auth/auth.user.controller";
 import BaseRoutes from "./base.route";
 
 class ProfileRoutes extends BaseRoutes {
   private userController: UserController;
+  private authController: AuthController;
 
   private validateRequest;
 
   constructor() {
     super();
     this.userController = new UserController();
+    this.authController = new AuthController();
     this.validateRequest = new Validation().reporter(true, "user");
     this.initializeRoutes();
   }
@@ -67,6 +70,11 @@ class ProfileRoutes extends BaseRoutes {
       this.validateFilesMiddleware,
       this.validateRequest,
       this.userController.update
+    );
+    this.router.post(
+      "/update-password",
+      this.validateRequest,
+      this.authController.updateData
     );
     this.router.patch(
       "/schedule/update/:id",
