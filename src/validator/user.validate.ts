@@ -230,6 +230,22 @@ const updateScheduleRule = yup.object().shape({
   }),
 });
 
+const updatePassword = yup.object().shape({
+  params: yup.object().noUnknown(),
+  body: yup
+    .object()
+    .shape({
+      oldPassword: yup.string().min(6).required(),
+      password: yup.string().min(6).required(),
+      confirmPassword: yup
+        .string()
+        .oneOf([yup.ref("password")], "Passwords must match")
+        .required(),
+    })
+    .noUnknown(),
+  query: yup.object().noUnknown(),
+});
+
 export = {
   "/check-username": checkUsernameRule,
   "/index": indexRule,
@@ -240,4 +256,5 @@ export = {
   "/trash": showRule,
   "/restore": showRule,
   "/delete": showRule,
+  "/update-password": updatePassword,
 };
