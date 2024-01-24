@@ -157,3 +157,11 @@ export enum ECALLDEVICETYPE {
   ios,
   android,
 }
+
+export enum TransactionType {
+  subscription = "Subscription",
+  taskAddRequest = "Task Add Request",
+  megablast = "Megablast",
+  topUp = "Top Up",
+  withdraw = "Withdraw",
+}
