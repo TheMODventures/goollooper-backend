@@ -10,3 +10,4 @@ package-lock.json
 .env
 my.txt
 src/api/helpers/goollooper-service.json
+.prod.env
