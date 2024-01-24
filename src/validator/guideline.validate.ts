@@ -30,11 +30,12 @@ const createRule = yup.object().shape({
   body: yup
     .object()
     .shape({
-      content: yup.string().notRequired(),
+      title: yup.string().notRequired(),
+      content: yup.string().required(),
       type: yup
         .number()
         .oneOf(Object.values(EGUIDELINE).map((e) => Number(e)))
-        .notRequired(),
+        .required(),
     })
     .noUnknown(),
   query: yup.object().shape({}).noUnknown(),
@@ -45,6 +46,7 @@ const updateRule = yup.object().shape({
   body: yup
     .object()
     .shape({
+      title: yup.string().notRequired(),
       content: yup.string().notRequired(),
       type: yup
         .number()

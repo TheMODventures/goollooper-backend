@@ -48,6 +48,13 @@ class GuidelineService {
 
   create = async (payload: IGuideline): Promise<ApiResponse> => {
     try {
+      const getDocCount = await this.guidelineRepository.getCount({
+        type: payload.type,
+        isDeleted: false,
+      });
+      if (getDocCount > 0) {
+        return ResponseHelper.sendResponse(409, "Already created");
+      }
       const data = await this.guidelineRepository.create<IGuideline>(payload);
       return ResponseHelper.sendResponse(201, data);
     } catch (error) {
