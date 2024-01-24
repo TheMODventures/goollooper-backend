@@ -255,6 +255,5 @@ export = {
   "/schedule/update": updateScheduleRule,
   "/trash": showRule,
   "/restore": showRule,
-  "/delete": showRule,
   "/update-password": updatePassword,
 };
