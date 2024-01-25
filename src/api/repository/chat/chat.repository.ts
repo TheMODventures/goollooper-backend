@@ -25,6 +25,8 @@ import {
   EChatType,
   EMessageStatus,
   EParticipantStatus,
+  ETICKET_STATUS,
+  EUserRole,
   MessageType,
 } from "../../../database/interfaces/enums";
 import {
@@ -989,20 +991,20 @@ export class ChatRepository
   //   }
 
   async createChatSupport(user: string, topic = "new topic") {
-    const check = await Chat.findOne({
-      isChatSupport: true,
-      isTicketClosed: false,
-      createdBy: user,
-    }).select("-messages -participants");
-    if (check && this.io) {
-      this.io?.emit(`createChatSupport/${user}`, {
-        message:
-          "you already have an open tickets. Please close those tickets to create new one",
-      });
-      return check;
-    }
+    // const check = await Chat.findOne({
+    //   isChatSupport: true,
+    //   isTicketClosed: false,
+    //   createdBy: user,
+    // }).select("-messages -participants");
+    // if (check && this.io) {
+    //   this.io?.emit(`createChatSupport/${user}`, {
+    //     message:
+    //       "you already have an open tickets. Please close those tickets to create new one",
+    //   });
+    //   return check;
+    // }
     const u = (await this.userRepository.getAll(
-      { role: "admin", isActive: true },
+      { role: EUserRole.admin, isActive: true },
       undefined,
       ModelHelper.userSelect,
       undefined,
@@ -1012,9 +1014,11 @@ export class ChatRepository
       200
     )) as IUser[];
     // // console.log(u)
+    topic = Math.random().toString(36).substring(3, 15).toUpperCase();
     let data: any = await Chat.create({
       groupName: topic,
       chatType: EChatType.GROUP,
+      ticketStatus: ETICKET_STATUS.PENDING,
       isChatSupport: true,
       // groupImageUrl,
       participants: [
@@ -1054,10 +1058,40 @@ export class ChatRepository
     return data[0];
   }
 
+  async changeTicketStatus(chatId: string, ticketStatus: ETICKET_STATUS) {
+    if (
+      ticketStatus != ETICKET_STATUS.PROGRESS &&
+      ticketStatus != ETICKET_STATUS.COMPLETED
+    ) {
+      console.log(ticketStatus);
+      if (this.io)
+        this.io.emit(`changeTicketStatus/${chatId}`, {
+          message: `invalid ticket Status allowed status ${ETICKET_STATUS.PROGRESS}, ${ETICKET_STATUS.COMPLETED}`,
+          // data: data,
+        });
+      return;
+    }
+    const data: any = await Chat.findOneAndUpdate(
+      { _id: chatId, isChatSupport: true },
+      { ticketStatus },
+      { new: true }
+    ).select("-messages");
+    if (this.io) {
+      data.participants.forEach((e: IParticipant) => {
+        // if(e!=userId)
+        this.io?.emit(`changeTicketStatus/${e.user}`, {
+          message: "ticket status updated",
+          data: data,
+        });
+      });
+    }
+  }
+
   async closeChatSupport(chatId: string, user: string) {
     const data: any = await Chat.findOneAndUpdate(
       { _id: chatId, isChatSupport: true },
-      { isTicketClosed: true }
+      { isTicketClosed: true, ticketStatus: ETICKET_STATUS.CLOSED },
+      { new: true }
     ).select("-messages");
     if (this.io) {
       data.participants.forEach((e: IParticipant) => {

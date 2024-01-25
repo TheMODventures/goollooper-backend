@@ -165,3 +165,10 @@ export enum TransactionType {
   topUp = "Top Up",
   withdraw = "Withdraw",
 }
+
+export enum ETICKET_STATUS {
+  PENDING = "pending",
+  PROGRESS = "progress",
+  COMPLETED = "completed",
+  CLOSED = "closed",
+}

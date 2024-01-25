@@ -171,6 +171,10 @@ export default (io: SocketIO.Server) => {
       }
     );
 
+    socket.on("changeTicketStatus", async (data) => {
+      await chatRepository.changeTicketStatus(data.chatId, data.ticketStatus);
+    });
+
     socket.on(
       "createChatSupport",
       async (data: { userId: string; topic: string }) => {
