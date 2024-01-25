@@ -10,6 +10,7 @@ import {
   EChatType,
   EMessageStatus,
   EParticipantStatus,
+  ETICKET_STATUS,
 } from "../interfaces/enums";
 
 const deleteFields = {
@@ -30,6 +31,10 @@ const chatSchema = new Schema(
       required: function (this: IChat) {
         return this.chatType === EChatType.GROUP;
       },
+    },
+    ticketStatus: {
+      type: String,
+      enum: ETICKET_STATUS,
     },
     isChatSupport: {
       type: Boolean,
