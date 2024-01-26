@@ -60,6 +60,18 @@ class UserService {
     }
   };
 
+  getCount = async (filter?: FilterQuery<IUser>): Promise<ApiResponse> => {
+    try {
+      const getDocCount = await this.userRepository.getCount(filter);
+      return ResponseHelper.sendSuccessResponse(
+        SUCCESS_DATA_SHOW_PASSED,
+        getDocCount.toString()
+      );
+    } catch (error) {
+      return ResponseHelper.sendResponse(500, (error as Error).message);
+    }
+  };
+
   index = async (
     page: number,
     limit = 10,
