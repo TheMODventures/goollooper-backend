@@ -31,7 +31,7 @@ class UserController {
   };
 
   index = async (req: Request, res: Response) => {
-    const { limit, page, username = "", email = "" } = req.query;
+    const { limit, page, username = "", email = "", role } = req.query;
     const limitNow = limit ? limit : 10;
     const filter: FilterQuery<IUser> = {
       $or: [{ role: EUserRole.user }, { role: EUserRole.serviceProvider }],
@@ -40,6 +40,9 @@ class UserController {
     };
     if (username) {
       filter.username = { $regex: username, $options: "i" };
+    }
+    if (role) {
+      filter.role = { $eq: role };
     }
     const response = await this.userService.index(
       Number(page),

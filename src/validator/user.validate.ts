@@ -3,6 +3,7 @@ import * as yup from "yup";
 import {
   Days,
   EUserLocationType,
+  EUserRole,
   Repetition,
   RepetitionEvery,
   UserRole,
@@ -31,11 +32,17 @@ const checkUsernameRule = yup.object().shape({
 });
 
 const indexRule = yup.object().shape({
-  params: yup.object().shape(paramRule).noUnknown(),
-  body: yup.object().shape({}).noUnknown(),
+  params: yup.object().noUnknown(),
+  body: yup.object().noUnknown(),
   query: yup
     .object()
     .shape({
+      username: yup.string().notRequired(),
+      email: yup.string().notRequired(),
+      role: yup
+        .string()
+        .oneOf([...Object.values(EUserRole).map((value) => value?.toString())])
+        .notRequired(),
       page: yup.string().required(),
       limit: yup.string().notRequired(),
     })

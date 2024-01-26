@@ -79,18 +79,43 @@ class UserService {
   ): Promise<ApiResponse> => {
     try {
       const getDocCount = await this.userRepository.getCount(filter);
-      const response = await this.userRepository.getAll<IUser>(
-        filter,
-        "",
-        "",
+      let pipeline = [
+        { $match: filter },
         {
-          createdAt: "desc",
+          $lookup: {
+            from: "tasks",
+            let: { userId: "$_id" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: { $eq: ["$postedBy", "$$userId"] },
+                },
+              },
+              {
+                $project: {
+                  title: 1,
+                  description: 1,
+                },
+              },
+            ],
+            as: "tasks",
+          },
         },
-        undefined,
-        true,
-        page,
-        limit
-      );
+      ];
+
+      const response =
+        await this.userRepository.getAllWithAggregatePagination<IUser>(
+          pipeline,
+          "",
+          "",
+          {
+            createdAt: "desc",
+          },
+          undefined,
+          true,
+          page,
+          limit
+        );
       return ResponseHelper.sendSuccessResponse(
         SUCCESS_DATA_LIST_PASSED,
         response,
