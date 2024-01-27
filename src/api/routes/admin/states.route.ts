@@ -12,7 +12,7 @@ class StatsRoutes extends BaseRoutes {
   }
 
   protected routes(): void {
-    this.router.get("/index", this.statsController.index);
+    this.router.get("/", this.statsController.index);
   }
 }
 

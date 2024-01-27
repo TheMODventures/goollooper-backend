@@ -254,6 +254,7 @@ const updatePassword = yup.object().shape({
 });
 
 export = {
+  "/": indexRule,
   "/check-username": checkUsernameRule,
   "/index": indexRule,
   "/trash-index": indexRule,

@@ -15,7 +15,7 @@ class UserRoutes extends BaseRoutes {
   }
 
   protected routes(): void {
-    this.router.get("/index", this.validateRequest, this.userController.index);
+    this.router.get("/", this.validateRequest, this.userController.index);
   }
 }
 
