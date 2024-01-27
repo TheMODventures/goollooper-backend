@@ -14,12 +14,12 @@ import {
   IUser,
   IUserWithSchedule,
 } from "../../database/interfaces/user.interface";
-import { ISubscription } from "../../database/interfaces/subscription.interface";
 import { UserRepository } from "../repository/user/user.repository";
 import { SubscriptionRepository } from "../repository/subscription/subscription.repository";
 import { ScheduleRepository } from "../repository/schedule/schedule.repository";
 import {
   SUCCESS_DATA_DELETION_PASSED,
+  SUCCESS_DATA_INSERTION_PASSED,
   SUCCESS_DATA_LIST_PASSED,
   SUCCESS_DATA_SHOW_PASSED,
   SUCCESS_DATA_UPDATION_PASSED,
@@ -28,19 +28,22 @@ import { ResponseHelper } from "../helpers/reponseapi.helper";
 import { ISchedule } from "../../database/interfaces/schedule.interface";
 import { DateHelper } from "../helpers/date.helper";
 import { UploadHelper } from "../helpers/upload.helper";
+import TokenService from "./token.service";
 
 class UserService {
   private userRepository: UserRepository;
-  private subscriptionRepository: SubscriptionRepository;
   private scheduleRepository: ScheduleRepository;
   private dateHelper: DateHelper;
   private uploadHelper: UploadHelper;
 
+  private tokenService: TokenService;
+
   constructor() {
     this.userRepository = new UserRepository();
-    this.subscriptionRepository = new SubscriptionRepository();
     this.scheduleRepository = new ScheduleRepository();
     this.uploadHelper = new UploadHelper("user");
+
+    this.tokenService = new TokenService();
 
     this.dateHelper = new DateHelper();
   }
@@ -151,7 +154,11 @@ class UserService {
       const filter: FilterQuery<IUser> = {
         _id: _id,
         isDeleted: false,
-        $or: [{ role: EUserRole.user }, { role: EUserRole.serviceProvider }],
+        $or: [
+          { role: EUserRole.user },
+          { role: EUserRole.serviceProvider },
+          { role: EUserRole.subAdmin },
+        ],
       };
       const response = await this.userRepository.getOne<IUser>(filter, "", "", [
         {
@@ -895,6 +902,32 @@ class UserService {
       response,
       countPipeline.length > 0 ? countPipeline[0].totalCount : 0
     );
+  };
+
+  addSubAdmin = async (payload: IUser): Promise<ApiResponse> => {
+    try {
+      if (payload.phoneCode && payload.phone) {
+        payload.completePhone = payload.phoneCode + payload.phone;
+      }
+      const user: IUser = {
+        ...payload,
+        role: EUserRole.subAdmin,
+      };
+      const data = await this.userRepository.create<IUser>(user);
+      const userId = new mongoose.Types.ObjectId(data._id!);
+      const tokenResponse = await this.tokenService.create(
+        userId,
+        EUserRole.subAdmin
+      );
+      return ResponseHelper.sendSignTokenResponse(
+        201,
+        SUCCESS_DATA_INSERTION_PASSED,
+        data,
+        tokenResponse
+      );
+    } catch (error) {
+      return ResponseHelper.sendResponse(500, (error as Error).message);
+    }
   };
 }
 
