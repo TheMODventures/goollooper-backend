@@ -1,5 +1,7 @@
 import mongoose, { Schema } from "mongoose";
 import bcrypt from "bcrypt";
+import mongoosePaginate from "mongoose-paginate-v2";
+import aggregatePaginate from "mongoose-aggregate-paginate-v2";
 
 import { EUserRole, EUserLocationType } from "../interfaces/enums";
 import { IUserDoc } from "../interfaces/user.interface";
@@ -150,6 +152,8 @@ userModel.index(
   }
 );
 userModel.index({ selectedLocation: "2dsphere" });
+userModel.plugin(mongoosePaginate);
+userModel.plugin(aggregatePaginate);
 
 userModel.pre("save", async function (next) {
   // Only hash the password if it has been modified (or is new)

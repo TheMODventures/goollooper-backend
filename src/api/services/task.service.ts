@@ -47,6 +47,18 @@ class TaskService {
     this.uploadHelper = new UploadHelper("task");
   }
 
+  getCount = async (filter?: FilterQuery<ITask>): Promise<ApiResponse> => {
+    try {
+      const getDocCount = await this.taskRepository.getCount(filter);
+      return ResponseHelper.sendSuccessResponse(
+        SUCCESS_DATA_SHOW_PASSED,
+        getDocCount.toString()
+      );
+    } catch (error) {
+      return ResponseHelper.sendResponse(500, (error as Error).message);
+    }
+  };
+
   index = async (
     taskInterests: string[],
     user: string,
@@ -95,7 +107,6 @@ class TaskService {
       } else {
         match.postedBy = { $eq: userId };
       }
-      console.log({ match });
 
       const data = await this.taskRepository.getAllWithPagination(
         match,

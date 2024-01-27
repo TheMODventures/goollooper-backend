@@ -1,12 +1,12 @@
+import { Authorize } from "../../../middleware/authorize.middleware";
 import { Validation } from "../../../middleware/validation.middleware";
-import AuthController from "../../controllers/auth/auth.admin.controller";
 import BaseRoutes from "../base.route";
-import UserRoutes from "./user.admin.route";
+import AuthController from "../../controllers/auth/auth.admin.controller";
 
 class AuthRoutes extends BaseRoutes {
   private authController: AuthController;
 
-  private userRoute: UserRoutes;
+  private authorize: Authorize;
 
   private validateRequest;
 
@@ -14,29 +14,42 @@ class AuthRoutes extends BaseRoutes {
     super();
     this.authController = new AuthController();
 
-    this.userRoute = new UserRoutes();
+    this.authorize = new Authorize();
 
     this.validateRequest = new Validation().reporter(true, "auth");
     this.initializeRoutes();
   }
 
   protected routes(): void {
+    this.router.post("/login", this.validateRequest, this.authController.login);
+    this.router.post(
+      "/forget-password",
+      this.validateRequest,
+      this.authController.forgetPassword
+    );
+    this.router.use((req, res, next) =>
+      this.authorize.validateAuth(req, res, next, true)
+    );
     this.router.post(
       "/logout",
       this.validateRequest,
       this.authController.logout
     );
     this.router.post(
-      "/update-detail",
+      "/reset-password",
       this.validateRequest,
       this.authController.updateData
     );
     this.router.post(
-      "/update-password",
+      "/send-otp",
       this.validateRequest,
-      this.authController.updateData
+      this.authController.resendOtp
     );
-    this.router.use("/user", this.userRoute.router);
+    this.router.post(
+      "/verify-otp",
+      this.validateRequest,
+      this.authController.verifyOtp
+    );
   }
 }
 

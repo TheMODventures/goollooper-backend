@@ -4,6 +4,7 @@ export enum EUserRole {
   admin = 1,
   user = 2,
   serviceProvider = 3,
+  subAdmin = 4,
 }
 
 export enum UserRole {
