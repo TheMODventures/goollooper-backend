@@ -14,7 +14,7 @@ import { TaskRepository } from "../repository/task/task.repository";
 import { GolistRepository } from "../repository/golist/golist.repository";
 import { CalendarRepository } from "../repository/calendar/calendar.repository";
 import { ChatRepository } from "../repository/chat/chat.repository";
-import { ITask } from "../../database/interfaces/task.interface";
+import { ITask, ITaskPayload } from "../../database/interfaces/task.interface";
 import { UploadHelper } from "../helpers/upload.helper";
 import { IGolist } from "../../database/interfaces/golist.interface";
 import {
@@ -179,7 +179,10 @@ class TaskService {
     }
   };
 
-  create = async (payload: ITask, req?: Request): Promise<ApiResponse> => {
+  create = async (
+    payload: ITaskPayload,
+    req?: Request
+  ): Promise<ApiResponse> => {
     try {
       const userId = req?.locals?.auth?.userId!;
       payload.postedBy = userId;
@@ -212,7 +215,7 @@ class TaskService {
       payload.goList = {
         goListId: payload.goList as string,
         title: goList.title,
-        serviceProviders: goList.serviceProviders,
+        serviceProviders: payload.goListServiceProviders as ObjectId[],
         taskInterests: goList.taskInterests,
       };
 
@@ -262,7 +265,7 @@ class TaskService {
 
   update = async (
     _id: string,
-    dataset: Partial<ITask>,
+    dataset: Partial<ITaskPayload>,
     req?: Request
   ): Promise<ApiResponse> => {
     try {
@@ -305,7 +308,7 @@ class TaskService {
         dataset.goList = {
           goListId: dataset.goList as string,
           title: goList.title,
-          serviceProviders: goList.serviceProviders,
+          serviceProviders: dataset?.goListServiceProviders as ObjectId[],
           taskInterests: goList.taskInterests,
         };
       }
