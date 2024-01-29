@@ -50,9 +50,37 @@ class NotificationController {
     return res.status(response.code).json(response);
   };
 
+  getAll = async (req: Request, res: Response) => {
+    const { limit, page = 1 } = req.query;
+    const limitNow = limit ? limit : 10;
+    const response = await this.notificationService.index(
+      Number(page),
+      Number(limitNow),
+      {}
+    );
+    response.data.result = response.data.result.map((e: any) => {
+      return {
+        ...e,
+        content: (e.content as string)
+          .replace("#sender", e.sender?.firstName ?? e.sender?.email ?? "")
+          .replace("#receiver", ""),
+      };
+    });
+    return res.status(response.code).json(response);
+  };
+
   create = async (req: Request, res: Response) => {
     const payload: INotification = { ...req.body };
     const response = await this.notificationService.create(payload);
+    return res.status(response.code).json(response);
+  };
+
+  createAndSendNotificationMultiple = async (req: Request, res: Response) => {
+    const response =
+      await this.notificationService.createAndSendNotificationMultiple(
+        req.body,
+        req.locals.auth?.userId as string
+      );
     return res.status(response.code).json(response);
   };
 

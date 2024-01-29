@@ -41,7 +41,7 @@ export interface PushNotification {
   tokens: string[];
   title: string;
   body: string;
-  data: any;
+  data?: any;
 }
 
 export const NotificationHelper = new NotificationHelperC();
