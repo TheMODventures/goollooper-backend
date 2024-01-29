@@ -104,6 +104,7 @@ export interface IUser {
   isContactPermission?: boolean;
   callToken?: string;
   callDeviceType?: string;
+  stripeCustomerId?: string;
 }
 
 export interface IUserWithSchedule extends IUser {
