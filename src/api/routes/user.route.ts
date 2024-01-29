@@ -14,6 +14,7 @@ import ChatRoutes from "./chat.route";
 import MediaRoutes from "./media.route";
 import GuidelineRoutes from "./guideline.route";
 import TransactionRoutes from "./transaction.route";
+import StripeRoutes from "./stripe.route";
 
 class UserRoutes extends BaseRoutes {
   private authRoutes: AuthRoutes;
@@ -31,6 +32,7 @@ class UserRoutes extends BaseRoutes {
   private mediaRoutes: MediaRoutes;
   private guidelineRoutes: GuidelineRoutes;
   private transactionRoutes: TransactionRoutes;
+  private stripeRoutes: StripeRoutes;
 
   constructor() {
     super();
@@ -49,6 +51,7 @@ class UserRoutes extends BaseRoutes {
     this.mediaRoutes = new MediaRoutes();
     this.guidelineRoutes = new GuidelineRoutes();
     this.transactionRoutes = new TransactionRoutes();
+    this.stripeRoutes = new StripeRoutes();
     this.initializeRoutes();
   }
 
@@ -68,6 +71,7 @@ class UserRoutes extends BaseRoutes {
     this.router.use("/chat", this.chatRoutes.router);
     this.router.use("/media", this.mediaRoutes.router);
     this.router.use("/transaction", this.transactionRoutes.router);
+    this.router.use("/stripe", this.stripeRoutes.router);
   }
 }
 

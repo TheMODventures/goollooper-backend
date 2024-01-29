@@ -134,6 +134,7 @@ const userModel: Schema = new Schema(
     isContactPermission: { type: Boolean, default: true },
     callToken: { type: String, default: null },
     callDeviceType: { type: String, default: null },
+    stripeCustomerId: { type: String, default: null },
   },
   schemaOptions
 );

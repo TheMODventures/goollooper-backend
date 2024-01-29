@@ -22,6 +22,7 @@ import {
 } from "../../constant";
 import { ResponseHelper } from "../helpers/reponseapi.helper";
 import TokenService from "./token.service";
+import { stripeHelper } from "../helpers/stripe.helper";
 
 class AuthService {
   private tokenService: TokenService;
@@ -56,7 +57,13 @@ class AuthService {
         otpExpiredAt: moment().add(60, "seconds").valueOf(),
       };
       if (req.body.fcmToken) user.fcmTokens = [req.body.fcmToken];
-      const data = await this.userRepository.create<IUser>(user);
+      const stripeCustomer = await stripeHelper.createStripeCustomer(
+        user.email
+      );
+      const data = await this.userRepository.create<IUser>({
+        ...user,
+        stripeCustomerId: stripeCustomer.id,
+      });
       const userId = new mongoose.Types.ObjectId(data._id!);
       const tokenResponse = await this.tokenService.create(userId, role);
       return ResponseHelper.sendSignTokenResponse(
