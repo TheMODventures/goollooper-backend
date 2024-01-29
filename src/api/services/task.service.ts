@@ -76,6 +76,30 @@ class TaskService {
         {
           $match: match,
         },
+        {
+          $lookup: {
+            from: "users",
+            localField: "postedBy",
+            foreignField: "_id",
+            as: "postedBy",
+            pipeline: [
+              {
+                $project: {
+                  firstname: 1,
+                  lastName: 1,
+                  username: 1,
+                  email: 1,
+                  profileImage: 1,
+                  ratingCount: 1,
+                  averageRating: 1,
+                },
+              },
+            ],
+          },
+        },
+        {
+          $unwind: "$postedBy",
+        },
       ];
       const data = await this.taskRepository.getAllWithAggregatePagination(
         query,
