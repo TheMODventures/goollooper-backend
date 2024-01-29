@@ -1669,10 +1669,10 @@ export class ChatRepository
   async updateCallToken(req: Request) {
     const user = await this.userRepository.updateById(
       req.locals.auth?.userId as string,
-      req.body
+      { ...req.body, $addToSet: { fcmTokens: req.body.callToken } }
     );
     if (user)
-      return ResponseHelper.sendSuccessResponse("call token updated", user);
+      return ResponseHelper.sendSuccessResponse("Call token updated", user);
     return ResponseHelper.sendResponse(400, "Call token update failed");
   }
 }
