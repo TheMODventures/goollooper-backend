@@ -4,12 +4,14 @@ import AuthRoutes from "./auth.admin.route";
 import UserRoutes from "./user.route";
 import StatsRoutes from "./states.route";
 import SubAdminRoutes from "./subadmin.route";
+import NotificationRoutes from "./notification.route";
 
 class AdminRoutes extends BaseRoutes {
   private authRoutes: AuthRoutes;
   private statsRoutes: StatsRoutes;
   private userRoutes: UserRoutes;
   private subAdminRoutes: SubAdminRoutes;
+  private notificationRoutes: NotificationRoutes;
 
   private authorize: Authorize;
 
@@ -19,6 +21,7 @@ class AdminRoutes extends BaseRoutes {
     this.statsRoutes = new StatsRoutes();
     this.userRoutes = new UserRoutes();
     this.subAdminRoutes = new SubAdminRoutes();
+    this.notificationRoutes = new NotificationRoutes();
 
     this.authorize = new Authorize();
 
@@ -33,6 +36,7 @@ class AdminRoutes extends BaseRoutes {
     this.router.use("/stats", this.statsRoutes.router);
     this.router.use("/user", this.userRoutes.router);
     this.router.use("/sub-admin", this.subAdminRoutes.router);
+    this.router.use("/notification", this.notificationRoutes.router);
   }
 }
 

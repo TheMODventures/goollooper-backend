@@ -6,12 +6,18 @@ import {
   SUCCESS_DATA_UPDATION_PASSED,
   SUCCESS_DATA_DELETION_PASSED,
 } from "../../constant";
-import { INotification } from "../../database/interfaces/notification.interface";
+import {
+  IMultipleNotification,
+  INotification,
+} from "../../database/interfaces/notification.interface";
 import { ResponseHelper } from "../helpers/reponseapi.helper";
 import { NotificationRepository } from "../repository/notification/notification.repository";
 import { UserRepository } from "../repository/user/user.repository";
 import { IUser } from "../../database/interfaces/user.interface";
-import { ENOTIFICATION_TYPES } from "../../database/interfaces/enums";
+import {
+  ENOTIFICATION_TYPES,
+  EUserRole,
+} from "../../database/interfaces/enums";
 import { NotificationHelper } from "../helpers/notification.helper";
 
 class NotificationService {
@@ -60,6 +66,64 @@ class NotificationService {
         payload
       );
       return ResponseHelper.sendResponse(201, data);
+    } catch (error) {
+      return ResponseHelper.sendResponse(500, (error as Error).message);
+    }
+  };
+
+  createAndSendNotificationMultiple = async (
+    payload: IMultipleNotification,
+    userId: string
+  ): Promise<ApiResponse> => {
+    try {
+      if (payload.all) {
+        const users = await this.userRepository.getAll(
+          {
+            isDeleted: false,
+            $or: [
+              { role: EUserRole.user },
+              { role: EUserRole.serviceProvider },
+            ],
+          },
+          undefined,
+          "fcmTokens"
+        );
+        users.forEach(async (user: any) => {
+          await this.notificationRepository.create<INotification>({
+            ...payload,
+            receiver: user._id,
+            sender: userId,
+            type: ENOTIFICATION_TYPES.ANNOUNCEMENT,
+          });
+          if (user?.fcmTokens && user.fcmTokens.length)
+            NotificationHelper.sendNotification({
+              title: payload.title,
+              tokens: user?.fcmTokens,
+              body: payload.content,
+            });
+        });
+      } else if (payload.receiver?.length) {
+        const users = await this.userRepository.getAll(
+          { email: payload.receiver },
+          undefined,
+          "fcmTokens"
+        );
+        users.forEach(async (user: any) => {
+          await this.notificationRepository.create<INotification>({
+            ...payload,
+            receiver: user._id,
+            sender: userId,
+            type: ENOTIFICATION_TYPES.ANNOUNCEMENT,
+          });
+          if (user?.fcmTokens && user.fcmTokens.length)
+            NotificationHelper.sendNotification({
+              title: payload.title,
+              tokens: user?.fcmTokens,
+              body: payload.content,
+            });
+        });
+      }
+      return ResponseHelper.sendResponse(201, "Successfully sent");
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
