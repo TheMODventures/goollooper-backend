@@ -98,6 +98,11 @@ const createRule = yup.object().shape({
         .notRequired(),
       taskInterests: yup.array().of(yup.string().length(24)).default([]),
       goList: yup.string().length(24).required(),
+      goListServiceProviders: yup
+        .array()
+        .of(yup.string().length(24))
+        .min(1)
+        .required(),
       myList: yup.array().of(yup.string().length(24)).default([]),
       subTasks: yup
         .array()
@@ -182,6 +187,11 @@ const updateRule = yup.object().shape({
         .notRequired(),
       taskInterests: yup.array().of(yup.string().length(24)).default([]),
       goList: yup.string().length(24).notRequired(),
+      goListServiceProviders: yup
+        .array()
+        .of(yup.string().length(24))
+        .min(1)
+        .required(),
       myList: yup.array().of(yup.string().length(24)).default([]),
       subTasks: yup
         .array()
