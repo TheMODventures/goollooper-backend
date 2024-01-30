@@ -81,10 +81,10 @@ class AuthService {
         email,
         isDeleted: false,
       };
-      if (role) {
+      if (role === EUserRole.admin) {
         filter = {
           ...filter,
-          role,
+          $or: [{ role: EUserRole.admin }, { role: EUserRole.subAdmin }],
         };
       } else {
         filter = {
