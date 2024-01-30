@@ -36,7 +36,11 @@ export class Authorize {
           return res.status(response.code).json(response);
         }
 
-        if (isAdmin && decoded?.role !== EUserRole.admin) {
+        if (
+          isAdmin &&
+          decoded?.role !== EUserRole.admin &&
+          decoded?.role !== EUserRole.subAdmin
+        ) {
           const response = ResponseHelper.sendResponse(
             401,
             "You must be admin to access this route"
