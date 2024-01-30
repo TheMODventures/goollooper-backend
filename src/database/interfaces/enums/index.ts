@@ -174,18 +174,3 @@ export enum ETICKET_STATUS {
   COMPLETED = "completed",
   CLOSED = "closed",
 }
-
-export enum EChatType {
-  GROUP = "group",
-  ONE_TO_ONE = "one-to-one",
-}
-
-export enum EMessageStatus {
-  SENT = "sent",
-  DELIVERED = "delivered",
-  SEEN = "seen",
-}
-
-export enum EParticipantStatus {
-  ACTIVE = "active",
-}
