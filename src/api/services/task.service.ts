@@ -1,4 +1,4 @@
-import { ObjectId } from "mongodb";
+import { ObjectId } from "bson";
 import { Request } from "express";
 import { FilterQuery } from "mongoose";
 import _ from "lodash";
