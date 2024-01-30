@@ -34,6 +34,19 @@ const updateRule = yup.object().shape({
   query: yup.object().noUnknown(),
 });
 
+const updateCallTokenRule = yup.object().shape({
+  params: yup.object().shape(paramRule).noUnknown(),
+  body: yup
+    .object()
+    .shape({
+      callToken: yup.string().required(),
+      callDeviceType: yup.string().required(),
+    })
+    .noUnknown(),
+  query: yup.object().noUnknown(),
+});
+
 export = {
   "/request": updateRule,
+  "/call/token": updateCallTokenRule,
 };

@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { FilterQuery } from "mongoose";
 
 import TaskService from "../../services/task.service";
-import { ITask } from "../../../database/interfaces/task.interface";
+import { ITaskPayload } from "../../../database/interfaces/task.interface";
 
 class TaskController {
   protected taskService: TaskService;
@@ -24,8 +24,20 @@ class TaskController {
     return res.status(response.code).json(response);
   };
 
+  myTasks = async (req: Request, res: Response) => {
+    const { limit, page, type } = req.query;
+    const limitNow = limit ? limit : 10;
+    const response = await this.taskService.myTasks(
+      Number(page),
+      Number(limitNow),
+      type as string,
+      req.locals.auth?.userId as string
+    );
+    return res.status(response.code).json(response);
+  };
+
   create = async (req: Request, res: Response) => {
-    const payload: ITask = { ...req.body };
+    const payload: ITaskPayload = { ...req.body };
     const response = await this.taskService.create(payload, req);
     return res.status(response.code).json(response);
   };
@@ -38,8 +50,7 @@ class TaskController {
 
   update = async (req: Request, res: Response) => {
     const { id } = req.params;
-    const dataset: Partial<ITask> = { ...req.body };
-
+    const dataset: Partial<ITaskPayload> = { ...req.body };
     const response = await this.taskService.update(id, dataset, req);
     return res.status(response.code).json(response);
   };

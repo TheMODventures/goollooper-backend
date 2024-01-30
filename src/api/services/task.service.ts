@@ -1,5 +1,6 @@
 import { ObjectId } from "mongodb";
 import { Request } from "express";
+import { FilterQuery } from "mongoose";
 import _ from "lodash";
 
 import { ResponseHelper } from "../helpers/reponseapi.helper";
@@ -13,21 +14,26 @@ import { TaskRepository } from "../repository/task/task.repository";
 import { GolistRepository } from "../repository/golist/golist.repository";
 import { CalendarRepository } from "../repository/calendar/calendar.repository";
 import { ChatRepository } from "../repository/chat/chat.repository";
-import { ITask } from "../../database/interfaces/task.interface";
+import { ITask, ITaskPayload } from "../../database/interfaces/task.interface";
 import { UploadHelper } from "../helpers/upload.helper";
 import { IGolist } from "../../database/interfaces/golist.interface";
 import {
   ECALENDARTaskType,
+  ENOTIFICATION_TYPES,
   ETaskUserStatus,
   TaskType,
 } from "../../database/interfaces/enums";
 import { ICalendar } from "../../database/interfaces/calendar.interface";
 import { ModelHelper } from "../helpers/model.helper";
+import NotificationService, {
+  NotificationParams,
+} from "./notification.service";
 
 class TaskService {
   private taskRepository: TaskRepository;
   private golistRepository: GolistRepository;
   private calendarRepository: CalendarRepository;
+  private notificationService: NotificationService;
   private uploadHelper: UploadHelper;
   private chatRepository: ChatRepository;
 
@@ -36,9 +42,22 @@ class TaskService {
     this.golistRepository = new GolistRepository();
     this.calendarRepository = new CalendarRepository();
     this.chatRepository = new ChatRepository();
+    this.notificationService = new NotificationService();
 
     this.uploadHelper = new UploadHelper("task");
   }
+
+  getCount = async (filter?: FilterQuery<ITask>): Promise<ApiResponse> => {
+    try {
+      const getDocCount = await this.taskRepository.getCount(filter);
+      return ResponseHelper.sendSuccessResponse(
+        SUCCESS_DATA_SHOW_PASSED,
+        getDocCount.toString()
+      );
+    } catch (error) {
+      return ResponseHelper.sendResponse(500, (error as Error).message);
+    }
+  };
 
   index = async (
     taskInterests: string[],
@@ -57,9 +76,64 @@ class TaskService {
         {
           $match: match,
         },
+        {
+          $lookup: {
+            from: "users",
+            localField: "postedBy",
+            foreignField: "_id",
+            as: "postedBy",
+            pipeline: [
+              {
+                $project: {
+                  firstname: 1,
+                  lastName: 1,
+                  username: 1,
+                  email: 1,
+                  profileImage: 1,
+                  ratingCount: 1,
+                  averageRating: 1,
+                },
+              },
+            ],
+          },
+        },
+        {
+          $unwind: "$postedBy",
+        },
       ];
       const data = await this.taskRepository.getAllWithAggregatePagination(
         query,
+        undefined,
+        undefined,
+        { createdAt: -1 },
+        undefined,
+        true,
+        page,
+        limit
+      );
+      return ResponseHelper.sendSuccessResponse(SUCCESS_DATA_LIST_PASSED, data);
+    } catch (err) {
+      return ResponseHelper.sendResponse(500, (err as Error).message);
+    }
+  };
+
+  myTasks = async (
+    page: number,
+    limit: number,
+    type: string,
+    user: string
+  ): Promise<ApiResponse> => {
+    try {
+      const match: any = { isDeleted: false };
+      const userId = new ObjectId(user);
+      if (type === "accepted") {
+        match["goList.serviceProviders"] = userId;
+      } else {
+        match.postedBy = { $eq: userId };
+      }
+
+      const data = await this.taskRepository.getAllWithPagination(
+        match,
         undefined,
         undefined,
         { createdAt: -1 },
@@ -105,9 +179,13 @@ class TaskService {
     }
   };
 
-  create = async (payload: ITask, req?: Request): Promise<ApiResponse> => {
+  create = async (
+    payload: ITaskPayload,
+    req?: Request
+  ): Promise<ApiResponse> => {
     try {
       const userId = req?.locals?.auth?.userId!;
+      payload.postedBy = userId;
       if (
         req &&
         _.isArray(req.files) &&
@@ -137,7 +215,7 @@ class TaskService {
       payload.goList = {
         goListId: payload.goList as string,
         title: goList.title,
-        serviceProviders: goList.serviceProviders,
+        serviceProviders: payload.goListServiceProviders as ObjectId[],
         taskInterests: goList.taskInterests,
       };
 
@@ -187,7 +265,7 @@ class TaskService {
 
   update = async (
     _id: string,
-    dataset: Partial<ITask>,
+    dataset: Partial<ITaskPayload>,
     req?: Request
   ): Promise<ApiResponse> => {
     try {
@@ -230,7 +308,7 @@ class TaskService {
         dataset.goList = {
           goListId: dataset.goList as string,
           title: goList.title,
-          serviceProviders: goList.serviceProviders,
+          serviceProviders: dataset?.goListServiceProviders as ObjectId[],
           taskInterests: goList.taskInterests,
         };
       }
@@ -360,6 +438,12 @@ class TaskService {
           date: response.date ?? "2024-11-11",
           type: ECALENDARTaskType.accepted,
         } as ICalendar);
+        this.notificationService.createAndSendNotification({
+          senderId: response.postedBy,
+          receiverId: user,
+          type: ENOTIFICATION_TYPES.TASK_ACCEPTED,
+          data: { task: response._id?.toString() },
+        } as NotificationParams);
       } else if (response && status == ETaskUserStatus.REJECTED) {
         await this.calendarRepository.deleteMany({
           user: new ObjectId(user),

@@ -12,6 +12,8 @@ import RatingRoutes from "./rating.route";
 import CalendarRoutes from "./calendar.route";
 import ChatRoutes from "./chat.route";
 import MediaRoutes from "./media.route";
+import GuidelineRoutes from "./guideline.route";
+import TransactionRoutes from "./transaction.route";
 
 class UserRoutes extends BaseRoutes {
   private authRoutes: AuthRoutes;
@@ -27,6 +29,8 @@ class UserRoutes extends BaseRoutes {
   private calendarRoutes: CalendarRoutes;
   private chatRoutes: ChatRoutes;
   private mediaRoutes: MediaRoutes;
+  private guidelineRoutes: GuidelineRoutes;
+  private transactionRoutes: TransactionRoutes;
 
   constructor() {
     super();
@@ -43,11 +47,14 @@ class UserRoutes extends BaseRoutes {
     this.calendarRoutes = new CalendarRoutes();
     this.chatRoutes = new ChatRoutes();
     this.mediaRoutes = new MediaRoutes();
+    this.guidelineRoutes = new GuidelineRoutes();
+    this.transactionRoutes = new TransactionRoutes();
     this.initializeRoutes();
   }
 
   protected routes(): void {
     this.router.use("/auth", this.authRoutes.router);
+    this.router.use("/guideline", this.guidelineRoutes.router);
     this.router.use(this.authorize.validateAuth);
     this.router.use("/service", this.serviceRoutes.router);
     this.router.use("/subscription", this.subscriptionRoutes.router);
@@ -60,6 +67,7 @@ class UserRoutes extends BaseRoutes {
     this.router.use("/calendar", this.calendarRoutes.router);
     this.router.use("/chat", this.chatRoutes.router);
     this.router.use("/media", this.mediaRoutes.router);
+    this.router.use("/transaction", this.transactionRoutes.router);
   }
 }
 

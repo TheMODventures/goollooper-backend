@@ -2,7 +2,7 @@ import { Schema, model } from "mongoose";
 import mongoosePaginate from "mongoose-paginate-v2";
 import aggregatePaginate from "mongoose-aggregate-paginate-v2";
 
-import { NOTIFICATION_TYPES } from "../interfaces/enums";
+import { ENOTIFICATION_TYPES } from "../interfaces/enums";
 import { INotificationDoc } from "../interfaces/notification.interface";
 
 const schemaOptions = {
@@ -14,14 +14,17 @@ const notificationModel: Schema = new Schema(
     sender: { type: Schema.Types.ObjectId, ref: "User" },
     type: {
       type: Number,
-      enum: NOTIFICATION_TYPES,
+      enum: ENOTIFICATION_TYPES,
       required: true,
     },
     content: { type: String, required: true },
     title: { type: String, default: null },
     isRead: { type: Boolean, default: false },
     data: {
-      type: { serviceProvider: { type: Schema.Types.ObjectId, ref: "User" } },
+      type: {
+        serviceProvider: { type: Schema.Types.ObjectId, ref: "User" },
+        task: { type: Schema.Types.ObjectId, ref: "Task" },
+      },
       default: null,
     },
   },

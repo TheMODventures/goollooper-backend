@@ -29,6 +29,7 @@ const registerRule = yup.object().shape({
           }
         ),
       password: yup.string().required().min(6),
+      fcmToken: yup.string().nullable(),
     })
     .noUnknown(),
   query: yup.object().noUnknown(),
@@ -73,6 +74,7 @@ const loginRule = yup.object().shape({
     .shape({
       email: yup.string().email().required(),
       password: yup.string().min(3).required(),
+      fcmToken: yup.string().nullable(),
     })
     .noUnknown(),
   query: yup.object().noUnknown(),

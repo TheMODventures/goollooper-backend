@@ -36,6 +36,19 @@ const indexRule = yup.object().shape({
     .noUnknown(),
 });
 
+const myTaskRule = yup.object().shape({
+  params: yup.object().noUnknown(),
+  body: yup.object().shape({}).noUnknown(),
+  query: yup
+    .object()
+    .shape({
+      page: yup.string().required(),
+      limit: yup.string().notRequired(),
+      type: yup.string().oneOf(["accepted", "created"]).required(),
+    })
+    .noUnknown(),
+});
+
 const createRule = yup.object().shape({
   params: yup.object().noUnknown(),
   body: yup
@@ -85,6 +98,11 @@ const createRule = yup.object().shape({
         .notRequired(),
       taskInterests: yup.array().of(yup.string().length(24)).default([]),
       goList: yup.string().length(24).required(),
+      goListServiceProviders: yup
+        .array()
+        .of(yup.string().length(24))
+        .min(1)
+        .required(),
       myList: yup.array().of(yup.string().length(24)).default([]),
       subTasks: yup
         .array()
@@ -169,6 +187,11 @@ const updateRule = yup.object().shape({
         .notRequired(),
       taskInterests: yup.array().of(yup.string().length(24)).default([]),
       goList: yup.string().length(24).notRequired(),
+      goListServiceProviders: yup
+        .array()
+        .of(yup.string().length(24))
+        .min(1)
+        .required(),
       myList: yup.array().of(yup.string().length(24)).default([]),
       subTasks: yup
         .array()
@@ -226,6 +249,7 @@ const toggleRequestRule = yup.object().shape({
 
 export = {
   "/": indexRule,
+  "/my-task": myTaskRule,
   "/show": showRule,
   "/create": createRule,
   "/update": updateRule,

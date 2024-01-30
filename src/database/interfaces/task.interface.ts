@@ -1,7 +1,7 @@
 import mongoose, { Document } from "mongoose";
 import { Moment } from "moment";
 
-import { TaskType } from "./enums";
+import { ETaskStatus, TaskType } from "./enums";
 
 interface Location {
   coordinates: [number, number];
@@ -52,9 +52,35 @@ export interface ITask {
   gender?: string;
   ageFrom?: number;
   ageTo?: number;
+  status?: ETaskStatus;
   endDate?: Date | Moment;
   createdAt?: Date | Moment;
   updatedAt?: Date | Moment;
+}
+
+export interface ITaskPayload {
+  _id?: mongoose.Types.ObjectId | string;
+  title: string;
+  description: string;
+  location: Location;
+  requirement: string;
+  date: string;
+  slot: Slot;
+  noOfServiceProvider: number;
+  media: string;
+  type: TaskType;
+  taskInterests: string[];
+  goList: GoList | string;
+  goListServiceProviders: string[] | mongoose.Types.ObjectId[];
+  myList: string[];
+  subTasks: SubTask[];
+  postedBy: string;
+  isDeleted?: boolean;
+  gender?: string;
+  ageFrom?: number;
+  ageTo?: number;
+  status?: ETaskStatus;
+  endDate?: Date | Moment;
 }
 
 export interface ITaskDoc extends ITask, Document {

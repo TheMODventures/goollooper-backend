@@ -1,5 +1,7 @@
 import mongoose, { Schema } from "mongoose";
 import bcrypt from "bcrypt";
+import mongoosePaginate from "mongoose-paginate-v2";
+import aggregatePaginate from "mongoose-aggregate-paginate-v2";
 
 import { EUserRole, EUserLocationType } from "../interfaces/enums";
 import { IUserDoc } from "../interfaces/user.interface";
@@ -116,7 +118,7 @@ const userModel: Schema = new Schema(
     isProfileCompleted: { type: Boolean, default: false },
     isVerified: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true },
-    fcmToken: { type: String },
+    fcmTokens: [{ type: String }],
     refreshToken: { type: String, select: false },
     otpCode: {
       type: Number,
@@ -129,6 +131,9 @@ const userModel: Schema = new Schema(
     averageRating: { type: Number, default: 0 },
     ratingCount: { type: Number, default: 0 },
     isDeleted: { type: Boolean, default: false },
+    isContactPermission: { type: Boolean, default: true },
+    callToken: { type: String, default: null },
+    callDeviceType: { type: String, default: null },
   },
   schemaOptions
 );
@@ -147,6 +152,8 @@ userModel.index(
   }
 );
 userModel.index({ selectedLocation: "2dsphere" });
+userModel.plugin(mongoosePaginate);
+userModel.plugin(aggregatePaginate);
 
 userModel.pre("save", async function (next) {
   // Only hash the password if it has been modified (or is new)

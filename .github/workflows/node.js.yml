@@ -31,6 +31,9 @@ jobs:
       - name: Create .env file
         run: echo "${{secrets.PROD_ENV}}" > .env
 
+      - name: Create service account file
+        run: echo '${{secrets.SERVICE_ACCOUNT}}' > src/api/helpers/goollooper-service.json
+
       - name: Edit package
         run: if [ -e "node_modules/mongoose-paginate-v2/index.d.ts" ]; then sed -i 's/LeanDocument/Document/'  node_modules/mongoose-paginate-v2/index.d.ts; else echo "File not found"; fi
 

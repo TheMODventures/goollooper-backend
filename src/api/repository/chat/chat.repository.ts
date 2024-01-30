@@ -1,5 +1,9 @@
 import { ObjectId } from "bson";
 import { Server } from "socket.io";
+import { RtcRole, RtcTokenBuilder } from "agora-access-token";
+import { uuid } from "uuidv4";
+import { Request } from "express";
+import * as apn from "apn";
 
 import {
   IChat,
@@ -7,6 +11,7 @@ import {
   IChatPayload,
   IMessage,
   IParticipant,
+  IReceivedBy,
 } from "../../../database/interfaces/chat.interface";
 import { IChatRepository } from "./chat.repository.interface";
 import { IUser } from "../../../database/interfaces/user.interface";
@@ -16,10 +21,25 @@ import { BaseRepository } from "../base.repository";
 import { UserRepository } from "../user/user.repository";
 import { ResponseHelper } from "../../helpers/reponseapi.helper";
 import {
+  ECALLDEVICETYPE,
   EChatType,
   EMessageStatus,
   EParticipantStatus,
+  ETICKET_STATUS,
+  EUserRole,
+  MessageType,
 } from "../../../database/interfaces/enums";
+import {
+  NotificationHelper,
+  PushNotification,
+} from "../../helpers/notification.helper";
+import {
+  APP_CERTIFICATE,
+  APP_ID,
+  IOS_KEY,
+  IOS_KEY_ID,
+  IOS_TEAM_ID,
+} from "../../../config/environment.config";
 export class ChatRepository
   extends BaseRepository<IChat, IChatDoc>
   implements IChatRepository
@@ -212,14 +232,19 @@ export class ChatRepository
         },
         {
           $match: {
-            $or: [
-              { chatType: EChatType.GROUP },
-              {
-                $and: [
-                  { chatType: EChatType.ONE_TO_ONE, messages: { $ne: [] } },
+            $or: search
+              ? [{ _id: { $ne: null } }]
+              : [
+                  { chatType: EChatType.GROUP, messages: { $ne: [] } },
+                  {
+                    $and: [
+                      {
+                        chatType: EChatType.ONE_TO_ONE,
+                        messages: { $ne: [] },
+                      },
+                    ],
+                  },
                 ],
-              },
-            ],
           },
         },
         {
@@ -966,20 +991,20 @@ export class ChatRepository
   //   }
 
   async createChatSupport(user: string, topic = "new topic") {
-    const check = await Chat.findOne({
-      isChatSupport: true,
-      isTicketClosed: false,
-      createdBy: user,
-    }).select("-messages -participants");
-    if (check && this.io) {
-      this.io?.emit(`createChatSupport/${user}`, {
-        message:
-          "you already have an open tickets. Please close those tickets to create new one",
-      });
-      return check;
-    }
+    // const check = await Chat.findOne({
+    //   isChatSupport: true,
+    //   isTicketClosed: false,
+    //   createdBy: user,
+    // }).select("-messages -participants");
+    // if (check && this.io) {
+    //   this.io?.emit(`createChatSupport/${user}`, {
+    //     message:
+    //       "you already have an open tickets. Please close those tickets to create new one",
+    //   });
+    //   return check;
+    // }
     const u = (await this.userRepository.getAll(
-      { role: "admin", isActive: true },
+      { role: EUserRole.admin, isActive: true },
       undefined,
       ModelHelper.userSelect,
       undefined,
@@ -989,9 +1014,11 @@ export class ChatRepository
       200
     )) as IUser[];
     // // console.log(u)
+    topic = Math.random().toString(36).substring(3, 15).toUpperCase();
     let data: any = await Chat.create({
       groupName: topic,
       chatType: EChatType.GROUP,
+      ticketStatus: ETICKET_STATUS.PENDING,
       isChatSupport: true,
       // groupImageUrl,
       participants: [
@@ -1031,10 +1058,40 @@ export class ChatRepository
     return data[0];
   }
 
+  async changeTicketStatus(chatId: string, ticketStatus: ETICKET_STATUS) {
+    if (
+      ticketStatus != ETICKET_STATUS.PROGRESS &&
+      ticketStatus != ETICKET_STATUS.COMPLETED
+    ) {
+      console.log(ticketStatus);
+      if (this.io)
+        this.io.emit(`changeTicketStatus/${chatId}`, {
+          message: `invalid ticket Status allowed status ${ETICKET_STATUS.PROGRESS}, ${ETICKET_STATUS.COMPLETED}`,
+          // data: data,
+        });
+      return;
+    }
+    const data: any = await Chat.findOneAndUpdate(
+      { _id: chatId, isChatSupport: true },
+      { ticketStatus },
+      { new: true }
+    ).select("-messages");
+    if (this.io) {
+      data.participants.forEach((e: IParticipant) => {
+        // if(e!=userId)
+        this.io?.emit(`changeTicketStatus/${e.user}`, {
+          message: "ticket status updated",
+          data: data,
+        });
+      });
+    }
+  }
+
   async closeChatSupport(chatId: string, user: string) {
     const data: any = await Chat.findOneAndUpdate(
       { _id: chatId, isChatSupport: true },
-      { isTicketClosed: true }
+      { isTicketClosed: true, ticketStatus: ETICKET_STATUS.CLOSED },
+      { new: true }
     ).select("-messages");
     if (this.io) {
       data.participants.forEach((e: IParticipant) => {
@@ -1075,6 +1132,41 @@ export class ChatRepository
           });
         return check[0];
       }
+      const messages: IMessage[] = [];
+      let usernames = "";
+      let createdByUsername = "";
+      const users = await this.userRepository.getAll(
+        {
+          _id: participantIds.map((e: string) => new ObjectId(e)),
+        },
+        undefined,
+        ModelHelper.userSelect
+      );
+      users.forEach((e: any) => {
+        if (e._id.toString() !== user)
+          usernames += `${e.firstName ?? ""} ${e.lastName ?? ""}, `;
+        else createdByUsername = `${e.firstName ?? ""} ${e.lastName ?? ""}`;
+      });
+      participantIds.forEach(async (participant: string) => {
+        const welcomeMessageBody = `you ${
+          chatType == EChatType.GROUP ? "created a group" : "started a"
+        } chat with ${usernames}`;
+
+        // Add the welcome message to the chat
+        const welcomeMessage: IMessage = {
+          body: welcomeMessageBody.slice(0, welcomeMessageBody.length - 2),
+          type: MessageType.system,
+          receivedBy: [
+            { user: participant, status: EMessageStatus.SENT },
+          ] as IReceivedBy[],
+        };
+
+        if (participant !== user) {
+          welcomeMessage.body = `${createdByUsername} started a chat with you`;
+        }
+
+        messages.push(welcomeMessage);
+      });
       const data = await Chat.create({
         groupName,
         chatType,
@@ -1083,8 +1175,9 @@ export class ChatRepository
           user: e,
           status: EParticipantStatus.ACTIVE,
         })),
-        createdBy: chatType == EChatType.ONE_TO_ONE ? null : user,
+        createdBy: user,
         admins: chatType == EChatType.ONE_TO_ONE ? [] : [user],
+        messages,
       });
       const d = await Chat.aggregate(findUserpipeline({ _id: data._id }));
       if (this.io)
@@ -1133,6 +1226,11 @@ export class ChatRepository
             user?.username || user?.firstName
           }, I think you are a good candidate for this task. I am looking forward in working with you on this task.`,
           sentBy: payload.user,
+          receivedBy: payload.participants
+            .slice(1)
+            .map(
+              (e) => ({ user: e, status: EMessageStatus.SENT } as IReceivedBy)
+            ),
         };
         messages.push(msg);
       } else if (payload.participants.length) {
@@ -1140,6 +1238,11 @@ export class ChatRepository
         let msg: IMessage = {
           body: `Hey, I think you guys are good candidates for this task. I am looking forward in working with you all this task.`,
           sentBy: payload.user,
+          receivedBy: payload.participants
+            .slice(1)
+            .map(
+              (e) => ({ user: e, status: EMessageStatus.SENT } as IReceivedBy)
+            ),
         };
         messages.push(msg);
       }
@@ -1314,22 +1417,263 @@ export class ChatRepository
     const users = await this.userRepository.getAll(
       { _id: data.userIds },
       undefined,
-      `fcmToken _id`,
+      `fcmTokens _id`,
       undefined,
       undefined,
-      true,
-      1,
-      200
+      true
     );
-    // console.log(users);
-    // users.forEach((e: IUser) => {
-    //   sendNotification({
-    //     title: data.title,
-    //     body: data.body,
-    //     fcmToken: e.fcmToken,
-    //     data: { chatId: data.chatId, user: e._id },
-    //   });
-    // });
+    users.forEach((e: any) => {
+      NotificationHelper.sendNotification({
+        title: data.title,
+        body: data.body,
+        tokens: e.fcmTokens,
+        data: { chatId: data.chatId.toString(), user: e._id.toString() },
+      });
+    });
+  }
+
+  async getAgoraToken(req: Request) {
+    if (req && req.body) {
+      const userId = req.body.user;
+      // TODO: move them to env in future
+      const { calleeInfo, videoSDKInfo } = req.body;
+      let calleeID = req.body?.calleeID;
+      const channelName = req.query?.channelName;
+      const uid = req.query?.uid;
+      const notifyOther = req.query?.notifyOther;
+
+      const role = RtcRole?.PUBLISHER;
+      const expirationTimeInSeconds = 60 * 60;
+      const currentTimestamp = Math.floor(Date.now() / 1000);
+      const privilegeExpiredTs = currentTimestamp + expirationTimeInSeconds;
+      const tokenA = RtcTokenBuilder?.buildTokenWithAccount(
+        APP_ID as string,
+        APP_CERTIFICATE as string,
+        channelName as string,
+        uid as string,
+        role,
+        privilegeExpiredTs
+      );
+      // const tokenA = "";
+
+      console.log("Token with integer number Uid: " + tokenA);
+
+      if (notifyOther) {
+        if (calleeID?.length) {
+          calleeID?.forEach((calleeID: string) => {
+            this.userRepository.getCallToken(calleeID).then((v: any) => {
+              if (v)
+                this.userRepository
+                  .getById(userId)
+                  .then(({ firstName, lastName }: any) => {
+                    if ((v as any).callDeviceType === ECALLDEVICETYPE.ios) {
+                      const callerInfo = {
+                        chatId: req.query.channelName,
+                        title: firstName + " " + lastName,
+                        isGroup: req.body?.isGroup ? true : false,
+                        participants: req.body?.participants,
+                      };
+                      const info = JSON.stringify({
+                        callerInfo,
+                        videoSDKInfo: {},
+                        type: "CALL_INITIATED",
+                      });
+
+                      // let deviceToken = calleeInfo.APN;
+
+                      // TODO: change environement i.e: production or debug
+                      const options: any = {
+                        token: {
+                          key: IOS_KEY, // path of .p8 file
+                          keyId: IOS_KEY_ID,
+                          teamId: IOS_TEAM_ID,
+                        },
+                        production: false,
+                      };
+
+                      var apnProvider = new apn.Provider({ ...options } as any);
+
+                      var note = new apn.Notification();
+
+                      note.expiry = Math.floor(Date.now() / 1000) + 3600; // Expires 1 hour from now.
+                      note.badge = 1;
+                      note.sound = "ping.aiff";
+                      note.alert = "You have a new message";
+                      note.rawPayload = {
+                        callerName: callerInfo?.title ?? "hello",
+                        aps: {
+                          "content-available": 1,
+                        },
+                        handle: callerInfo?.title ?? "hello",
+                        callerInfo,
+                        videoSDKInfo,
+                        data: { info, type: "CALL_INITIATED" },
+                        type: "CALL_INITIATED",
+                        uuid: uuid(),
+                      };
+                      // note.pushType = "voip";
+                      note.topic = "org.goollooper.app.voip";
+                      apnProvider
+                        .send(note, v.callToken)
+                        .then((result: any) => {
+                          console.log("RESULT", result);
+                          if (result.failed && result.failed.length > 0) {
+                            console.log("FAILED", result.failed);
+                          }
+                        });
+                    } else {
+                      const info = JSON.stringify({
+                        callerInfo: {
+                          chatId: req.query.channelName,
+                          title: firstName + " " + lastName,
+                          isGroup: req.body?.isGroup ? true : false,
+                          participants: req.body?.participants,
+                        },
+                        videoSDKInfo: {},
+                        type: "CALL_INITIATED",
+                      });
+                      const message = {
+                        data: { info },
+                        android: { priority: "high" },
+                        registration_ids: [v.callToken],
+                      };
+                      NotificationHelper.sendNotification({
+                        data: message.data,
+                        tokens: message.registration_ids,
+                      } as PushNotification);
+                      // fcm.send(message, function (err, res) {
+                      //   if (err) {
+                      //     console.log("Error: " + err);
+                      //   } else {
+                      //     console.log("Success: " + res);
+                      //   }
+                      // });
+                    }
+                  });
+            });
+          });
+        }
+      }
+
+      return ResponseHelper.sendSuccessResponse(
+        "agora user token from user id",
+        tokenA
+      );
+    }
+    return ResponseHelper.sendResponse(400, "Agora token failed");
+  }
+
+  async endCall(req: Request) {
+    // const userId = req.body.user;
+    const chatId = req.body.chatId;
+    // const calleeId = req.body.callee;
+    const { videoSDKInfo } = req.body;
+
+    const calleeID = req.body?.calleeID;
+    const notifyOther = req.query?.notifyOther;
+
+    if (notifyOther) {
+      if (calleeID?.length) {
+        calleeID?.forEach((calleeId: string) => {
+          this.userRepository.getCallToken(calleeId).then((v: any) => {
+            if (v)
+              if (v.callDeviceType === ECALLDEVICETYPE.ios) {
+                const callerInfo = {
+                  chatId: req.query.channelName,
+                  title: "Call ended",
+                  isGroup: req.body?.isGroup ? true : false,
+                  participants: req.body?.participants,
+                };
+                const info = JSON.stringify({
+                  callerInfo,
+                  videoSDKInfo: {},
+                  type: "CALL_DECLINED",
+                });
+
+                const options: any = {
+                  token: {
+                    key: IOS_KEY, // path of .p8 file
+                    keyId: IOS_KEY_ID,
+                    teamId: IOS_TEAM_ID,
+                  },
+                  production: false,
+                };
+
+                var apnProvider = new apn.Provider({ ...options });
+
+                var note = new apn.Notification();
+
+                note.expiry = Math.floor(Date.now() / 1000) + 3600; // Expires 1 hour from now.
+                note.badge = 1;
+                note.sound = "ping.aiff";
+                note.alert = "You have a new message";
+                note.rawPayload = {
+                  callerName: callerInfo.title,
+                  aps: {
+                    "content-available": 1,
+                  },
+                  handle: callerInfo?.title ?? "hello",
+                  callerInfo,
+                  videoSDKInfo,
+                  data: { info, type: "CALL_DECLINED" },
+                  type: "CALL_DECLINED",
+                  uuid: uuid(),
+                };
+                // note.pushType = "voip";
+                note.topic = "org.goollooper.app.voip";
+                apnProvider.send(note, v.callToken).then((result) => {
+                  console.log("RESULT", result);
+                  if (result.failed && result.failed.length > 0) {
+                    console.log("FAILED", result.failed);
+                  }
+                });
+              } else {
+                const info = JSON.stringify({
+                  callerInfo: {
+                    chatId: chatId,
+                    title: null,
+                    isGroup: false,
+                    participants: [],
+                  },
+                  videoSDKInfo: {},
+                  type: "CALL_DECLINED",
+                });
+                const message = {
+                  data: { info },
+                  android: { priority: "high" },
+                  registration_ids: [v.callToken],
+                };
+                NotificationHelper.sendNotification({
+                  data: message.data,
+                  tokens: message.registration_ids,
+                } as PushNotification);
+                // fcm.send(message, function (err, res) {
+                //   if (err) {
+                //     console.log("Error: " + err);
+                //   } else {
+                //     console.log("Success: " + res);
+                //   }
+                // });
+              }
+          });
+        });
+        // console.log(
+        //   "🚀 ~ file: videoController.js:335 ~ calleeID?.forEach ~ calleeID:",
+        //   calleeID
+        // );
+      }
+    }
+    return ResponseHelper.sendSuccessResponse("call ended Successfully");
+  }
+
+  async updateCallToken(req: Request) {
+    const user = await this.userRepository.updateById(
+      req.locals.auth?.userId as string,
+      { ...req.body, $addToSet: { fcmTokens: req.body.callToken } }
+    );
+    if (user)
+      return ResponseHelper.sendSuccessResponse("Call token updated", user);
+    return ResponseHelper.sendResponse(400, "Call token update failed");
   }
 }
 

@@ -47,6 +47,19 @@ class ChatRoutes extends BaseRoutes {
       this.validateRequest,
       this.chatController.addRequest
     );
+
+    this.router.patch(
+      "/call/token/:id",
+      this.validateRequest,
+      this.chatController.updateCallToken
+    );
+
+    this.router.post(
+      "/call/get-agora-token",
+      this.chatController.getAgoraToken
+    );
+
+    this.router.post("/call/end", this.chatController.endCall);
   }
 }
 

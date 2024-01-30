@@ -5,6 +5,15 @@ export interface IRating extends JwtToken {
   description: string;
   by: string | ObjectId;
   to: string | ObjectId;
+  task: string | ObjectId;
+}
+
+export interface RatingPayload {
+  star: number;
+  description: string;
+  by: string | ObjectId;
+  to: [string] | [ObjectId];
+  task: string | ObjectId;
 }
 
 export interface IRatingDoc extends IRating, Document {

@@ -10,8 +10,13 @@ class AuthController extends AuthBaseController {
   };
 
   login = async (req: Request, res: Response) => {
-    const { email, password } = req.body;
-    const response = await this.authService.login(email, password);
+    const { email, password, fcmToken } = req.body;
+    const response = await this.authService.login(
+      email,
+      password,
+      undefined,
+      fcmToken
+    );
     return res.status(response.code).json(response);
   };
 

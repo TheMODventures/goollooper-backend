@@ -31,7 +31,7 @@ class UserController {
   };
 
   index = async (req: Request, res: Response) => {
-    const { limit, page, username = "", email = "" } = req.query;
+    const { limit, page, username = "", email = "", role } = req.query;
     const limitNow = limit ? limit : 10;
     const filter: FilterQuery<IUser> = {
       $or: [{ role: EUserRole.user }, { role: EUserRole.serviceProvider }],
@@ -40,6 +40,9 @@ class UserController {
     };
     if (username) {
       filter.username = { $regex: username, $options: "i" };
+    }
+    if (role) {
+      filter.role = { $eq: role };
     }
     const response = await this.userService.index(
       Number(page),
@@ -96,8 +99,8 @@ class UserController {
   };
 
   delete = async (req: Request, res: Response) => {
-    const { id } = req.params;
-    const response = await this.userService.delete(id);
+    const userId = req?.locals?.auth?.userId!;
+    const response = await this.userService.delete(userId);
     return res.status(response.code).json(response);
   };
 
@@ -108,6 +111,36 @@ class UserController {
     };
     const response = await this.userService.update(_id, dataset);
 
+    return res.status(response.code).json(response);
+  };
+
+  getSubAdmin = async (req: Request, res: Response) => {
+    const { limit, page, username = "", email = "" } = req.query;
+    const limitNow = limit ? limit : 10;
+    const filter: FilterQuery<IUser> = {
+      role: EUserRole.subAdmin,
+      email: { $regex: email, $options: "i" },
+      isDeleted: false,
+    };
+    if (username) {
+      filter.username = { $regex: username, $options: "i" };
+    }
+    const response = await this.userService.index(
+      Number(page),
+      Number(limitNow),
+      filter
+    );
+    return res.status(response.code).json(response);
+  };
+
+  addSubAdmin = async (req: Request, res: Response) => {
+    const response = await this.userService.addSubAdmin(req.body);
+    return res.status(response.code).json(response);
+  };
+
+  deleteSubAdmin = async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const response = await this.userService.delete(id);
     return res.status(response.code).json(response);
   };
 }

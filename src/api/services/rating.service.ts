@@ -6,7 +6,10 @@ import {
   SUCCESS_DATA_UPDATION_PASSED,
   SUCCESS_DATA_DELETION_PASSED,
 } from "../../constant";
-import { IRating } from "../../database/interfaces/rating.interface";
+import {
+  IRating,
+  RatingPayload,
+} from "../../database/interfaces/rating.interface";
 import { ResponseHelper } from "../helpers/reponseapi.helper";
 import { RatingRepository } from "../repository/rating/rating.repository";
 
@@ -51,6 +54,24 @@ class RatingService {
   create = async (payload: IRating): Promise<ApiResponse> => {
     try {
       const data = await this.ratingRepository.create<IRating>(payload);
+      return ResponseHelper.sendResponse(201, data);
+    } catch (error) {
+      return ResponseHelper.sendResponse(500, (error as Error).message);
+    }
+  };
+
+  createMultiple = async (payload: RatingPayload): Promise<ApiResponse> => {
+    try {
+      const reviews = payload.to.map((e) => {
+        return {
+          star: payload.star,
+          description: payload.description || null,
+          by: payload.by,
+          to: e,
+          task: payload.task,
+        } as IRating;
+      });
+      const data = await this.ratingRepository.createMany<IRating>(reviews);
       return ResponseHelper.sendResponse(201, data);
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);

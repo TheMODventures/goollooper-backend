@@ -3,6 +3,7 @@ import * as yup from "yup";
 import {
   Days,
   EUserLocationType,
+  EUserRole,
   Repetition,
   RepetitionEvery,
   UserRole,
@@ -31,11 +32,17 @@ const checkUsernameRule = yup.object().shape({
 });
 
 const indexRule = yup.object().shape({
-  params: yup.object().shape(paramRule).noUnknown(),
-  body: yup.object().shape({}).noUnknown(),
+  params: yup.object().noUnknown(),
+  body: yup.object().noUnknown(),
   query: yup
     .object()
     .shape({
+      username: yup.string().notRequired(),
+      email: yup.string().notRequired(),
+      role: yup
+        .string()
+        .oneOf([...Object.values(EUserRole).map((value) => value?.toString())])
+        .notRequired(),
       page: yup.string().required(),
       limit: yup.string().notRequired(),
     })
@@ -174,10 +181,10 @@ const updateRule = yup.object().shape({
       company: yup
         .object()
         .shape({
-          name: yup.string().notRequired(),
-          website: yup.string(),
-          affiliation: yup.string(),
-          publication: yup.string(),
+          name: yup.string().min(3).notRequired(),
+          website: yup.string().min(3),
+          affiliation: yup.string().min(3),
+          publication: yup.string().min(3),
         })
         .notRequired(),
       certificateFiles: yup.array().notRequired(),
@@ -185,11 +192,12 @@ const updateRule = yup.object().shape({
       reference: yup
         .object()
         .shape({
-          name: yup.string(),
-          contact: yup.string(),
+          name: yup.string().min(3),
+          contact: yup.string().min(3),
         })
         .notRequired(),
       insuranceFiles: yup.array().notRequired(),
+      isContactPermission: yup.boolean().notRequired(),
     })
     .noUnknown(),
   query: yup.object().noUnknown(),
@@ -229,7 +237,24 @@ const updateScheduleRule = yup.object().shape({
   }),
 });
 
+const updatePassword = yup.object().shape({
+  params: yup.object().noUnknown(),
+  body: yup
+    .object()
+    .shape({
+      oldPassword: yup.string().min(6).required(),
+      password: yup.string().min(6).required(),
+      confirmPassword: yup
+        .string()
+        .oneOf([yup.ref("password")], "Passwords must match")
+        .required(),
+    })
+    .noUnknown(),
+  query: yup.object().noUnknown(),
+});
+
 export = {
+  "/": indexRule,
   "/check-username": checkUsernameRule,
   "/index": indexRule,
   "/trash-index": indexRule,
@@ -238,5 +263,5 @@ export = {
   "/schedule/update": updateScheduleRule,
   "/trash": showRule,
   "/restore": showRule,
-  "/delete": showRule,
+  "/update-password": updatePassword,
 };

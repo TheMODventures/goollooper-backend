@@ -4,6 +4,7 @@ export enum EUserRole {
   admin = 1,
   user = 2,
   serviceProvider = 3,
+  subAdmin = 4,
 }
 
 export enum UserRole {
@@ -74,15 +75,16 @@ export enum ELiability {
   all = 3,
 }
 
-export enum NOTIFICATION_TYPES {
-  SHARE_PROVIDER = 1,
-  FRIEND_REQUEST = 2,
-}
-
 export enum TaskType {
   normal = "normal",
   megablast = "megablast",
   event = "megablast",
+}
+
+export enum ETaskStatus {
+  pending = "pending",
+  assigned = "assigned",
+  completed = "completed",
 }
 
 export enum ETaskUserStatus {
@@ -119,6 +121,58 @@ export enum MessageType {
   relieve = "relieve",
   proceed = "proceed",
   invoice = "invoice",
+  system = "system",
+}
+
+export enum EChatType {
+  GROUP = "group",
+  ONE_TO_ONE = "one-to-one",
+}
+
+export enum EMessageStatus {
+  SENT = "sent",
+  DELIVERED = "delivered",
+  SEEN = "seen",
+}
+
+export enum EParticipantStatus {
+  ACTIVE = "active",
+}
+
+export enum ENOTIFICATION_TYPES {
+  SHARE_PROVIDER = 1,
+  FRIEND_REQUEST = 2,
+  MESSAGE_REQUEST = 3,
+  MESSAGE_REQUEST_ACCEPT = 4,
+  TASK_ACCEPTED = 5,
+  ANNOUNCEMENT = 5,
+}
+
+export enum EGUIDELINE {
+  PRIVACY_POLICY = 1,
+  TERMS_AND_CONDITIONS = 2,
+  FAQS = 3,
+  ABOUT = 4,
+}
+
+export enum ECALLDEVICETYPE {
+  ios,
+  android,
+}
+
+export enum TransactionType {
+  subscription = "Subscription",
+  taskAddRequest = "Task Add Request",
+  megablast = "Megablast",
+  topUp = "Top Up",
+  withdraw = "Withdraw",
+}
+
+export enum ETICKET_STATUS {
+  PENDING = "pending",
+  PROGRESS = "progress",
+  COMPLETED = "completed",
+  CLOSED = "closed",
 }
 
 export enum EChatType {

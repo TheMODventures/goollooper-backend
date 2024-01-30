@@ -3,7 +3,10 @@ import mongoose, { FilterQuery } from "mongoose";
 
 import RatingService from "../../services/rating.service";
 
-import { IRating } from "../../../database/interfaces/rating.interface";
+import {
+  IRating,
+  RatingPayload,
+} from "../../../database/interfaces/rating.interface";
 import { ModelHelper } from "../../helpers/model.helper";
 
 class RatingController {
@@ -45,6 +48,12 @@ class RatingController {
   create = async (req: Request, res: Response) => {
     const payload: IRating = { ...req.body };
     const response = await this.ratingService.create(payload);
+    return res.status(response.code).json(response);
+  };
+
+  createMultiple = async (req: Request, res: Response) => {
+    const payload: RatingPayload = { ...req.body };
+    const response = await this.ratingService.createMultiple(payload);
     return res.status(response.code).json(response);
   };
 

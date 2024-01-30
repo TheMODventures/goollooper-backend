@@ -8,7 +8,12 @@ import { ResponseHelper } from "../api/helpers/reponseapi.helper";
 import TokenService from "../api/services/token.service";
 
 export class Authorize {
-  validateAuth = (req: Request, res: Response, next: NextFunction) => {
+  validateAuth = (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+    isAdmin: boolean = false
+  ) => {
     if (!req.headers.authorization) {
       const response = ResponseHelper.sendResponse(400);
       return res.status(response.code).json(response);
@@ -28,6 +33,14 @@ export class Authorize {
         );
         if (exists === null) {
           const response = ResponseHelper.sendResponse(401);
+          return res.status(response.code).json(response);
+        }
+
+        if (isAdmin && decoded?.role !== EUserRole.admin) {
+          const response = ResponseHelper.sendResponse(
+            401,
+            "You must be admin to access this route"
+          );
           return res.status(response.code).json(response);
         }
 

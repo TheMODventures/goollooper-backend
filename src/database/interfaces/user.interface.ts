@@ -91,7 +91,7 @@ export interface IUser {
   isProfileCompleted?: boolean;
   isVerified?: boolean;
   isActive?: boolean;
-  fcmToken?: string;
+  fcmTokens?: string[];
   refreshToken?: string;
   otpCode?: number | null;
   otpExpiredAt?: number | null;
@@ -101,6 +101,9 @@ export interface IUser {
   deletedAt?: Date | Moment | null;
   averageRating: number;
   ratingCount: number;
+  isContactPermission?: boolean;
+  callToken?: string;
+  callDeviceType?: string;
 }
 
 export interface IUserWithSchedule extends IUser {
