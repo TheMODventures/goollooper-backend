@@ -3,6 +3,8 @@ import { UserRepository } from "../repository/user/user.repository";
 import { ResponseHelper } from "../helpers/reponseapi.helper";
 import { stripeHelper } from "../helpers/stripe.helper";
 import { IUser } from "../../database/interfaces/user.interface";
+import { SUCCESS_DATA_DELETION_PASSED } from "../../constant";
+import Stripe from "stripe";
 
 class StripeService {
   private userRepository: UserRepository;
@@ -91,10 +93,13 @@ class StripeService {
         description,
       });
 
-      return ResponseHelper.sendSuccessResponse(
-        "Top up created successfully",
-        charge
-      );
+      if (charge.status == "succeeded") {
+        return ResponseHelper.sendSuccessResponse(
+          "Top up created successfully",
+          charge
+        );
+      }
+      throw charge;
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
@@ -242,6 +247,33 @@ class StripeService {
     }
   }
 
+  async deleteSource(sourceId: string, req: Request): Promise<ApiResponse> {
+    try {
+      const user: IUser | null = await this.userRepository.getById(
+        req.locals.auth?.userId ?? "",
+        undefined,
+        "stripeCustomerId"
+      );
+      if (!user) return ResponseHelper.sendResponse(404, "User not found");
+      const customer = await stripeHelper.getStripeCustomer(
+        user.stripeCustomerId as string
+      );
+      if (!customer)
+        return ResponseHelper.sendResponse(404, "Customer not found");
+
+      const result = await stripeHelper.deleteSource(
+        sourceId,
+        user.stripeCustomerId as string
+      );
+      return ResponseHelper.sendSuccessResponse(
+        SUCCESS_DATA_DELETION_PASSED,
+        result
+      );
+    } catch (error) {
+      return ResponseHelper.sendResponse(500, (error as Error).message);
+    }
+  }
+
   async getBankAccounts(req: Request): Promise<ApiResponse> {
     try {
       const user: IUser | null = await this.userRepository.getById(
@@ -255,6 +287,31 @@ class StripeService {
         parseInt(req.body.page)
       );
       return ResponseHelper.sendSuccessResponse("Bank list found", banks);
+    } catch (error) {
+      return ResponseHelper.sendResponse(500, (error as Error).message);
+    }
+  }
+
+  async getPaymentMethods(req: Request): Promise<ApiResponse> {
+    try {
+      const user: IUser | null = await this.userRepository.getById(
+        req.locals.auth?.userId ?? "",
+        undefined,
+        "stripeCustomerId"
+      );
+      if (!user) return ResponseHelper.sendResponse(404, "User not found");
+      const paymentMethods = await stripeHelper.getPaymentMethods(
+        user.stripeCustomerId as string,
+        parseInt(req.body.page)
+      );
+
+      return ResponseHelper.sendSuccessResponse(
+        "Payment methods list found",
+        paymentMethods.data.filter(
+          (a: Stripe.CustomerSource) =>
+            a.object !== "source" && a.object !== "bank_account"
+        )
+      );
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }

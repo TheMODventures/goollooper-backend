@@ -90,6 +90,13 @@ class StripeHelper {
     return stripe.customers.updateSource(customerId, sourceId, params);
   }
 
+  deleteSource(
+    sourceId: string,
+    customerId: string
+  ): Promise<Stripe.CustomerSource | Stripe.DeletedCustomerSource> {
+    return stripe.customers.deleteSource(customerId, sourceId);
+  }
+
   getBankAccounts(
     id: string,
     page = 1,
@@ -97,6 +104,17 @@ class StripeHelper {
   ): Stripe.ApiListPromise<Stripe.CustomerSource> {
     return stripe.customers.listSources(id, {
       object: "bank_account",
+      limit,
+    });
+  }
+
+  getPaymentMethods(
+    id: string,
+    page = 1,
+    limit = 100
+  ): Stripe.ApiListPromise<Stripe.CustomerSource> {
+    return stripe.customers.listSources(id, {
+      // object: "card",
       limit,
     });
   }

@@ -52,8 +52,18 @@ class StripeController {
     return res.status(response.code).json(response);
   };
 
+  deleteSource = async (req: Request, res: Response) => {
+    const response = await this.stripeService.deleteSource(req.params.id, req);
+    return res.status(response.code).json(response);
+  };
+
   getBankAccounts = async (req: Request, res: Response) => {
     const response = await this.stripeService.getBankAccounts(req);
+    return res.status(response.code).json(response);
+  };
+
+  getPaymentMethods = async (req: Request, res: Response) => {
+    const response = await this.stripeService.getPaymentMethods(req);
     return res.status(response.code).json(response);
   };
 }
