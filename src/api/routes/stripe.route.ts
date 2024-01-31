@@ -50,6 +50,12 @@ class StripeRoutes extends BaseRoutes {
       this.stripeController.confirmPayment
     );
 
+    this.router.delete(
+      "/card/:id",
+      this.validateRequest,
+      this.stripeController.deleteSource
+    );
+
     // this.router.post(
     //   "/apply-for-subscription",
     //   this.validateRequest,
@@ -74,6 +80,18 @@ class StripeRoutes extends BaseRoutes {
       "/update-bank",
       this.validateRequest,
       this.stripeController.updateBank
+    );
+
+    this.router.delete(
+      "/bank/:id",
+      this.validateRequest,
+      this.stripeController.deleteSource
+    );
+
+    this.router.get(
+      "/payment-methods",
+      this.validateRequest,
+      this.stripeController.getPaymentMethods
     );
   }
 }
