@@ -56,6 +56,12 @@ class StripeRoutes extends BaseRoutes {
       this.stripeController.deleteSource
     );
 
+    this.router.patch(
+      "/card/default/:id",
+      this.validateRequest,
+      this.stripeController.selectDefaultCard
+    );
+
     // this.router.post(
     //   "/apply-for-subscription",
     //   this.validateRequest,
