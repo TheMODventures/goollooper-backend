@@ -92,6 +92,12 @@ class StripeHelper {
     return stripe.customers.retrieve(id);
   }
 
+  getConnect(
+    id: string
+  ): Promise<Stripe.Response<Stripe.Account | Stripe.DeletedAccount>> {
+    return stripe.accounts.retrieve(id);
+  }
+
   selectDefaultCard(
     id: string,
     cardId: string
@@ -101,17 +107,17 @@ class StripeHelper {
 
   addBankAccount(
     id: string,
-    params: Stripe.CustomerSourceCreateParams
-  ): Promise<Stripe.Response<Stripe.CustomerSource>> {
-    return stripe.customers.createSource(id, params);
+    params: Stripe.ExternalAccountCreateParams
+  ): Promise<Stripe.Response<Stripe.ExternalAccount>> {
+    return stripe.accounts.createExternalAccount(id, params);
   }
 
   updateBankAccount(
     sourceId: string,
-    customerId: string,
-    params: Stripe.CustomerSourceCreateParams
-  ): Promise<Stripe.Response<Stripe.CustomerSource>> {
-    return stripe.customers.updateSource(customerId, sourceId, params);
+    connectId: string,
+    params: Stripe.ExternalAccountUpdateParams
+  ): Promise<Stripe.Response<Stripe.ExternalAccount>> {
+    return stripe.accounts.updateExternalAccount(connectId, sourceId, params);
   }
 
   deleteSource(
@@ -121,12 +127,19 @@ class StripeHelper {
     return stripe.customers.deleteSource(customerId, sourceId);
   }
 
+  deleteBank(
+    sourceId: string,
+    connectId: string
+  ): Promise<Stripe.CustomerSource | Stripe.DeletedCustomerSource> {
+    return stripe.accounts.deleteExternalAccount(connectId, sourceId);
+  }
+
   getBankAccounts(
     id: string,
     page = 1,
     limit = 100
   ): Stripe.ApiListPromise<Stripe.CustomerSource> {
-    return stripe.customers.listSources(id, {
+    return stripe.accounts.listExternalAccounts(id, {
       object: "bank_account",
       limit,
     });

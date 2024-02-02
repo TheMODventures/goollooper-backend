@@ -91,7 +91,7 @@ class StripeRoutes extends BaseRoutes {
     this.router.delete(
       "/bank/:id",
       this.validateRequest,
-      this.stripeController.deleteSource
+      this.stripeController.deleteBank
     );
 
     this.router.get(
