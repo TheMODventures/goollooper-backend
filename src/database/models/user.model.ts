@@ -89,6 +89,7 @@ const userModel: Schema = new Schema(
       type: { type: String, enum: ["Point"], default: "Point" },
       coordinates: { type: [Number, Number], default: [0, 0] },
       state: { type: String, default: null },
+      zipCode: { type: String, default: null },
       city: { type: String, default: null },
       county: { type: String, default: null },
       readableLocation: { type: String, default: null },
