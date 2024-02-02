@@ -11,13 +11,24 @@ class StripeHelper {
     return stripe.customers.create({ email });
   }
 
-  createConnect(email: string): Promise<Stripe.Account> {
+  createConnect(
+    email: string,
+    dataset: Stripe.AccountCreateParams
+  ): Promise<Stripe.Account> {
     return stripe.accounts.create({
       email,
+      ...dataset,
       type: "custom",
       capabilities: {
         card_payments: { requested: true },
         transfers: { requested: true },
+      },
+      settings: {
+        payouts: {
+          schedule: {
+            interval: "manual",
+          },
+        },
       },
       business_type: "individual",
       tos_acceptance: { ip: "8.8.8.8", date: Math.floor(Date.now() / 1000) },
@@ -26,6 +37,13 @@ class StripeHelper {
         mcc: "5734",
       },
     });
+  }
+
+  updateConnect(
+    id: string,
+    dataset: Stripe.AccountUpdateParams
+  ): Promise<Stripe.Account> {
+    return stripe.accounts.update(id, dataset);
   }
 
   addCard(customerId: string, tokenId: string): Promise<Stripe.CustomerSource> {

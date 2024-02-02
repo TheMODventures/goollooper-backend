@@ -17,6 +17,19 @@ class StripeService {
     this.walletRepository = new WalletRepository();
   }
 
+  async createWallet(email: string, dataset: Stripe.AccountCreateParams) {
+    try {
+      const stripeCustomer = await stripeHelper.createStripeCustomer(email);
+      const stripeConnect = await stripeHelper.createConnect(email, dataset);
+      return ResponseHelper.sendSuccessResponse(
+        "stripe accounts created successfully",
+        { stripeConnect, stripeCustomer }
+      );
+    } catch (error) {
+      return ResponseHelper.sendResponse(500, (error as Error).message);
+    }
+  }
+
   async addCardToCustomer(req: Request): Promise<ApiResponse> {
     const { cardNumber, expMonth, expYear, cvc }: any = req.body;
 

@@ -13,6 +13,7 @@ interface Location {
   type: string;
   coordinates: [number, number];
   state?: string;
+  zipCode?: string;
   city?: string;
   county?: string;
   isSelected: string;
