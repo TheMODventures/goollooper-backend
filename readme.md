@@ -3,31 +3,32 @@
 This is a boilerplate project for building Node.js applications with TypeScript and a class-based approach. It includes basic setup and configurations for developing and building your Node.js applications using TypeScript.
 
 # Requirements
+
 - Node.js v14 or later
 - NPM or Yarna
 
 # Installation
+
 1. Clone the repository
-``git clone https://github.com/hashamshah1174/Class-Base-Node-Api-Structure/blob/master/README.md``
+   `git clone https://github.com/hashamshah1174/Class-Base-Node-Api-Structure/blob/master/README.md`
 
 2. Install dependencies
-``# using npm
-npm install 
-or
+   ``# using npm
+   npm install
+   or
+
 # using yarn
+
 yarn ``
 
 3. Start the development server:
-``# using npm
-npm run start:dev 
-or
+   ``# using npm
+   npm run start:dev
+   or
+
 # using yarn
+
 yarn start:dev``
-
-
-
-
-
 
 ## 👋 Welcome Aboard
 

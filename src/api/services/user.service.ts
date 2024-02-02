@@ -203,6 +203,7 @@ class UserService {
       let userResponse = await this.userRepository.getOne<IUser>({
         _id: _id,
       });
+      dataset.company = { ...userResponse?.company, ...dataset.company };
 
       if (req && _.isArray(req.files)) {
         if (
@@ -248,12 +249,7 @@ class UserService {
             (file) => file.fieldname === "companyLogo"
           );
           let path = await this.uploadHelper.uploadFileFromBuffer(image);
-
-          if (!dataset.company) {
-            dataset = { ...dataset, company: { logo: path[0] } };
-          } else {
-            dataset.company.logo = path[0];
-          }
+          dataset.company.logo = path[0];
         }
 
         if (
@@ -264,12 +260,7 @@ class UserService {
             (file) => file.fieldname === "companyResume"
           );
           let path = await this.uploadHelper.uploadFileFromBuffer(image);
-
-          if (!dataset.company) {
-            dataset = { ...dataset, company: { resume: path[0] } };
-          } else {
-            dataset.company.resume = path[0];
-          }
+          dataset.company.resume = path[0];
         }
 
         if (
