@@ -10,6 +10,7 @@ const schemaOptions = {
 const transactionModel: Schema = new Schema(
   {
     user: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    wallet: { type: Schema.Types.ObjectId, ref: "Wallet" },
     amount: { type: Number, required: true },
     type: {
       type: String,

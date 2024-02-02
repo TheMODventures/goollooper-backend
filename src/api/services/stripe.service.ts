@@ -115,9 +115,13 @@ class StripeService {
       });
 
       if (charge.status == "succeeded") {
+        const wallet = await this.walletRepository.updateBalance(
+          req.locals.auth?.userId as string,
+          amount
+        );
         return ResponseHelper.sendSuccessResponse(
           "Top up created successfully",
-          charge
+          { charge, wallet }
         );
       }
       throw charge;
