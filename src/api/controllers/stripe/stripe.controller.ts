@@ -57,6 +57,11 @@ class StripeController {
     return res.status(response.code).json(response);
   };
 
+  deleteBank = async (req: Request, res: Response) => {
+    const response = await this.stripeService.deleteBank(req.params.id, req);
+    return res.status(response.code).json(response);
+  };
+
   deleteSource = async (req: Request, res: Response) => {
     const response = await this.stripeService.deleteSource(req.params.id, req);
     return res.status(response.code).json(response);

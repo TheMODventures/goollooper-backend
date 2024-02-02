@@ -224,18 +224,18 @@ class StripeService {
       const user: IUser | null = await this.userRepository.getById(
         req.locals.auth?.userId ?? "",
         undefined,
-        "stripeCustomerId"
+        "stripeConnectId"
       );
       if (!user) return ResponseHelper.sendResponse(404, "User not found");
-      const customer = await stripeHelper.getStripeCustomer(
-        user.stripeCustomerId as string
+      const connect = await stripeHelper.getConnect(
+        user.stripeConnectId as string
       );
-      if (!customer)
-        return ResponseHelper.sendResponse(404, "Customer not found");
+      if (!connect)
+        return ResponseHelper.sendResponse(404, "Connect not found");
 
       const bank = await stripeHelper.addBankAccount(
-        user.stripeCustomerId as string,
-        { source: req.body }
+        user.stripeConnectId as string,
+        { external_account: req.body }
       );
       return ResponseHelper.sendSuccessResponse("Bank account added", bank);
     } catch (error) {
@@ -249,24 +249,51 @@ class StripeService {
       const user: IUser | null = await this.userRepository.getById(
         req.locals.auth?.userId ?? "",
         undefined,
-        "stripeCustomerId"
+        "stripeConnectId"
       );
       if (!user) return ResponseHelper.sendResponse(404, "User not found");
-      const customer = await stripeHelper.getStripeCustomer(
-        user.stripeCustomerId as string
+      const connect = await stripeHelper.getConnect(
+        user.stripeConnectId as string
       );
-      if (!customer)
-        return ResponseHelper.sendResponse(404, "Customer not found");
+      if (!connect)
+        return ResponseHelper.sendResponse(404, "Connect not found");
 
       const bank = await stripeHelper.updateBankAccount(
         sourceId,
-        user.stripeCustomerId as string,
+        user.stripeConnectId as string,
         {
           account_holder_name,
           account_holder_type,
         } as any
       );
       return ResponseHelper.sendSuccessResponse("Bank account updated", bank);
+    } catch (error) {
+      return ResponseHelper.sendResponse(500, (error as Error).message);
+    }
+  }
+
+  async deleteBank(sourceId: string, req: Request): Promise<ApiResponse> {
+    try {
+      const user: IUser | null = await this.userRepository.getById(
+        req.locals.auth?.userId ?? "",
+        undefined,
+        "stripeConnectId"
+      );
+      if (!user) return ResponseHelper.sendResponse(404, "User not found");
+      const connect = await stripeHelper.getConnect(
+        user.stripeConnectId as string
+      );
+      if (!connect)
+        return ResponseHelper.sendResponse(404, "Connect not found");
+
+      const result = await stripeHelper.deleteBank(
+        sourceId,
+        user.stripeConnectId as string
+      );
+      return ResponseHelper.sendSuccessResponse(
+        SUCCESS_DATA_DELETION_PASSED,
+        result
+      );
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
@@ -304,11 +331,11 @@ class StripeService {
       const user: IUser | null = await this.userRepository.getById(
         req.locals.auth?.userId ?? "",
         undefined,
-        "stripeCustomerId"
+        "stripeConnectId"
       );
       if (!user) return ResponseHelper.sendResponse(404, "User not found");
       const banks = await stripeHelper.getBankAccounts(
-        user.stripeCustomerId as string,
+        user.stripeConnectId as string,
         parseInt(req.body.page)
       );
       return ResponseHelper.sendSuccessResponse("Bank list found", banks);
