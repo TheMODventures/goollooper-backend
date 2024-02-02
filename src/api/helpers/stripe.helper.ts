@@ -11,6 +11,23 @@ class StripeHelper {
     return stripe.customers.create({ email });
   }
 
+  createConnect(email: string): Promise<Stripe.Account> {
+    return stripe.accounts.create({
+      email,
+      type: "custom",
+      capabilities: {
+        card_payments: { requested: true },
+        transfers: { requested: true },
+      },
+      business_type: "individual",
+      tos_acceptance: { ip: "8.8.8.8", date: Math.floor(Date.now() / 1000) },
+      business_profile: {
+        url: "goollooper.com",
+        mcc: "5734",
+      },
+    });
+  }
+
   addCard(customerId: string, tokenId: string): Promise<Stripe.CustomerSource> {
     return stripe.customers.createSource(customerId, { source: tokenId });
   }

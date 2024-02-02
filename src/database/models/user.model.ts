@@ -135,6 +135,7 @@ const userModel: Schema = new Schema(
     callToken: { type: String, default: null },
     callDeviceType: { type: String, default: null },
     stripeCustomerId: { type: String, default: null },
+    stripeConnectId: { type: String, default: null },
   },
   schemaOptions
 );
