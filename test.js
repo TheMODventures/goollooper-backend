@@ -13,3 +13,5 @@ const nearestPostalCode = postalCodes[minDifferenceIndex];
 console.log(
   `The nearest postal code to ${myPostalCode} is ${nearestPostalCode}`
 );
+
+console.log(new Date().getTime());

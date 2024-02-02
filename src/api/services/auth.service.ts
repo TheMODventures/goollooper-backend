@@ -64,9 +64,11 @@ class AuthService {
       const stripeCustomer = await stripeHelper.createStripeCustomer(
         user.email
       );
+      const stripeConnect = await stripeHelper.createConnect(user.email);
       const data = await this.userRepository.create<IUser>({
         ...user,
         stripeCustomerId: stripeCustomer.id,
+        stripeConnectId: stripeConnect.id,
       });
       const userId = new mongoose.Types.ObjectId(data._id!);
       const tokenResponse = await this.tokenService.create(userId, role);
