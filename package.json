@@ -54,6 +54,7 @@
     "lint-staged": "^13.2.0",
     "lodash": "^4.17.21",
     "moment": "^2.29.4",
+    "mongodb": "^6.3.0",
     "mongoose": "^7.0.1",
     "mongoose-aggregate-paginate-v2": "^1.0.6",
     "mongoose-paginate-v2": "^1.7.4",
