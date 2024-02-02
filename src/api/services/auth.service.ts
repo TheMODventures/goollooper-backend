@@ -244,10 +244,11 @@ class AuthService {
 
   logout = async (
     userId: string,
-    refreshToken: string
+    refreshToken: string,
+    fcmToken?: string
   ): Promise<ApiResponse> => {
     try {
-      await this.tokenService.loggedOut(userId, refreshToken);
+      await this.tokenService.loggedOut(userId, refreshToken, fcmToken);
       return ResponseHelper.sendSuccessResponse(SUCCESS_LOGOUT_PASS);
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);

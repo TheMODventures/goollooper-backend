@@ -4,6 +4,7 @@ import mongoose, { FilterQuery } from "mongoose";
 import { EUserRole } from "../../database/interfaces/enums";
 import { IToken, ITokenDoc } from "../../database/interfaces/token.interface";
 import { TokenRepository } from "../repository/token/token.repository";
+import { UserRepository } from "../repository/user/user.repository";
 import {
   JWT_REFRESH_SECRET_KEY,
   JWT_REFRESH_SECRET_EXPIRE_IN,
@@ -13,9 +14,11 @@ import {
 
 class TokenService {
   private tokenRepository: TokenRepository;
+  private userRepository: UserRepository;
 
   constructor() {
     this.tokenRepository = new TokenRepository();
+    this.userRepository = new UserRepository();
   }
 
   create = async (
@@ -69,8 +72,14 @@ class TokenService {
 
   loggedOut = async (
     userId: string,
-    refreshToken: string
+    refreshToken: string,
+    fcmToken?: string
   ): Promise<boolean> => {
+    if (fcmToken)
+      await this.userRepository.updateByOne(
+        { _id: userId },
+        { $pull: { fcmTokens: fcmToken } }
+      );
     return await this.tokenRepository.deleteMany<IToken>({
       userId: userId,
       refreshToken: refreshToken,
