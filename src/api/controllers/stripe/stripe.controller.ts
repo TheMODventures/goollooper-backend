@@ -18,6 +18,11 @@ class StripeController {
     return res.status(response.code).json(response);
   };
 
+  selectDefaultCard = async (req: Request, res: Response) => {
+    const response = await this.stripeService.selectDefaultCard(req);
+    return res.status(response.code).json(response);
+  };
+
   createTopUp = async (req: Request, res: Response) => {
     const response = await this.stripeService.createTopUp(req);
     return res.status(response.code).json(response);

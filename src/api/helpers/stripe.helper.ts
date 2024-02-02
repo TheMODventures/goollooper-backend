@@ -75,6 +75,13 @@ class StripeHelper {
     return stripe.customers.retrieve(id);
   }
 
+  selectDefaultCard(
+    id: string,
+    cardId: string
+  ): Promise<Stripe.Response<Stripe.Customer | Stripe.DeletedCustomer>> {
+    return stripe.customers.update(id, { default_source: cardId });
+  }
+
   addBankAccount(
     id: string,
     params: Stripe.CustomerSourceCreateParams

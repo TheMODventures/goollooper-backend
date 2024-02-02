@@ -5,12 +5,16 @@ import { stripeHelper } from "../helpers/stripe.helper";
 import { IUser } from "../../database/interfaces/user.interface";
 import { SUCCESS_DATA_DELETION_PASSED } from "../../constant";
 import Stripe from "stripe";
+import { WalletRepository } from "../repository/wallet/wallet.repository";
+import { ObjectId } from "mongodb";
 
 class StripeService {
   private userRepository: UserRepository;
+  private walletRepository: WalletRepository;
 
   constructor() {
     this.userRepository = new UserRepository();
+    this.walletRepository = new WalletRepository();
   }
 
   async addCardToCustomer(req: Request): Promise<ApiResponse> {
@@ -64,9 +68,26 @@ class StripeService {
     }
   }
 
+  async selectDefaultCard(req: Request): Promise<ApiResponse> {
+    try {
+      const user: IUser | null = await this.userRepository.getById(
+        req.locals.auth?.userId ?? "",
+        undefined,
+        "stripeCustomerId"
+      );
+      if (!user) return ResponseHelper.sendResponse(404, "User not found");
+      const card = await stripeHelper.selectDefaultCard(
+        user.stripeCustomerId as string,
+        req.params.id
+      );
+      return ResponseHelper.sendSuccessResponse("Default card updated", card);
+    } catch (error) {
+      return ResponseHelper.sendResponse(500, (error as Error).message);
+    }
+  }
+
   async createTopUp(req: Request): Promise<ApiResponse> {
     let { amount, source, currency, description } = req.body;
-    amount = amount * 100;
 
     try {
       const user: IUser | null = await this.userRepository.getById(
@@ -87,7 +108,7 @@ class StripeService {
       }
 
       const charge = await stripeHelper.stripeCharge({
-        amount,
+        amount: amount * 100,
         currency,
         customer: user.stripeCustomerId,
         description,
