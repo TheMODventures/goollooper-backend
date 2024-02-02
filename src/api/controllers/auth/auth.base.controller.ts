@@ -18,8 +18,12 @@ class AuthBaseController {
 
   logout = async (req: Request, res: Response) => {
     const userId = req?.locals?.auth?.userId!;
-    const { refreshToken } = req.body;
-    const response = await this.authService.logout(userId, refreshToken);
+    const { refreshToken, fcmToken } = req.body;
+    const response = await this.authService.logout(
+      userId,
+      refreshToken,
+      fcmToken
+    );
     return res.status(response.code).json(response);
   };
 

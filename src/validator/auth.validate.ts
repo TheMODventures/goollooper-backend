@@ -80,6 +80,39 @@ const loginRule = yup.object().shape({
   query: yup.object().noUnknown(),
 });
 
+const logoutRule = yup.object().shape({
+  params: yup.object().noUnknown(),
+  body: yup
+    .object()
+    .shape({
+      refreshToken: yup
+        .string()
+        .required()
+        .test(
+          "inavlid_token",
+          "No Such Refresh Token Exsit!",
+          (value: string | undefined) => {
+            if (!value) {
+              return true;
+            }
+            return jwt.verify(
+              value,
+              JWT_REFRESH_SECRET_KEY!,
+              function (err, decoded) {
+                if (err || typeof decoded == "string") {
+                  return false;
+                }
+                return true;
+              }
+            );
+          }
+        ),
+      fcmToken: yup.string().notRequired(),
+    })
+    .noUnknown(),
+  query: yup.object().noUnknown(),
+});
+
 const updateData = yup.object().shape({
   params: yup.object().noUnknown(),
   body: yup
@@ -230,12 +263,12 @@ const verifyOtp = yup.object().shape({
 export = {
   "/register": registerRule,
   "/login": loginRule,
+  "/logout": logoutRule,
   "/forget-password": forgetPassword,
   "/reset-password": resetPassword,
   "/get-new-token": getAccessTokenRule,
   "/send-otp": resendOtp,
   "/verify-otp": verifyOtp,
-  "/logout": getAccessTokenRule,
   "/update": updateData,
   "/update-detail": updateData,
   "/update-password": updatePassword,
