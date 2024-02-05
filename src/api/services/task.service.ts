@@ -85,7 +85,7 @@ class TaskService {
             pipeline: [
               {
                 $project: {
-                  firstname: 1,
+                  firstName: 1,
                   lastName: 1,
                   username: 1,
                   email: 1,
