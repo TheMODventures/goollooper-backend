@@ -9,12 +9,23 @@ import {
 import { IWallet } from "../../database/interfaces/wallet.interface";
 import { ResponseHelper } from "../helpers/reponseapi.helper";
 import { WalletRepository } from "../repository/wallet/wallet.repository";
+import { UserRepository } from "../repository/user/user.repository";
+import StripeService from "./stripe.service";
+import { IUser } from "../../database/interfaces/user.interface";
+import Stripe from "stripe";
+import { Request } from "express";
+import _ from "lodash";
+import { stripeHelper } from "../helpers/stripe.helper";
 
 class WalletService {
   private walletRepository: WalletRepository;
+  protected userRepository: UserRepository;
+  protected stripeService: StripeService;
 
   constructor() {
     this.walletRepository = new WalletRepository();
+    this.userRepository = new UserRepository();
+    this.stripeService = new StripeService();
   }
 
   index = async (
@@ -46,11 +57,92 @@ class WalletService {
     }
   };
 
-  create = async (payload: IWallet): Promise<ApiResponse> => {
+  create = async (payload: IWallet, req: Request): Promise<ApiResponse> => {
+    const { idNumber, ssnLast4, dob } = req.body;
+    payload.user = req.locals.auth?.userId as string;
     try {
+      const user: IUser | null = await this.userRepository.getById(
+        req.locals.auth?.userId as string
+      );
+      if (user?.wallet)
+        return ResponseHelper.sendResponse(
+          409,
+          "Wallet already created for this user"
+        );
+
+      if (!user?.isProfileCompleted) {
+        return ResponseHelper.sendResponse(
+          400,
+          "Complete your profile to create wallet"
+        );
+      }
+
+      if (
+        !user.stripeConnectId &&
+        user.countryCode == "US" &&
+        (!idNumber || !ssnLast4)
+      ) {
+        return ResponseHelper.sendResponse(
+          400,
+          "idNumber and ssnLast4 is required for US country"
+        );
+      }
+      let stripeDataset: Stripe.AccountCreateParams = { individual: {} };
+      stripeDataset = {
+        email: user.email,
+        country: user.countryCode,
+        individual: {
+          address: {
+            line1: user.selectedLocation?.readableLocation,
+            line2: user.selectedLocation?.readableLocation,
+            country: user.selectedLocation?.county,
+            state: user.selectedLocation?.state,
+            city: user.selectedLocation?.city,
+            postal_code: user.selectedLocation?.zipCode,
+          },
+          email: user.email,
+          gender: user.gender,
+          phone: `+${user.phoneCode}${user.phone}`,
+          first_name: user.firstName,
+          last_name: user.lastName,
+        },
+      };
+
+      if (user.countryCode == "US" && stripeDataset.individual) {
+        stripeDataset.individual.id_number = idNumber;
+        stripeDataset.individual.ssn_last_4 = ssnLast4;
+      }
+
+      if (dob && stripeDataset.individual) {
+        const a = (dob as string).split("-").map((e) => parseInt(e));
+        stripeDataset.individual.dob = { year: a[0], month: a[1], day: a[2] };
+      }
+
+      const stripeWallets = await this.stripeService.createWallet(
+        user?.email,
+        stripeDataset
+      );
+
+      if (stripeWallets.code !== 200) return stripeWallets;
+
+      const uploaded = await this.uploadDocuments(
+        stripeWallets.data.stripeConnect.id,
+        req.files
+      );
+      if (!uploaded)
+        return ResponseHelper.sendResponse(
+          500,
+          "Error while uploading documents"
+        );
       const data = await this.walletRepository.create<IWallet>(payload);
+      await this.userRepository.updateById(payload.user as string, {
+        stripeConnectId: stripeWallets.data.stripeConnect.id,
+        stripeCustomerId: stripeWallets.data.stripeCustomer.id,
+        wallet: data._id,
+      });
       return ResponseHelper.sendResponse(201, data);
     } catch (error) {
+      console.log(error);
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   };
@@ -104,6 +196,59 @@ class WalletService {
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
+  };
+
+  uploadDocuments = async (
+    stripeConnectId: string,
+    files: any
+  ): Promise<Boolean> => {
+    let documentFront, documentBack;
+
+    if (
+      files &&
+      _.isArray(files) &&
+      files?.find((file) => file.fieldname === "identityDocumentFront")
+    ) {
+      const file = files?.find(
+        (file) => file.fieldname === "identityDocumentFront"
+      ) as Express.Multer.File;
+
+      documentFront = await stripeHelper.uploadFile({
+        file: {
+          data: file.buffer,
+        },
+        purpose: "identity_document",
+      });
+    }
+
+    if (
+      files &&
+      _.isArray(files) &&
+      files?.find((file) => file.fieldname === "identityDocumentBack")
+    ) {
+      const file = files?.find(
+        (file) => file.fieldname === "identityDocumentBack"
+      ) as Express.Multer.File;
+
+      documentBack = await stripeHelper.uploadFile({
+        file: {
+          data: file.buffer,
+        },
+        purpose: "identity_document",
+      });
+    }
+
+    if (documentFront && documentBack) {
+      await stripeHelper.updateConnect(stripeConnectId, {
+        individual: {
+          verification: {
+            document: { front: documentFront?.id, back: documentBack?.id },
+          },
+        },
+      });
+      return true;
+    }
+    return false;
   };
 }
 

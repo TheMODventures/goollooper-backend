@@ -50,6 +50,14 @@ class StripeHelper {
     return stripe.customers.createSource(customerId, { source: tokenId });
   }
 
+  updateCard(
+    customerId: string,
+    sourceId: string,
+    payload: Stripe.CustomerSourceUpdateParams
+  ): Promise<Stripe.CustomerSource> {
+    return stripe.customers.updateSource(customerId, sourceId, payload);
+  }
+
   getCustomerCards(
     id: string,
     page = 1,
@@ -172,6 +180,43 @@ class StripeHelper {
       // object: "card",
       limit,
     });
+  }
+
+  async uploadFile(payload: Stripe.FileCreateParams) {
+    return stripe.files.create(payload);
+  }
+
+  async createPerson(
+    stripeConnectId: string,
+    payload: Stripe.PersonCreateParams
+  ) {
+    return stripe.accounts.createPerson(stripeConnectId, payload);
+  }
+
+  async payout(stripeConnectId: string, payload: Stripe.PayoutCreateParams) {
+    const balance = await stripe.balance.retrieve(
+      {},
+      { stripeAccount: stripeConnectId }
+    );
+
+    if (balance?.instant_available && payload.method === "instant") {
+      return stripe.payouts.create(
+        {
+          ...payload,
+          amount: balance?.instant_available[0].amount,
+        },
+        { stripeAccount: stripeConnectId }
+      );
+    } else if (balance?.available && payload.method === "standard") {
+      return stripe.payouts.create(
+        {
+          ...payload,
+          amount: balance?.available[0].amount,
+        },
+        { stripeAccount: stripeConnectId }
+      );
+    }
+    return false;
   }
 }
 

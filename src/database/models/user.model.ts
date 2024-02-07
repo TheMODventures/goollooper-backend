@@ -137,6 +137,7 @@ const userModel: Schema = new Schema(
     callDeviceType: { type: String, default: null },
     stripeCustomerId: { type: String, default: null },
     stripeConnectId: { type: String, default: null },
+    wallet: { type: Schema.Types.ObjectId, ref: "Wallet", default: null },
   },
   schemaOptions
 );

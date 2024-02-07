@@ -6,21 +6,27 @@ import { IUser } from "../../database/interfaces/user.interface";
 import { SUCCESS_DATA_DELETION_PASSED } from "../../constant";
 import Stripe from "stripe";
 import { WalletRepository } from "../repository/wallet/wallet.repository";
-import { ObjectId } from "mongodb";
+import { TransactionRepository } from "../repository/transaction/transaction.repository";
+import { ITransaction } from "../../database/interfaces/transaction.interface";
+import { TransactionType } from "../../database/interfaces/enums";
 
 class StripeService {
   private userRepository: UserRepository;
   private walletRepository: WalletRepository;
+  private transactionRepository: TransactionRepository;
 
   constructor() {
     this.userRepository = new UserRepository();
     this.walletRepository = new WalletRepository();
+    this.transactionRepository = new TransactionRepository();
   }
 
   async createWallet(email: string, dataset: Stripe.AccountCreateParams) {
     try {
-      const stripeCustomer = await stripeHelper.createStripeCustomer(email);
+      let stripeCustomer;
       const stripeConnect = await stripeHelper.createConnect(email, dataset);
+      if (stripeConnect.id)
+        stripeCustomer = await stripeHelper.createStripeCustomer(email);
       return ResponseHelper.sendSuccessResponse(
         "stripe accounts created successfully",
         { stripeConnect, stripeCustomer }
@@ -28,6 +34,21 @@ class StripeService {
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
+  }
+
+  async getConnect(id: string) {
+    const user: IUser | null = await this.userRepository.getById(
+      id,
+      undefined,
+      "stripeConnectId"
+    );
+    if (!user) return ResponseHelper.sendResponse(404, "User not found");
+    const connect = await stripeHelper.getConnect(
+      user.stripeConnectId as string
+    );
+    if (!connect)
+      return ResponseHelper.sendResponse(404, "Connect account not found");
+    return ResponseHelper.sendSuccessResponse("Connect account found", connect);
   }
 
   async addCardToCustomer(req: Request): Promise<ApiResponse> {
@@ -56,6 +77,38 @@ class StripeService {
       if (!card) return ResponseHelper.sendResponse(404, "Card not added");
       return ResponseHelper.sendSuccessResponse(
         "Card added successfully",
+        card
+      );
+    } catch (error) {
+      return ResponseHelper.sendResponse(500, (error as Error).message);
+    }
+  }
+
+  async updateCardToCustomer(req: Request): Promise<ApiResponse> {
+    const { expMonth, expYear, name }: any = req.body;
+
+    try {
+      const user: IUser | null = await this.userRepository.getById(
+        req.locals.auth?.userId ?? "",
+        undefined,
+        "stripeCustomerId"
+      );
+      if (!user) return ResponseHelper.sendResponse(404, "User not found");
+
+      const cardObj: Stripe.CustomerSourceUpdateParams = {
+        exp_month: expMonth,
+        exp_year: expYear,
+        name,
+      };
+
+      const card = await stripeHelper.updateCard(
+        user?.stripeCustomerId as string,
+        req.params.id,
+        cardObj
+      );
+      if (!card) return ResponseHelper.sendResponse(404, "Card not updated");
+      return ResponseHelper.sendSuccessResponse(
+        "Card updated successfully",
         card
       );
     } catch (error) {
@@ -132,6 +185,12 @@ class StripeService {
           req.locals.auth?.userId as string,
           amount
         );
+        this.transactionRepository.create({
+          amount,
+          user: req.locals.auth?.userId as string,
+          type: TransactionType.topUp,
+          wallet: wallet?._id,
+        } as ITransaction);
         return ResponseHelper.sendSuccessResponse(
           "Top up created successfully",
           { charge, wallet }
@@ -381,6 +440,47 @@ class StripeService {
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   }
+
+  payout = async (req: Request): Promise<ApiResponse> => {
+    try {
+      const connect = await this.getConnect(req.locals.auth?.userId as string);
+      if (connect.status) {
+        const withdraw = await stripeHelper.payout(connect.data.id, {
+          method: "standard", //req.params.source.includes("card") ? "instant" : "standard"
+          destination: req.params.source,
+          currency: (connect.data as Stripe.Account).default_currency,
+        } as Stripe.PayoutCreateParams);
+
+        if (withdraw === false)
+          return ResponseHelper.sendResponse(400, "Withdrawal failed");
+        else if (withdraw.id) {
+          const wallet = await this.walletRepository.updateBalance(
+            req.locals.auth?.userId as string,
+            -(withdraw.amount / 100)
+          );
+          this.transactionRepository.create({
+            amount: withdraw.amount / 100,
+            user: req.locals.auth?.userId as string,
+            type: TransactionType.withdraw,
+            wallet: wallet?._id,
+          } as ITransaction);
+          return ResponseHelper.sendSuccessResponse(
+            "Withdrawal successfull",
+            withdraw
+          );
+        }
+        throw withdraw;
+      }
+      throw connect;
+    } catch (error) {
+      return ResponseHelper.sendResponse(
+        400,
+        (error as any)?.code === "parameter_invalid_integer"
+          ? "Balance is low"
+          : (error as Error).message
+      );
+    }
+  };
 }
 
 export default StripeService;

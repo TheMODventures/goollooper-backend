@@ -13,7 +13,7 @@ class WalletController {
 
   create = async (req: Request, res: Response) => {
     const payload: IWallet = { ...req.body };
-    const response = await this.walletService.create(payload);
+    const response = await this.walletService.create(payload, req);
     return res.status(response.code).json(response);
   };
 

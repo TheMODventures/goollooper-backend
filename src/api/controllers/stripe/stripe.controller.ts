@@ -13,6 +13,11 @@ class StripeController {
     return res.status(response.code).json(response);
   };
 
+  updateCardToCustomer = async (req: Request, res: Response) => {
+    const response = await this.stripeService.updateCardToCustomer(req);
+    return res.status(response.code).json(response);
+  };
+
   getCustomerCards = async (req: Request, res: Response) => {
     const response = await this.stripeService.getCustomerCards(req);
     return res.status(response.code).json(response);
@@ -47,6 +52,13 @@ class StripeController {
     return res.status(response.code).json(response);
   };
 
+  getConnect = async (req: Request, res: Response) => {
+    const response = await this.stripeService.getConnect(
+      req.locals.auth?.userId!
+    );
+    return res.status(response.code).json(response);
+  };
+
   addBank = async (req: Request, res: Response) => {
     const response = await this.stripeService.addBank(req);
     return res.status(response.code).json(response);
@@ -74,6 +86,11 @@ class StripeController {
 
   getPaymentMethods = async (req: Request, res: Response) => {
     const response = await this.stripeService.getPaymentMethods(req);
+    return res.status(response.code).json(response);
+  };
+
+  payout = async (req: Request, res: Response) => {
+    const response = await this.stripeService.payout(req);
     return res.status(response.code).json(response);
   };
 }

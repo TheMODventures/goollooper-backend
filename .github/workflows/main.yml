@@ -30,3 +30,4 @@ jobs:
             npm run build
             pm2 restart apis-goollooper
             pm2 list
+            git reset --hard
