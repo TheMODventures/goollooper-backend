@@ -155,16 +155,17 @@ class TaskService {
         isDeleted: false,
       };
       const response = await this.taskRepository.getOne<ITask>(filter, "", "", [
-        {
-          path: "goList.serviceProviders",
-          model: "Users",
-          select: "firstName lastName userName email",
-        },
-        {
-          path: "goList.taskInterests",
-          model: "Service",
-          select: "title type parent",
-        },
+        ModelHelper.populateData(
+          "goList.serviceProviders",
+          ModelHelper.userSelect,
+          "Users"
+        ),
+        ModelHelper.populateData(
+          "goList.taskInterests",
+          "title type parent",
+          "Service"
+        ),
+        ModelHelper.populateData("postedBy", ModelHelper.userSelect, "Users"),
         ModelHelper.populateData("users.user", ModelHelper.userSelect, "Users"),
       ]);
       if (response === null) {
@@ -208,16 +209,19 @@ class TaskService {
         });
       }
 
-      const goList: IGolist | null = await this.golistRepository.getById(
-        payload.goList as string
-      );
-      if (!goList) return ResponseHelper.sendResponse(404, "GoList not found");
-      payload.goList = {
-        goListId: payload.goList as string,
-        title: goList.title,
-        serviceProviders: payload.goListServiceProviders as ObjectId[],
-        taskInterests: goList.taskInterests,
-      };
+      if (payload.type !== TaskType.megablast) {
+        const goList: IGolist | null = await this.golistRepository.getById(
+          payload.goList as string
+        );
+        if (!goList)
+          return ResponseHelper.sendResponse(404, "GoList not found");
+        payload.goList = {
+          goListId: payload.goList as string,
+          title: goList.title,
+          serviceProviders: payload.goListServiceProviders as ObjectId[],
+          taskInterests: goList.taskInterests,
+        };
+      }
 
       if (payload.subTasks?.length) {
         for (let i = 0; i < payload.subTasks.length; i++) {
@@ -243,13 +247,17 @@ class TaskService {
       }
       const data = await this.taskRepository.create<ITask>(payload);
 
-      await this.chatRepository.createChatForTask({
-        user: userId,
-        task: data._id as string,
-        participants:
-          [new ObjectId(userId), ...payload.goList?.serviceProviders] ?? [],
-        groupName: payload.title,
-      });
+      if (payload.type !== TaskType.megablast)
+        await this.chatRepository.createChatForTask({
+          user: userId,
+          task: data._id as string,
+          participants:
+            [
+              new ObjectId(userId),
+              ...(payload.goListServiceProviders as ObjectId[]),
+            ] ?? [],
+          groupName: payload.title,
+        });
 
       if (data.type === TaskType.event)
         await this.calendarRepository.create({
@@ -385,7 +393,7 @@ class TaskService {
       });
       if (isExist)
         return ResponseHelper.sendResponse(422, "You are already in this task");
-      const response = await this.taskRepository.updateById(_id, {
+      const response: ITask | null = await this.taskRepository.updateById(_id, {
         $addToSet: { users: { user } },
         $inc: { pendingCount: 1 },
       });
@@ -393,6 +401,14 @@ class TaskService {
       if (response === null) {
         return ResponseHelper.sendResponse(404);
       }
+
+      this.notificationService.createAndSendNotification({
+        senderId: user,
+        receiverId: response.postedBy,
+        type: ENOTIFICATION_TYPES.TASK_REQUEST,
+        data: { task: response?._id?.toString() },
+      } as NotificationParams);
+
       return ResponseHelper.sendSuccessResponse(
         SUCCESS_DATA_UPDATION_PASSED,
         response
