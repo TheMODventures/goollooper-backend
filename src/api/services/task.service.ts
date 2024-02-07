@@ -155,16 +155,17 @@ class TaskService {
         isDeleted: false,
       };
       const response = await this.taskRepository.getOne<ITask>(filter, "", "", [
-        {
-          path: "goList.serviceProviders",
-          model: "Users",
-          select: "firstName lastName userName email",
-        },
-        {
-          path: "goList.taskInterests",
-          model: "Service",
-          select: "title type parent",
-        },
+        ModelHelper.populateData(
+          "goList.serviceProviders",
+          ModelHelper.userSelect,
+          "Users"
+        ),
+        ModelHelper.populateData(
+          "goList.taskInterests",
+          "title type parent",
+          "Service"
+        ),
+        ModelHelper.populateData("postedBy", ModelHelper.userSelect, "Users"),
         ModelHelper.populateData("users.user", ModelHelper.userSelect, "Users"),
       ]);
       if (response === null) {
@@ -385,7 +386,7 @@ class TaskService {
       });
       if (isExist)
         return ResponseHelper.sendResponse(422, "You are already in this task");
-      const response = await this.taskRepository.updateById(_id, {
+      const response: ITask | null = await this.taskRepository.updateById(_id, {
         $addToSet: { users: { user } },
         $inc: { pendingCount: 1 },
       });
@@ -393,6 +394,14 @@ class TaskService {
       if (response === null) {
         return ResponseHelper.sendResponse(404);
       }
+
+      this.notificationService.createAndSendNotification({
+        senderId: user,
+        receiverId: response.postedBy,
+        type: ENOTIFICATION_TYPES.TASK_REQUEST,
+        data: { task: response?._id?.toString() },
+      } as NotificationParams);
+
       return ResponseHelper.sendSuccessResponse(
         SUCCESS_DATA_UPDATION_PASSED,
         response
