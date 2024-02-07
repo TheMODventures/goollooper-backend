@@ -209,16 +209,19 @@ class TaskService {
         });
       }
 
-      const goList: IGolist | null = await this.golistRepository.getById(
-        payload.goList as string
-      );
-      if (!goList) return ResponseHelper.sendResponse(404, "GoList not found");
-      payload.goList = {
-        goListId: payload.goList as string,
-        title: goList.title,
-        serviceProviders: payload.goListServiceProviders as ObjectId[],
-        taskInterests: goList.taskInterests,
-      };
+      if (payload.type !== TaskType.megablast) {
+        const goList: IGolist | null = await this.golistRepository.getById(
+          payload.goList as string
+        );
+        if (!goList)
+          return ResponseHelper.sendResponse(404, "GoList not found");
+        payload.goList = {
+          goListId: payload.goList as string,
+          title: goList.title,
+          serviceProviders: payload.goListServiceProviders as ObjectId[],
+          taskInterests: goList.taskInterests,
+        };
+      }
 
       if (payload.subTasks?.length) {
         for (let i = 0; i < payload.subTasks.length; i++) {
@@ -244,13 +247,17 @@ class TaskService {
       }
       const data = await this.taskRepository.create<ITask>(payload);
 
-      await this.chatRepository.createChatForTask({
-        user: userId,
-        task: data._id as string,
-        participants:
-          [new ObjectId(userId), ...payload.goList?.serviceProviders] ?? [],
-        groupName: payload.title,
-      });
+      if (payload.type !== TaskType.megablast)
+        await this.chatRepository.createChatForTask({
+          user: userId,
+          task: data._id as string,
+          participants:
+            [
+              new ObjectId(userId),
+              ...(payload.goListServiceProviders as ObjectId[]),
+            ] ?? [],
+          groupName: payload.title,
+        });
 
       if (data.type === TaskType.event)
         await this.calendarRepository.create({
