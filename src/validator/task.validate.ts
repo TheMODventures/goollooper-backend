@@ -97,12 +97,11 @@ const createRule = yup.object().shape({
         .oneOf([...Object.values(TaskType).map((value) => value?.toString())])
         .notRequired(),
       taskInterests: yup.array().of(yup.string().length(24)).default([]),
-      goList: yup.string().length(24).required(),
+      goList: yup.string().length(24).notRequired(),
       goListServiceProviders: yup
         .array()
         .of(yup.string().length(24))
-        .min(1)
-        .required(),
+        .notRequired(),
       myList: yup.array().of(yup.string().length(24)).default([]),
       subTasks: yup
         .array()
@@ -190,8 +189,7 @@ const updateRule = yup.object().shape({
       goListServiceProviders: yup
         .array()
         .of(yup.string().length(24))
-        .min(1)
-        .required(),
+        .notRequired(),
       myList: yup.array().of(yup.string().length(24)).default([]),
       subTasks: yup
         .array()
