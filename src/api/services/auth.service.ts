@@ -64,7 +64,7 @@ class AuthService {
       const data = await this.userRepository.create<IUser>(user);
       const userId = new mongoose.Types.ObjectId(data._id!);
       const tokenResponse = await this.tokenService.create(userId, role);
-      await this.walletRepository.create({ user: data._id } as IWallet);
+      // await this.walletRepository.create({ user: data._id } as IWallet);
       return ResponseHelper.sendSignTokenResponse(
         201,
         SUCCESS_REGISTRATION_PASSED,

@@ -39,10 +39,17 @@ const createRule = yup.object().shape({
             "not exist",
             "user not exist",
             async (value: string) => {
-              return true;
               return (await userService.show(value)).status;
             }
           )
+        )
+        .test(
+          "is-unique",
+          "serviceProviders id must be unique",
+          function (value) {
+            if (!value) return true; // If the array is empty, consider it valid
+            return new Set(value).size === value.length;
+          }
         ),
       type: yup
         .number()
@@ -94,6 +101,14 @@ const updateRule = yup.object().shape({
               return (await userService.show(value)).status;
             }
           )
+        )
+        .test(
+          "is-unique",
+          "serviceProviders id must be unique",
+          function (value) {
+            if (!value) return true; // If the array is empty, consider it valid
+            return new Set(value).size === value.length;
+          }
         )
         .required(),
       taskInterests: yup.array().of(paramRule.id).notRequired(),

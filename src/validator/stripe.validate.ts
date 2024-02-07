@@ -9,6 +9,23 @@ const cardRule = yup.object().shape({
   }),
 });
 
+const editCardRule = yup.object().shape({
+  params: yup.object().shape({
+    id: yup.string().required(),
+  }),
+  body: yup.object().shape({
+    expMonth: yup.string().notRequired(),
+    expYear: yup.string().notRequired(),
+    name: yup.string().notRequired(),
+  }),
+});
+
+const payoutRule = yup.object().shape({
+  params: yup.object().shape({
+    source: yup.string().required(),
+  }),
+});
+
 const createTopUpRule = yup.object().shape({
   body: yup
     .object()
@@ -57,6 +74,8 @@ const webhookRule = yup.object().shape({
 
 export = {
   "/add-card": cardRule,
+  "/update-card": editCardRule,
+  "/payout": payoutRule,
   "/create-top-up": createTopUpRule,
   "/create-payment-intent": createPaymentIntentRule,
   "/confirm-payment": confirmPaymentRule,

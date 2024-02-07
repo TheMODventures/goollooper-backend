@@ -21,6 +21,12 @@ class StripeRoutes extends BaseRoutes {
     );
 
     this.router.get(
+      "/connect",
+      this.validateRequest,
+      this.stripeController.getConnect
+    );
+
+    this.router.get(
       "/cards",
       this.validateRequest,
       this.stripeController.getCustomerCards
@@ -30,6 +36,12 @@ class StripeRoutes extends BaseRoutes {
       "/add-card",
       this.validateRequest,
       this.stripeController.addCardToCustomer
+    );
+
+    this.router.patch(
+      "/update-card/:id",
+      this.validateRequest,
+      this.stripeController.updateCardToCustomer
     );
 
     this.router.post(
@@ -98,6 +110,12 @@ class StripeRoutes extends BaseRoutes {
       "/payment-methods",
       this.validateRequest,
       this.stripeController.getPaymentMethods
+    );
+
+    this.router.post(
+      "/payout/:source",
+      this.validateRequest,
+      this.stripeController.payout
     );
   }
 }

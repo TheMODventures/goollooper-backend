@@ -107,6 +107,7 @@ export interface IUser {
   callDeviceType?: string;
   stripeCustomerId?: string;
   stripeConnectId?: string;
+  wallet?: string;
 }
 
 export interface IUserWithSchedule extends IUser {

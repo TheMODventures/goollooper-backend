@@ -40,6 +40,8 @@ import {
   IOS_KEY_ID,
   IOS_TEAM_ID,
 } from "../../../config/environment.config";
+import AgoraRTC, { ClientConfig } from "agora-rtc-sdk-ng";
+
 export class ChatRepository
   extends BaseRepository<IChat, IChatDoc>
   implements IChatRepository
@@ -471,7 +473,10 @@ export class ChatRepository
     ]);
 
     // Step 3: Extract the messages, total count, and unread count from the result
-    const messages = result.length > 0 ? result[0].messages : [];
+    const messages =
+      result.length > 0
+        ? processChatMessages(result[0].messages as IMessage[])
+        : [];
     const totalCount = result.length > 0 ? result[0].totalCount : 0;
     const unReadCount = result.length > 0 ? result[0].unReadCount : 0;
 
@@ -575,6 +580,7 @@ export class ChatRepository
           title: name,
           body: messageBody,
           chatId,
+          urls,
         },
         chat
       );
@@ -1425,7 +1431,10 @@ export class ChatRepository
     users.forEach((e: any) => {
       NotificationHelper.sendNotification({
         title: data.title,
-        body: data.body,
+        body:
+          data.urls?.length !== 0 && !(data.body === "" || data.body === null)
+            ? "sent a photo"
+            : data.body,
         tokens: e.fcmTokens,
         data: { chatId: data.chatId.toString(), user: e._id.toString() },
       });
@@ -1675,6 +1684,27 @@ export class ChatRepository
       return ResponseHelper.sendSuccessResponse("Call token updated", user);
     return ResponseHelper.sendResponse(400, "Call token update failed");
   }
+}
+
+function processChatMessages(messages: IMessage[]) {
+  let processedMessages = [];
+
+  for (let i = 0; i < messages.length; i++) {
+    const currentMessage = { ...messages[i] };
+    {
+      if (
+        currentMessage.createdAt &&
+        messages[i - 1]?.createdAt &&
+        currentMessage.createdAt.toISOString().slice(0, 16) ===
+          messages[i - 1]?.createdAt?.toISOString().slice(0, 16)
+      ) {
+        delete currentMessage.createdAt;
+      }
+    }
+
+    processedMessages.push(currentMessage);
+  }
+  return processedMessages;
 }
 
 function findUserpipeline(match: any) {
