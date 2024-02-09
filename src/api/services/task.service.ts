@@ -251,12 +251,12 @@ class TaskService {
         groupName: payload.title,
       });
 
-      if (data.type === TaskType.event)
-        await this.calendarRepository.create({
-          user: payload.postedBy as string,
-          task: data._id,
-          date: data.date,
-        } as ICalendar);
+      // if (data.type === TaskType.event)
+      await this.calendarRepository.create({
+        user: payload.postedBy as string,
+        task: data._id,
+        date: data.date,
+      } as ICalendar);
       return ResponseHelper.sendResponse(201, data);
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);
