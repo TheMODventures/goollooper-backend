@@ -65,7 +65,6 @@ const taskModel: Schema = new Schema(
     goList: {
       title: {
         type: String,
-        required: true,
       },
       serviceProviders: [
         {
@@ -82,7 +81,6 @@ const taskModel: Schema = new Schema(
       ],
       goListId: {
         type: Schema.Types.ObjectId,
-        required: true,
         ref: "Golist",
       },
     },
