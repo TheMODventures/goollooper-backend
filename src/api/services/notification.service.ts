@@ -227,10 +227,15 @@ class NotificationService {
         body = nbody ?? `#sender accepted your task request`;
         break;
 
+      case ENOTIFICATION_TYPES.TASK_REQUEST:
+        title = ntitle ?? `#sender`;
+        body = nbody ?? `#sender has requested to be added to the task`;
+        break;
+
       default:
         break;
     }
-    console.log(data);
+
     const n = {
       receiver: receiverId as string | ObjectId,
       sender: sender?._id as string | ObjectId,
