@@ -32,4 +32,6 @@ export const {
   IOS_TEAM_ID,
   APP_ID,
   APP_CERTIFICATE,
+  STRIPE_WEBHOOK_SECRET,
+  STRIPE_SECRET_KEY,
 } = process.env;

@@ -1,4 +1,4 @@
-import mongoose, { FilterQuery } from "mongoose";
+import mongoose, { FilterQuery, ObjectId } from "mongoose";
 import { Request } from "express";
 import moment from "moment";
 import crypto from "crypto";
@@ -22,16 +22,21 @@ import {
 } from "../../constant";
 import { ResponseHelper } from "../helpers/reponseapi.helper";
 import TokenService from "./token.service";
+import { stripeHelper } from "../helpers/stripe.helper";
+import { WalletRepository } from "../repository/wallet/wallet.repository";
+import { IWallet } from "../../database/interfaces/wallet.interface";
 
 class AuthService {
   private tokenService: TokenService;
   private userRepository: UserRepository;
   private scheduleRepository: ScheduleRepository;
+  private walletRepository: WalletRepository;
 
   constructor() {
     this.userRepository = new UserRepository();
     this.tokenService = new TokenService();
     this.scheduleRepository = new ScheduleRepository();
+    this.walletRepository = new WalletRepository();
   }
 
   myDetail = async (userId: string): Promise<IUser | null> => {
@@ -59,6 +64,7 @@ class AuthService {
       const data = await this.userRepository.create<IUser>(user);
       const userId = new mongoose.Types.ObjectId(data._id!);
       const tokenResponse = await this.tokenService.create(userId, role);
+      // await this.walletRepository.create({ user: data._id } as IWallet);
       return ResponseHelper.sendSignTokenResponse(
         201,
         SUCCESS_REGISTRATION_PASSED,

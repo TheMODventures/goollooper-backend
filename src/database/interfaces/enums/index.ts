@@ -175,3 +175,10 @@ export enum ETICKET_STATUS {
   COMPLETED = "completed",
   CLOSED = "closed",
 }
+
+export enum TOPUP_METHOD {
+  CARD = "card",
+  PAYPAL = "paypal",
+  GOOGLE_PAY = "google-pay",
+  APPLE_PAY = "apple-pay",
+}

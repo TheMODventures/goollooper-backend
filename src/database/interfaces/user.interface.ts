@@ -13,6 +13,7 @@ interface Location {
   type: string;
   coordinates: [number, number];
   state?: string;
+  zipCode?: string;
   city?: string;
   county?: string;
   isSelected: string;
@@ -104,6 +105,9 @@ export interface IUser {
   isContactPermission?: boolean;
   callToken?: string;
   callDeviceType?: string;
+  stripeCustomerId?: string;
+  stripeConnectId?: string;
+  wallet?: string;
 }
 
 export interface IUserWithSchedule extends IUser {

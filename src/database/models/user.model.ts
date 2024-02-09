@@ -89,6 +89,7 @@ const userModel: Schema = new Schema(
       type: { type: String, enum: ["Point"], default: "Point" },
       coordinates: { type: [Number, Number], default: [0, 0] },
       state: { type: String, default: null },
+      zipCode: { type: String, default: null },
       city: { type: String, default: null },
       county: { type: String, default: null },
       readableLocation: { type: String, default: null },
@@ -134,6 +135,9 @@ const userModel: Schema = new Schema(
     isContactPermission: { type: Boolean, default: true },
     callToken: { type: String, default: null },
     callDeviceType: { type: String, default: null },
+    stripeCustomerId: { type: String, default: null },
+    stripeConnectId: { type: String, default: null },
+    wallet: { type: Schema.Types.ObjectId, ref: "Wallet", default: null },
   },
   schemaOptions
 );

@@ -95,6 +95,7 @@ const updateRule = yup.object().shape({
             coordinates: yup.array().of(yup.string()).length(2),
             state: yup.string().notRequired(),
             city: yup.string().notRequired(),
+            zipCode: yup.string().notRequired(),
             county: yup.string().notRequired(),
             isSelected: yup.string(),
             readableLocation: yup.string(),

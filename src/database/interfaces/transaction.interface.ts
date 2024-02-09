@@ -6,6 +6,7 @@ import { TransactionType } from "./enums";
 export interface ITransaction extends JwtToken {
   _id?: mongoose.Types.ObjectId | string;
   user: mongoose.Types.ObjectId | string;
+  wallet: mongoose.Types.ObjectId | string;
   amount: number;
   type: TransactionType;
   task?: mongoose.Types.ObjectId | string;
