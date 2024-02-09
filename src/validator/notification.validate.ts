@@ -42,8 +42,15 @@ const createRule = yup.object().shape({
   query: yup.object().noUnknown(),
 });
 
+const deleteRule = yup.object().shape({
+  params: yup.object().shape(paramRule).noUnknown(),
+  body: yup.object().shape({}).noUnknown(),
+  query: yup.object().noUnknown(),
+});
+
 export = {
   "/": indexRule,
   "/show": showRule,
   "/send": createRule,
+  "/delete": deleteRule,
 };
