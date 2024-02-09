@@ -34,4 +34,5 @@ export const {
   APP_CERTIFICATE,
   STRIPE_WEBHOOK_SECRET,
   STRIPE_SECRET_KEY,
+  AGORA_HEADER_TOKEN,
 } = process.env;

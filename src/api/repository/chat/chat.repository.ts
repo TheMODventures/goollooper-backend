@@ -1,3 +1,4 @@
+import axios, { AxiosResponse } from "axios";
 import { ObjectId } from "bson";
 import { Server } from "socket.io";
 import { RtcRole, RtcTokenBuilder } from "agora-access-token";
@@ -34,13 +35,13 @@ import {
   PushNotification,
 } from "../../helpers/notification.helper";
 import {
+  AGORA_HEADER_TOKEN,
   APP_CERTIFICATE,
   APP_ID,
   IOS_KEY,
   IOS_KEY_ID,
   IOS_TEAM_ID,
 } from "../../../config/environment.config";
-import AgoraRTC, { ClientConfig } from "agora-rtc-sdk-ng";
 
 export class ChatRepository
   extends BaseRepository<IChat, IChatDoc>
@@ -1459,7 +1460,8 @@ export class ChatRepository
         APP_ID as string,
         APP_CERTIFICATE as string,
         channelName as string,
-        uid as string,
+        convertTo32BitInt(uid as string).toString(),
+        // uid as string,
         role,
         privilegeExpiredTs
       );
@@ -1470,95 +1472,103 @@ export class ChatRepository
       if (notifyOther) {
         if (calleeID?.length) {
           calleeID?.forEach((calleeID: string) => {
-            this.userRepository.getCallToken(calleeID).then((v: any) => {
-              if (v)
-                this.userRepository
-                  .getById(userId)
-                  .then(({ firstName, lastName }: any) => {
-                    if ((v as any).callDeviceType === ECALLDEVICETYPE.ios) {
-                      const callerInfo = {
-                        chatId: req.query.channelName,
-                        title: firstName + " " + lastName,
-                        isGroup: req.body?.isGroup ? true : false,
-                        participants: req.body?.participants,
-                      };
-                      const info = JSON.stringify({
-                        callerInfo,
-                        videoSDKInfo: {},
-                        type: "CALL_INITIATED",
-                      });
-
-                      // let deviceToken = calleeInfo.APN;
-
-                      // TODO: change environement i.e: production or debug
-                      const options: any = {
-                        token: {
-                          key: IOS_KEY, // path of .p8 file
-                          keyId: IOS_KEY_ID,
-                          teamId: IOS_TEAM_ID,
-                        },
-                        production: false,
-                      };
-
-                      var apnProvider = new apn.Provider({ ...options } as any);
-
-                      var note = new apn.Notification();
-
-                      note.expiry = Math.floor(Date.now() / 1000) + 3600; // Expires 1 hour from now.
-                      note.badge = 1;
-                      note.sound = "ping.aiff";
-                      note.alert = "You have a new message";
-                      note.rawPayload = {
-                        callerName: callerInfo?.title ?? "hello",
-                        aps: {
-                          "content-available": 1,
-                        },
-                        handle: callerInfo?.title ?? "hello",
-                        callerInfo,
-                        videoSDKInfo,
-                        data: { info, type: "CALL_INITIATED" },
-                        type: "CALL_INITIATED",
-                        uuid: uuid(),
-                      };
-                      // note.pushType = "voip";
-                      note.topic = "org.goollooper.app.voip";
-                      apnProvider
-                        .send(note, v.callToken)
-                        .then((result: any) => {
-                          console.log("RESULT", result);
-                          if (result.failed && result.failed.length > 0) {
-                            console.log("FAILED", result.failed);
-                          }
-                        });
-                    } else {
-                      const info = JSON.stringify({
-                        callerInfo: {
+            this.userRepository.getCallToken(calleeID).then(async (v: any) => {
+              if (v) {
+                const isInCall = await this.checkInChannelStatus(
+                  convertTo32BitInt(calleeID),
+                  channelName as string
+                );
+                if (!isInCall)
+                  this.userRepository
+                    .getById(userId)
+                    .then(({ firstName, lastName }: any) => {
+                      if ((v as any).callDeviceType === ECALLDEVICETYPE.ios) {
+                        const callerInfo = {
                           chatId: req.query.channelName,
                           title: firstName + " " + lastName,
                           isGroup: req.body?.isGroup ? true : false,
                           participants: req.body?.participants,
-                        },
-                        videoSDKInfo: {},
-                        type: "CALL_INITIATED",
-                      });
-                      const message = {
-                        data: { info },
-                        android: { priority: "high" },
-                        registration_ids: [v.callToken],
-                      };
-                      NotificationHelper.sendNotification({
-                        data: message.data,
-                        tokens: message.registration_ids,
-                      } as PushNotification);
-                      // fcm.send(message, function (err, res) {
-                      //   if (err) {
-                      //     console.log("Error: " + err);
-                      //   } else {
-                      //     console.log("Success: " + res);
-                      //   }
-                      // });
-                    }
-                  });
+                        };
+                        const info = JSON.stringify({
+                          callerInfo,
+                          videoSDKInfo: {},
+                          type: "CALL_INITIATED",
+                        });
+
+                        // let deviceToken = calleeInfo.APN;
+
+                        // TODO: change environement i.e: production or debug
+                        const options: any = {
+                          token: {
+                            key: IOS_KEY, // path of .p8 file
+                            keyId: IOS_KEY_ID,
+                            teamId: IOS_TEAM_ID,
+                          },
+                          production: false,
+                        };
+
+                        var apnProvider = new apn.Provider({
+                          ...options,
+                        } as any);
+
+                        var note = new apn.Notification();
+
+                        note.expiry = Math.floor(Date.now() / 1000) + 3600; // Expires 1 hour from now.
+                        note.badge = 1;
+                        note.sound = "ping.aiff";
+                        note.alert = "You have a new message";
+                        note.rawPayload = {
+                          callerName: callerInfo?.title ?? "hello",
+                          aps: {
+                            "content-available": 1,
+                          },
+                          handle: callerInfo?.title ?? "hello",
+                          callerInfo,
+                          videoSDKInfo,
+                          data: { info, type: "CALL_INITIATED" },
+                          type: "CALL_INITIATED",
+                          uuid: uuid(),
+                        };
+                        // note.pushType = "voip";
+                        note.topic = "org.goollooper.app.voip";
+                        apnProvider
+                          .send(note, v.callToken)
+                          .then((result: any) => {
+                            console.log("RESULT", result);
+                            if (result.failed && result.failed.length > 0) {
+                              console.log("FAILED", result.failed);
+                            }
+                          });
+                      } else {
+                        const info = JSON.stringify({
+                          callerInfo: {
+                            chatId: req.query.channelName,
+                            title: firstName + " " + lastName,
+                            isGroup: req.body?.isGroup ? true : false,
+                            participants: req.body?.participants,
+                          },
+                          videoSDKInfo: {},
+                          type: "CALL_INITIATED",
+                        });
+                        const message = {
+                          data: { info },
+                          android: { priority: "high" },
+                          registration_ids: [v.callToken],
+                        };
+                        NotificationHelper.sendNotification({
+                          data: message.data,
+                          tokens: message.registration_ids,
+                        } as PushNotification);
+                        // fcm.send(message, function (err, res) {
+                        //   if (err) {
+                        //     console.log("Error: " + err);
+                        //   } else {
+                        //     console.log("Success: " + res);
+                        //   }
+                        // });
+                      }
+                    });
+              }
             });
           });
         }
@@ -1683,6 +1693,43 @@ export class ChatRepository
     if (user)
       return ResponseHelper.sendSuccessResponse("Call token updated", user);
     return ResponseHelper.sendResponse(400, "Call token update failed");
+  }
+
+  async checkInChannelStatus(user: Number, channel: string): Promise<boolean> {
+    try {
+      const apiUrl = `https://api.agora.io/dev/v1/channel/user/property/${APP_ID}/${user}/${channel}`;
+      const response: AxiosResponse<{
+        data: { in_channel: boolean };
+        success: boolean;
+      }> = await axios.get(apiUrl, {
+        headers: {
+          Authorization: `Basic ${AGORA_HEADER_TOKEN}`,
+        },
+      });
+      console.log(response.data);
+      if (response.data.success) {
+        return response.data.data.in_channel;
+      } else {
+        // Handle API response error
+        console.error("API request unsuccessful:", response.data);
+        return false;
+      }
+    } catch (error) {
+      // Handle Axios request error
+      console.error("Axios request error:", error);
+      return false;
+    }
+  }
+}
+
+function convertTo32BitInt(hexValue: string): Number {
+  try {
+    const originalInt64 = BigInt(`0x${hexValue}`);
+    const lower32Bits = originalInt64 & BigInt(0xffffffff);
+    return Number(lower32Bits);
+  } catch (error) {
+    console.error("Error converting to 32-bit integer:", error);
+    return NaN; // Indicate an error by returning NaN
   }
 }
 
