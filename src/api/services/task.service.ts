@@ -14,8 +14,8 @@ import { TaskRepository } from "../repository/task/task.repository";
 import { GolistRepository } from "../repository/golist/golist.repository";
 import { CalendarRepository } from "../repository/calendar/calendar.repository";
 import { ChatRepository } from "../repository/chat/chat.repository";
+import { UserRepository } from "../repository/user/user.repository";
 import { ITask, ITaskPayload } from "../../database/interfaces/task.interface";
-import { UploadHelper } from "../helpers/upload.helper";
 import { IGolist } from "../../database/interfaces/golist.interface";
 import {
   ECALENDARTaskType,
@@ -24,6 +24,8 @@ import {
   TaskType,
 } from "../../database/interfaces/enums";
 import { ICalendar } from "../../database/interfaces/calendar.interface";
+import { IUser } from "../../database/interfaces/user.interface";
+import { UploadHelper } from "../helpers/upload.helper";
 import { ModelHelper } from "../helpers/model.helper";
 import NotificationService, {
   NotificationParams,
@@ -36,12 +38,14 @@ class TaskService {
   private notificationService: NotificationService;
   private uploadHelper: UploadHelper;
   private chatRepository: ChatRepository;
+  private userRepository: UserRepository;
 
   constructor() {
     this.taskRepository = new TaskRepository();
     this.golistRepository = new GolistRepository();
     this.calendarRepository = new CalendarRepository();
     this.chatRepository = new ChatRepository();
+    this.userRepository = new UserRepository();
     this.notificationService = new NotificationService();
 
     this.uploadHelper = new UploadHelper("task");
@@ -401,12 +405,18 @@ class TaskService {
       if (response === null) {
         return ResponseHelper.sendResponse(404);
       }
-
+      let userData: IUser | null = await this.userRepository.getById(
+        user,
+        undefined,
+        "firstName"
+      );
       this.notificationService.createAndSendNotification({
         senderId: user,
         receiverId: response.postedBy,
         type: ENOTIFICATION_TYPES.TASK_REQUEST,
         data: { task: response?._id?.toString() },
+        ntitle: "Task Request",
+        nbody: `${userData?.firstName} has requested to be added to the task`,
       } as NotificationParams);
 
       return ResponseHelper.sendSuccessResponse(
@@ -448,6 +458,11 @@ class TaskService {
       );
 
       if (response && status == ETaskUserStatus.ACCEPTED) {
+        let loggedInUserData: IUser | null = await this.userRepository.getById(
+          loggedInUser,
+          undefined,
+          "firstName"
+        );
         await this.calendarRepository.create({
           user,
           task: response._id,
@@ -459,6 +474,8 @@ class TaskService {
           receiverId: user,
           type: ENOTIFICATION_TYPES.TASK_ACCEPTED,
           data: { task: response._id?.toString() },
+          ntitle: "Task Accepted",
+          nbody: `${loggedInUserData?.firstName} accepted your task request`,
         } as NotificationParams);
       } else if (response && status == ETaskUserStatus.REJECTED) {
         await this.calendarRepository.deleteMany({
