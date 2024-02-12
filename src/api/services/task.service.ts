@@ -457,12 +457,12 @@ class TaskService {
         { arrayFilters: [{ "users.user": new ObjectId(user) }] }
       );
 
+      let loggedInUserData: IUser | null = await this.userRepository.getById(
+        loggedInUser,
+        undefined,
+        "firstName"
+      );
       if (response && status == ETaskUserStatus.ACCEPTED) {
-        let loggedInUserData: IUser | null = await this.userRepository.getById(
-          loggedInUser,
-          undefined,
-          "firstName"
-        );
         await this.calendarRepository.create({
           user,
           task: response._id,
@@ -482,6 +482,14 @@ class TaskService {
           user: new ObjectId(user),
           task: response._id,
         });
+        this.notificationService.createAndSendNotification({
+          senderId: response.postedBy,
+          receiverId: user,
+          type: ENOTIFICATION_TYPES.TASK_REJECTED,
+          data: { task: response._id?.toString() },
+          ntitle: "Task Rejected",
+          nbody: `${loggedInUserData?.firstName} rejected your task request`,
+        } as NotificationParams);
       }
 
       if (response === null) {
