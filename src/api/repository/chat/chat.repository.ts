@@ -1433,9 +1433,7 @@ export class ChatRepository
       NotificationHelper.sendNotification({
         title: data.title,
         body:
-          data.urls?.length !== 0 && !(data.body === "" || data.body === null)
-            ? "sent a photo"
-            : data.body,
+          data.urls?.length !== 0 && !data.body ? "sent a photo" : data.body,
         tokens: e.fcmTokens,
         data: { chatId: data.chatId.toString(), user: e._id.toString() },
       });
