@@ -67,15 +67,21 @@ class TaskService {
     taskInterests: string[],
     user: string,
     page: number,
-    limit: number
+    limit: number,
+    title?: string
   ): Promise<ApiResponse> => {
     try {
-      const match: any = { postedBy: { $ne: new ObjectId(user) } };
+      const match: any = {
+        postedBy: { $ne: new ObjectId(user) },
+      };
       match.isDeleted = false;
       if (taskInterests?.length > 0)
         match.taskInterests = {
           $in: taskInterests.map((e) => new ObjectId(e)),
         };
+      if (title) {
+        match.title = { $regex: title, $options: "i" };
+      }
       const query = [
         {
           $match: match,
@@ -255,6 +261,29 @@ class TaskService {
       }
       const data = await this.taskRepository.create<ITask>(payload);
 
+      if (
+        payload.type === TaskType.megablast &&
+        payload.taskInterests?.length
+      ) {
+        let users = await this.userRepository.getAll({
+          volunteer: { $in: payload.taskInterests },
+        });
+        users?.map(async (user: any) => {
+          await this.calendarRepository.create({
+            user: user?._id,
+            task: data._id,
+            date: data.date,
+          } as ICalendar);
+          await this.notificationService.createAndSendNotification({
+            senderId: payload.postedBy,
+            receiverId: user?._id,
+            type: ENOTIFICATION_TYPES.ANNOUNCEMENT,
+            data: { task: data?._id?.toString() },
+            ntitle: "Volunteer Work",
+            nbody: payload.title,
+          } as NotificationParams);
+        });
+      }
       if (
         payload.type === TaskType.normal &&
         payload.goListServiceProviders.length
