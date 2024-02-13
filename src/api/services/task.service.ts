@@ -491,6 +491,7 @@ class TaskService {
         undefined,
         "firstName"
       );
+      let chatId;
       if (response && status == ETaskUserStatus.ACCEPTED) {
         await this.calendarRepository.create({
           user,
@@ -506,7 +507,7 @@ class TaskService {
           ntitle: "Task Accepted",
           nbody: `${loggedInUserData?.firstName} accepted your task request`,
         } as NotificationParams);
-        await this.chatRepository.addChatForTask({
+        chatId = await this.chatRepository.addChatForTask({
           user: loggedInUser,
           task: _id as string,
           participant: user,
@@ -531,10 +532,10 @@ class TaskService {
       if (response === null) {
         return ResponseHelper.sendResponse(404);
       }
-      return ResponseHelper.sendSuccessResponse(
-        SUCCESS_DATA_UPDATION_PASSED,
-        response
-      );
+      return ResponseHelper.sendSuccessResponse(SUCCESS_DATA_UPDATION_PASSED, {
+        response,
+        chat: chatId,
+      });
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
