@@ -255,6 +255,18 @@ class TaskService {
       }
       const data = await this.taskRepository.create<ITask>(payload);
 
+      if (
+        payload.type === TaskType.normal &&
+        payload.goListServiceProviders.length
+      ) {
+        payload.goListServiceProviders.map(async (user) => {
+          await this.calendarRepository.create({
+            user: user,
+            task: data._id,
+            date: data.date,
+          } as ICalendar);
+        });
+      }
       await this.calendarRepository.create({
         user: payload.postedBy as string,
         task: data._id,
