@@ -222,9 +222,13 @@ class TaskService {
         payload.goList = {
           goListId: payload.goList as string,
           title: goList.title,
-          serviceProviders: payload.goListServiceProviders as ObjectId[],
+          serviceProviders: payload.goListServiceProviders?.map((user) => ({
+            user: user as ObjectId,
+            status: ETaskUserStatus.STANDBY,
+          })),
           taskInterests: goList.taskInterests,
         };
+        payload.pendingCount = payload.goListServiceProviders.length;
       }
 
       if (payload.subTasks?.length) {
@@ -251,19 +255,6 @@ class TaskService {
       }
       const data = await this.taskRepository.create<ITask>(payload);
 
-      if (payload.type !== TaskType.megablast)
-        await this.chatRepository.createChatForTask({
-          user: userId,
-          task: data._id as string,
-          participants:
-            [
-              new ObjectId(userId),
-              ...(payload.goListServiceProviders as ObjectId[]),
-            ] ?? [],
-          groupName: payload.title,
-        });
-
-      // if (data.type === TaskType.event)
       await this.calendarRepository.create({
         user: payload.postedBy as string,
         task: data._id,
@@ -320,7 +311,10 @@ class TaskService {
         dataset.goList = {
           goListId: dataset.goList as string,
           title: goList.title,
-          serviceProviders: dataset?.goListServiceProviders as ObjectId[],
+          serviceProviders: dataset.goListServiceProviders?.map((user) => ({
+            user: user as ObjectId,
+            status: ETaskUserStatus.STANDBY,
+          })) as any,
           taskInterests: goList.taskInterests,
         };
       }
@@ -432,13 +426,24 @@ class TaskService {
     _id: string,
     loggedInUser: string,
     user: string,
-    status: number
+    status: number,
+    type: string
   ) => {
     try {
-      const isExist = await this.taskRepository.exists({
-        _id: new ObjectId(_id),
-        users: { $elemMatch: { user: new ObjectId(user), status } },
-      });
+      let isExist;
+      if (type === "goList") {
+        isExist = await this.taskRepository.exists({
+          _id: new ObjectId(_id),
+          "goList.serviceProviders": {
+            $elemMatch: { user: new ObjectId(user), status },
+          },
+        });
+      } else {
+        isExist = await this.taskRepository.exists({
+          _id: new ObjectId(_id),
+          users: { $elemMatch: { user: new ObjectId(user), status } },
+        });
+      }
       if (isExist)
         return ResponseHelper.sendResponse(422, `Status is already ${status}`);
       const updateCount: any = { $inc: {} };
@@ -448,14 +453,26 @@ class TaskService {
         updateCount["$inc"].pendingCount = -1;
         updateCount["$inc"].acceptedCount = 1;
       }
-      const response = await this.taskRepository.updateByOne<ITask>(
-        { _id: new ObjectId(_id) },
-        {
-          $set: { "users.$[users].status": status },
-          ...updateCount,
-        },
-        { arrayFilters: [{ "users.user": new ObjectId(user) }] }
-      );
+      let response;
+      if (type === "goList") {
+        response = await this.taskRepository.updateByOne<ITask>(
+          { _id: new ObjectId(_id) },
+          {
+            $set: { "goList.serviceProviders.$[providers].status": status },
+            ...updateCount,
+          },
+          { arrayFilters: [{ "providers.user": new ObjectId(user) }] }
+        );
+      } else {
+        response = await this.taskRepository.updateByOne<ITask>(
+          { _id: new ObjectId(_id) },
+          {
+            $set: { "users.$[users].status": status },
+            ...updateCount,
+          },
+          { arrayFilters: [{ "users.user": new ObjectId(user) }] }
+        );
+      }
 
       let loggedInUserData: IUser | null = await this.userRepository.getById(
         loggedInUser,
@@ -477,6 +494,13 @@ class TaskService {
           ntitle: "Task Accepted",
           nbody: `${loggedInUserData?.firstName} accepted your task request`,
         } as NotificationParams);
+        await this.chatRepository.addChatForTask({
+          user: loggedInUser,
+          task: _id as string,
+          participant: user,
+          groupName: response?.title,
+          noOfServiceProvider: response.noOfServiceProvider,
+        });
       } else if (response && status == ETaskUserStatus.REJECTED) {
         await this.calendarRepository.deleteMany({
           user: new ObjectId(user),

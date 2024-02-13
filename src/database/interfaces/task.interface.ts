@@ -1,7 +1,7 @@
 import mongoose, { Document } from "mongoose";
 import { Moment } from "moment";
 
-import { ETaskStatus, TaskType } from "./enums";
+import { ETaskStatus, ETaskUserStatus, TaskType } from "./enums";
 
 interface Location {
   coordinates: [number, number];
@@ -17,9 +17,12 @@ interface Slot {
   };
 }
 
-interface GoList {
+export interface GoList {
   title: string;
-  serviceProviders: mongoose.Types.ObjectId[];
+  serviceProviders: {
+    user: mongoose.Types.ObjectId;
+    status: ETaskUserStatus;
+  }[];
   taskInterests?: mongoose.Types.ObjectId[];
   goListId: string;
 }
@@ -48,14 +51,16 @@ export interface ITask {
   myList: string[];
   subTasks: SubTask[];
   postedBy: string;
-  isDeleted?: boolean;
   gender?: string;
   ageFrom?: number;
   ageTo?: number;
+  pendingCount?: number;
+  acceptedCount?: number;
   status?: ETaskStatus;
   endDate?: Date | Moment;
   createdAt?: Date | Moment;
   updatedAt?: Date | Moment;
+  isDeleted?: boolean;
 }
 
 export interface ITaskPayload {
@@ -79,6 +84,8 @@ export interface ITaskPayload {
   gender?: string;
   ageFrom?: number;
   ageTo?: number;
+  pendingCount?: number;
+  acceptedCount?: number;
   status?: ETaskStatus;
   endDate?: Date | Moment;
 }

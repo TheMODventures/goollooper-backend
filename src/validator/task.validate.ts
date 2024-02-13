@@ -240,6 +240,7 @@ const toggleRequestRule = yup.object().shape({
           ETaskUserStatus.STANDBY,
         ])
         .required(),
+      type: yup.string().oneOf(["goList", "user"]).required(),
     })
     .noUnknown(),
   query: yup.object().noUnknown(),

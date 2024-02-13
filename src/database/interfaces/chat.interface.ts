@@ -69,9 +69,10 @@ export interface IChatPayload {
   createdBy?: string | Types.ObjectId;
   messages?: IMessage[];
   lastUpdatedAt?: Date;
-  participants: string[] | Types.ObjectId[];
+  participant: string | Types.ObjectId;
   task: string | Types.ObjectId;
   user: string | Types.ObjectId;
+  noOfServiceProvider: number;
   requests?: IRequest[];
   deleted?: boolean;
   deletedAt?: Date;
