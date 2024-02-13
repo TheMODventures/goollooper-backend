@@ -12,14 +12,15 @@ class TaskController {
   }
 
   index = async (req: Request, res: Response) => {
-    const { limit, page, name = "" } = req.query;
+    const { limit, page, title = "" } = req.query;
     const limitNow = limit ? limit : 10;
 
     const response = await this.taskService.index(
       req.body.taskInterests as string[],
       req.locals.auth?.userId as string,
       Number(page),
-      Number(limitNow)
+      Number(limitNow),
+      title as string
     );
     return res.status(response.code).json(response);
   };
