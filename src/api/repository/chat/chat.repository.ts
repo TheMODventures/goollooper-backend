@@ -1213,71 +1213,111 @@ export class ChatRepository
     }
   }
 
-  async createChatForTask(payload: IChatPayload) {
+  async addChatForTask(payload: IChatPayload) {
     try {
-      let payloadData: any = payload;
       let messages: IMessage[] = [];
-      if (payload.participants.length && payload.participants.length === 2) {
-        delete payload.groupName;
-        let user = await this.userRepository.getById<IUser>(
-          payload.participants[1] as string
+
+      let user = await this.userRepository.getById<IUser>(
+        payload.participant as string
+      );
+      if (!user)
+        return ResponseHelper.sendResponse(
+          404,
+          `Participant with Id ${payload.participant} not found`
         );
-        if (!user)
-          return ResponseHelper.sendResponse(
-            404,
-            `Participant with Id ${payload.participants[0]} not found`
-          );
+      const isExist = await Chat.exists({
+        task: payload.task,
+        participants: {
+          $elemMatch: { user: new ObjectId(payload.participant) },
+        },
+      });
+      if (isExist)
+        return ResponseHelper.sendResponse(
+          422,
+          `User ${user.firstName} already in chat`
+        );
+
+      if (payload.noOfServiceProvider === 1) {
+        delete payload.groupName;
         payload.chatType = EChatType.ONE_TO_ONE;
         let msg: IMessage = {
           body: `Hey ${
             user?.username || user?.firstName
           }, I think you are a good candidate for this task. I am looking forward in working with you on this task.`,
           sentBy: payload.user,
-          receivedBy: payload.participants
-            .slice(1)
-            .map(
-              (e) => ({ user: e, status: EMessageStatus.SENT } as IReceivedBy)
-            ),
+          receivedBy: [
+            {
+              user: payload.participant,
+              status: EMessageStatus.SENT,
+            } as IReceivedBy,
+          ],
         };
         messages.push(msg);
-      } else if (payload.participants.length) {
+      } else {
         payload.chatType = EChatType.GROUP;
         let msg: IMessage = {
           body: `Hey, I think you guys are good candidates for this task. I am looking forward in working with you all this task.`,
           sentBy: payload.user,
-          receivedBy: payload.participants
-            .slice(1)
-            .map(
-              (e) => ({ user: e, status: EMessageStatus.SENT } as IReceivedBy)
-            ),
+          receivedBy: [
+            {
+              user: payload.participant,
+              status: EMessageStatus.SENT,
+            } as IReceivedBy,
+          ],
         };
         messages.push(msg);
       }
-
-      const data = await Chat.create({
-        ...payload,
-        participants: payload.participants.map((e) => ({
-          user: e,
-          status: EParticipantStatus.ACTIVE,
-        })),
-        messages: messages,
-        createdBy: payload.user,
+      const isChatExist = await Chat.exists({
+        task: payload.task,
       });
-
-      const d = await Chat.aggregate(findUserpipeline({ _id: data._id }));
-      if (this.io)
-        payload.participants.forEach((e) => {
-          this.io?.emit(`createChat/${e}`, {
-            message: "chat created",
-            data: d[0],
-          });
+      let data: any;
+      if (isChatExist) {
+        data = await Chat.updateOne(
+          { _id: isChatExist._id },
+          {
+            $push: {
+              participants: {
+                user: payload.participant,
+                status: EParticipantStatus.ACTIVE,
+              },
+            },
+            lastMessage: messages[0].body,
+            lastUpdatedAt: new Date(),
+          },
+          { new: true }
+        );
+      } else {
+        data = await Chat.create({
+          ...payload,
+          participants: [
+            {
+              user: payload.participant,
+              status: EParticipantStatus.ACTIVE,
+            },
+            {
+              user: payload.user,
+              status: EParticipantStatus.ACTIVE,
+            },
+          ],
+          messages: messages,
+          lastMessage: messages[0].body,
+          createdBy: payload.user,
         });
+      }
+
+      const d = await Chat.aggregate(
+        findUserpipeline({ _id: data?._id || isChatExist?._id })
+      );
+      if (this.io)
+        this.io?.emit(`createChat/${payload.participant}`, {
+          message: "chat created",
+          data: d[0],
+        });
+
       if (payload.chatType === EChatType.GROUP) {
         this.sendNotificationMsg(
           {
-            userIds: payloadData.participants.filter(
-              (item: any) => item !== payload.user
-            ),
+            userIds: payload.participant,
             title: payload.groupName,
             body: "You are added to a group",
             chatId: d[0]._id,

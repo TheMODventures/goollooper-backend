@@ -494,6 +494,13 @@ class TaskService {
           ntitle: "Task Accepted",
           nbody: `${loggedInUserData?.firstName} accepted your task request`,
         } as NotificationParams);
+        await this.chatRepository.addChatForTask({
+          user: loggedInUser,
+          task: _id as string,
+          participant: user,
+          groupName: response?.title,
+          noOfServiceProvider: response.noOfServiceProvider,
+        });
       } else if (response && status == ETaskUserStatus.REJECTED) {
         await this.calendarRepository.deleteMany({
           user: new ObjectId(user),
