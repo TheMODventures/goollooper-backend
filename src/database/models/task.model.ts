@@ -66,13 +66,22 @@ const taskModel: Schema = new Schema(
       title: {
         type: String,
       },
-      serviceProviders: [
-        {
-          type: Schema.Types.ObjectId,
-          required: true,
-          ref: "Users",
-        },
-      ],
+      serviceProviders: {
+        type: [
+          {
+            user: {
+              type: Schema.Types.ObjectId,
+              required: true,
+              ref: "Users",
+            },
+            status: {
+              type: Number,
+              // enum: Object.values(ETaskUserStatus),
+              default: ETaskUserStatus.STANDBY,
+            },
+          },
+        ],
+      },
       taskInterests: [
         {
           type: Schema.Types.ObjectId,

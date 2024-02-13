@@ -73,14 +73,14 @@ class TaskController {
 
   toggleRequest = async (req: Request, res: Response) => {
     const { id } = req.params;
-    const { user, status } = req.body;
+    const { user, status, type } = req.body;
     const response = await this.taskService.toggleRequest(
       id,
       req.locals.auth?.userId as string,
       user as string,
-      status
+      status,
+      type
     );
-    console.log(id);
     return res.status(response.code).json(response);
   };
 }
