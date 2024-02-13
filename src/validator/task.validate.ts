@@ -31,7 +31,7 @@ const indexRule = yup.object().shape({
     .shape({
       page: yup.string().required(),
       limit: yup.string().notRequired(),
-      name: yup.string().notRequired(),
+      title: yup.string().notRequired(),
     })
     .noUnknown(),
 });
@@ -44,7 +44,7 @@ const myTaskRule = yup.object().shape({
     .shape({
       page: yup.string().required(),
       limit: yup.string().notRequired(),
-      type: yup.string().oneOf(["accepted", "created"]).required(),
+      type: yup.string().oneOf(["accepted", "created"]).notRequired(),
     })
     .noUnknown(),
 });

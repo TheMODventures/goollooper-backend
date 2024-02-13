@@ -67,15 +67,21 @@ class TaskService {
     taskInterests: string[],
     user: string,
     page: number,
-    limit: number
+    limit: number,
+    title?: string
   ): Promise<ApiResponse> => {
     try {
-      const match: any = { postedBy: { $ne: new ObjectId(user) } };
+      const match: any = {
+        postedBy: { $ne: new ObjectId(user) },
+      };
       match.isDeleted = false;
       if (taskInterests?.length > 0)
         match.taskInterests = {
           $in: taskInterests.map((e) => new ObjectId(e)),
         };
+      if (title) {
+        match.title = { $regex: title, $options: "i" };
+      }
       const query = [
         {
           $match: match,
