@@ -256,6 +256,29 @@ class TaskService {
       const data = await this.taskRepository.create<ITask>(payload);
 
       if (
+        payload.type === TaskType.megablast &&
+        payload.taskInterests?.length
+      ) {
+        let users = await this.userRepository.getAll({
+          volunteer: { $in: payload.taskInterests },
+        });
+        users?.map(async (user: any) => {
+          await this.calendarRepository.create({
+            user: user?._id,
+            task: data._id,
+            date: data.date,
+          } as ICalendar);
+          await this.notificationService.createAndSendNotification({
+            senderId: payload.postedBy,
+            receiverId: user?._id,
+            type: ENOTIFICATION_TYPES.ANNOUNCEMENT,
+            data: { task: data?._id?.toString() },
+            ntitle: "Volunteer Work",
+            nbody: payload.title,
+          } as NotificationParams);
+        });
+      }
+      if (
         payload.type === TaskType.normal &&
         payload.goListServiceProviders.length
       ) {
