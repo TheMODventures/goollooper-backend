@@ -222,6 +222,11 @@ class NotificationService {
         body = nbody ?? `You accepted #sender's message request`;
         break;
 
+      case ENOTIFICATION_TYPES.ANNOUNCEMENT:
+        title = ntitle ?? `New Announcement`;
+        body = nbody ?? `Task request`;
+        break;
+
       case ENOTIFICATION_TYPES.TASK_ACCEPTED:
         title = ntitle ?? `#sender`;
         body = nbody ?? `#sender accepted your task request`;
