@@ -20,7 +20,7 @@ class CalendarController {
       isDeleted: false,
     };
     if (date !== "") filter.date = date;
-    else filter.date = moment(new Date()).format("YYYY-MM-DD");
+    // else filter.date = moment(new Date()).format("YYYY-MM-DD");
     const response = await this.calendarService.index(
       Number(page),
       Number(limitNow),
