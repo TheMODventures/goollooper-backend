@@ -537,9 +537,9 @@ class TaskService {
           nbody: `${loggedInUserData?.firstName} accepted your task request`,
         } as NotificationParams);
         chatId = await this.chatRepository.addChatForTask({
-          user: user,
+          user: loggedInUser,
           task: _id as string,
-          participant: loggedInUser,
+          participant: user,
           groupName: response?.title,
           noOfServiceProvider: response.noOfServiceProvider,
         });
