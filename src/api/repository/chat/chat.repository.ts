@@ -1495,10 +1495,8 @@ export class ChatRepository
       const currentTimestamp = Math.floor(Date.now() / 1000);
       const privilegeExpiredTs = currentTimestamp + expirationTimeInSeconds;
       const tokenA = RtcTokenBuilder?.buildTokenWithAccount(
-        // APP_ID as string,
-        "6705405756064a18a4d974bda08e3cff",
-        // APP_CERTIFICATE as string,
-        "70db7cca08034482aeadc5497ce10b0d",
+        APP_ID as string,
+        APP_CERTIFICATE as string,
         channelName as string,
         convertTo32BitInt(uid as string).toString(),
         // uid as string,
@@ -1737,7 +1735,7 @@ export class ChatRepository
 
   async checkInChannelStatus(user: Number, channel: string): Promise<boolean> {
     try {
-      const apiUrl = `https://api.agora.io/dev/v1/channel/user/property/6705405756064a18a4d974bda08e3cff/${user}/${channel}`;
+      const apiUrl = `https://api.agora.io/dev/v1/channel/user/property/${APP_ID}/${user}/${channel}`;
       const response: AxiosResponse<{
         data: { in_channel: boolean };
         success: boolean;
