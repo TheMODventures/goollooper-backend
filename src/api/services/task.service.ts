@@ -285,7 +285,7 @@ class TaskService {
         });
       }
       if (
-        payload.type === TaskType.normal &&
+        payload.type !== TaskType.megablast &&
         payload.goListServiceProviders.length
       ) {
         payload.goListServiceProviders.map(async (user) => {

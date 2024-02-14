@@ -95,6 +95,7 @@ const createRule = yup.object().shape({
       type: yup
         .string()
         .oneOf([...Object.values(TaskType).map((value) => value?.toString())])
+        .default(TaskType.normal)
         .notRequired(),
       taskInterests: yup.array().of(yup.string().length(24)).default([]),
       goList: yup.string().length(24).notRequired(),
