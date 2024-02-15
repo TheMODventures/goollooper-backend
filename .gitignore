@@ -11,3 +11,4 @@ dbconfig.js
 my.txt
 src/api/helpers/goollooper-service.json
 .prod.env
+test.js
