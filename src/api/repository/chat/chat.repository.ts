@@ -1506,7 +1506,7 @@ export class ChatRepository
       // const tokenA = "";
 
       console.log("Token with integer number Uid: " + tokenA);
-
+      const chat = await Chat.findById(channelName).select("-messages");
       if (notifyOther) {
         if (calleeID?.length) {
           calleeID?.forEach((calleeID: string) => {
@@ -1523,7 +1523,10 @@ export class ChatRepository
                       if ((v as any).callDeviceType === ECALLDEVICETYPE.ios) {
                         const callerInfo = {
                           chatId: req.query.channelName,
-                          title: firstName + " " + lastName,
+                          title:
+                            chat?.chatType === EChatType.GROUP
+                              ? chat?.groupName
+                              : firstName + " " + lastName,
                           isGroup: req.body?.isGroup ? true : false,
                           participants: req.body?.participants,
                         };
@@ -1581,7 +1584,10 @@ export class ChatRepository
                         const info = JSON.stringify({
                           callerInfo: {
                             chatId: req.query.channelName,
-                            title: firstName + " " + lastName,
+                            title:
+                              chat?.chatType === EChatType.GROUP
+                                ? chat?.groupName
+                                : firstName + " " + lastName,
                             isGroup: req.body?.isGroup ? true : false,
                             participants: req.body?.participants,
                           },
