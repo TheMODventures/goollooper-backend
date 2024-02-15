@@ -1280,6 +1280,10 @@ export class ChatRepository
                 user: payload.participant,
                 status: EParticipantStatus.ACTIVE,
               },
+              "messages.$[].receivedBy": {
+                user: payload.participant,
+                status: EMessageStatus.SENT,
+              },
             },
             lastMessage: messages[0].body,
             lastUpdatedAt: new Date(),
