@@ -1498,8 +1498,8 @@ export class ChatRepository
         APP_ID as string,
         APP_CERTIFICATE as string,
         channelName as string,
-        convertTo32BitInt(uid as string).toString(),
-        // uid as string,
+        // convertTo32BitInt(uid as string).toString(),
+        uid as string,
         role,
         privilegeExpiredTs
       );
