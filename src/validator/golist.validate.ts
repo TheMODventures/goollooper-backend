@@ -82,7 +82,9 @@ const indexRule = yup.object().shape({
 const showRule = yup.object().shape({
   params: yup.object().shape(paramRule).noUnknown(),
   body: yup.object().shape({}).noUnknown(),
-  query: yup.object().noUnknown(),
+  query: yup
+    .object({ latitude: yup.string(), longitude: yup.string() })
+    .noUnknown(),
 });
 
 const updateRule = yup.object().shape({
