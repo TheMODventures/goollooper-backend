@@ -77,21 +77,57 @@ class GolistService {
 
   show = async (
     _id: string,
+    coordinates?: [number, number],
     populate?: PopulateOptions | (PopulateOptions | string)[]
   ): Promise<ApiResponse> => {
     try {
       const filter = {
-        _id: _id,
+        _id: new ObjectId(_id),
       };
-      const response = await this.golistRepository.getOne<IGolist>(
+      const response: any = await this.golistRepository.getOne<IGolist>(
         filter,
         undefined,
         undefined,
-        populate
+        undefined
       );
       if (response === null) {
         return ResponseHelper.sendResponse(404);
       }
+      const query: PipelineStage[] = [];
+      if (coordinates) {
+        query.push({
+          $geoNear: {
+            near: {
+              type: "Point",
+              coordinates: coordinates ?? ([67.0, 24.0] as [number, number]),
+            },
+            distanceField: "distance",
+            spherical: true,
+            // maxDistance: 10000,
+            query: { _id: { $in: response?.serviceProviders } },
+          },
+        });
+      }
+      query.push(
+        ...[
+          { $match: { _id: { $in: response?.serviceProviders } } },
+          {
+            $project: {
+              username: 1,
+              firstName: 1,
+              lastName: 1,
+              email: 1,
+              phone: 1,
+              profileImage: 1,
+              distance: 1,
+            },
+          },
+        ]
+      );
+      const serviceProviders = await this.userRepository.getDataByAggregate(
+        query
+      );
+      response.serviceProviders = serviceProviders;
       return ResponseHelper.sendSuccessResponse(
         SUCCESS_DATA_SHOW_PASSED,
         response
