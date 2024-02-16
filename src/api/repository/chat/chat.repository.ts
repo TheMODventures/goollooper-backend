@@ -1150,9 +1150,8 @@ export class ChatRepository
         ModelHelper.userSelect
       );
       users.forEach((e: any) => {
-        if (e._id.toString() !== user)
-          usernames += `${e.firstName ?? ""} ${e.lastName ?? ""}, `;
-        else createdByUsername = `${e.firstName ?? ""} ${e.lastName ?? ""}`;
+        if (e._id.toString() !== user) usernames += `${e.firstName ?? ""}, `;
+        else createdByUsername = `${e.firstName ?? ""}`;
       });
       participantIds.forEach(async (participant: string) => {
         const welcomeMessageBody = `you ${
@@ -1169,7 +1168,12 @@ export class ChatRepository
         };
 
         if (participant !== user) {
-          welcomeMessage.body = `${createdByUsername} started a chat with you`;
+          welcomeMessage.body = `you started a chat with ${users
+            .map((e: any) =>
+              e?._id.toString() === participant ? "" : e.firstName ?? ""
+            )
+            .filter((e) => e !== "")
+            .join(", ")}`;
         }
 
         messages.push(welcomeMessage);
