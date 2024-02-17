@@ -145,6 +145,7 @@ export class ChatRepository
             participants: { $first: "$participantsData" },
             totalCount: { $first: "$totalCount" },
             unReadCount: { $first: "$unReadCount" },
+            createdBy: { $first: "$createdBy" },
           },
         },
         {
@@ -298,6 +299,7 @@ export class ChatRepository
             participants: { $first: "$participants" },
             totalCount: { $first: "$totalCount" },
             unReadCount: { $first: "$unReadCount" },
+            createdBy: { $first: "$createdBy" },
           },
         },
         {
@@ -575,14 +577,6 @@ export class ChatRepository
           }
         }
       });
-      // console.log(userIds);
-      const chatObj = await Chat.findById(chatId, [
-        ModelHelper.populateData(
-          "participants.user",
-          ModelHelper.userSelect,
-          "Users"
-        ),
-      ]);
       this.sendNotificationMsg(
         {
           userIds,
@@ -590,7 +584,6 @@ export class ChatRepository
           body: messageBody,
           chatId,
           urls,
-          participants: chatObj?.participants,
           chatType: chat.chatType,
           groupName: chat?.groupName,
         },
@@ -1228,6 +1221,361 @@ export class ChatRepository
     }
   }
 
+  async getAllChats(
+    user: string,
+    page = 1,
+    pageSize = 20,
+    chatSupport = false,
+    chatId = null,
+    search?: string
+  ) {
+    try {
+      const skip = (page - 1) * pageSize;
+      const currentUserId = new ObjectId(user);
+      const chatSupportPip: any = {
+        isChatSupport: chatSupport == true,
+      };
+      if (chatId) chatSupportPip._id = new ObjectId(chatId);
+      const query: any = [
+        {
+          $match: {
+            ...chatSupportPip,
+            $or: [
+              {
+                $and: [
+                  { "participants.user": currentUserId },
+                  { "participants.status": EParticipantStatus.ACTIVE },
+                  { chatType: EChatType.ONE_TO_ONE },
+                ],
+              },
+              {
+                $and: [
+                  {
+                    $or: [
+                      { "participants.user": currentUserId },
+                      { "messages.receivedBy.user": currentUserId },
+                      { "messages.sentBy": currentUserId },
+                    ],
+                  },
+                  { chatType: EChatType.GROUP },
+                ],
+              },
+            ],
+          },
+        },
+        { $sort: { lastUpdatedAt: -1 } },
+        { $skip: skip },
+      ];
+
+      const remainingQuery = [
+        { $limit: parseInt(pageSize.toString()) },
+        {
+          $lookup: {
+            from: "users",
+            let: { participantIds: "$participants.user" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $in: ["$_id", "$$participantIds"],
+                  },
+                },
+              },
+              {
+                $project: {
+                  firstName: 1,
+                  lastName: 1,
+                  email: 1,
+                  profileImage: 1,
+                },
+              },
+            ],
+            as: "participantsData",
+          },
+        },
+        {
+          $unwind: { path: "$messages", preserveNullAndEmptyArrays: true },
+        },
+        {
+          $group: {
+            _id: "$_id", // Unique identifier for the chat
+            chatType: { $first: "$chatType" },
+            isTicketClosed: { $first: "$isTicketClosed" },
+            isChatSupport: { $first: "$isChatSupport" },
+            groupName: { $first: "$groupName" },
+            participantUsernames: { $first: "$participantUsernames" },
+            totalMessages: { $first: "$totalMessages" },
+            messages: { $push: "$messages" }, // Push the messages into an array again
+            lastMessage: { $last: "$messages" }, // Get the last message as before
+            participants: { $first: "$participantsData" },
+            totalCount: { $first: "$totalCount" },
+            unReadCount: { $first: "$unReadCount" },
+            createdBy: { $first: "$createdBy" },
+          },
+        },
+        {
+          $addFields: {
+            messages: {
+              // $slice: [
+              //   {
+              $filter: {
+                input: "$messages",
+                cond: {
+                  $or: [
+                    {
+                      $and: [
+                        { $eq: ["$$this.sentBy", currentUserId] },
+                        { $ne: ["$$this.deleted", true] },
+                      ],
+                    },
+                    {
+                      $and: [
+                        { $ne: ["$$this.sentBy", currentUserId] },
+                        {
+                          $in: [currentUserId, "$$this.receivedBy.user"],
+                        },
+                        {
+                          $not: {
+                            $in: [true, "$$this.receivedBy.deleted"],
+                          },
+                        },
+                      ],
+                    },
+                  ],
+                },
+              },
+            },
+          },
+        },
+        {
+          $addFields: {
+            participants: {
+              $map: {
+                input: "$participants",
+                as: "participant",
+                in: {
+                  $mergeObjects: [
+                    "$$participant",
+                    {
+                      $arrayElemAt: [
+                        {
+                          $filter: {
+                            input: "$participantsData",
+                            cond: {
+                              $eq: ["$$this._id", "$$participant.user"],
+                            },
+                          },
+                        },
+                        0,
+                      ],
+                    },
+                  ],
+                },
+              },
+            },
+            lastMessage: { $last: "$messages" },
+            totalCount: { $size: "$messages" },
+            unReadCount: {
+              $size: {
+                $filter: {
+                  input: "$messages",
+                  cond: {
+                    $and: [
+                      { $ne: ["$$this.sentBy", currentUserId] },
+                      { $in: [currentUserId, "$$this.receivedBy.user"] },
+                      {
+                        $not: {
+                          $in: [
+                            EMessageStatus.SEEN,
+                            "$$this.receivedBy.status",
+                          ],
+                        },
+                      },
+                    ],
+                  },
+                },
+              },
+            },
+            messages: { $reverseArray: { $slice: ["$messages", -40] } },
+          },
+        },
+        {
+          $match: {
+            $or: search
+              ? [{ _id: { $ne: null } }]
+              : [
+                  { chatType: EChatType.GROUP, messages: { $ne: [] } },
+                  {
+                    $and: [
+                      {
+                        chatType: EChatType.ONE_TO_ONE,
+                        messages: { $ne: [] },
+                      },
+                    ],
+                  },
+                ],
+          },
+        },
+        {
+          $lookup: {
+            from: "users",
+            localField: "lastMessage.sentBy",
+            foreignField: "_id",
+            as: "sender",
+          },
+        },
+        { $unwind: { path: "$sender", preserveNullAndEmptyArrays: true } }, // Unwind the sender array
+        {
+          $addFields: {
+            "lastMessage.firstName": {
+              $cond: [
+                { $ne: ["$sender", null] },
+                { $concat: ["$sender.firstName"] },
+                "Unknown User",
+              ],
+            },
+            "lastMessage.lastName": {
+              $cond: [
+                { $ne: ["$sender", null] },
+                { $concat: ["$sender.lastName"] },
+                "Unknown User",
+              ],
+            },
+            "lastMessage.profileImage": {
+              $cond: [
+                { $ne: ["$sender", null] },
+                { $concat: ["$sender.profileImage"] },
+                "Unknown User",
+              ],
+            },
+          },
+        },
+        {
+          $group: {
+            _id: "$_id", // Unique identifier for the chat
+            chatType: { $first: "$chatType" },
+            isTicketClosed: { $first: "$isTicketClosed" },
+            isChatSupport: { $first: "$isChatSupport" },
+            groupName: { $first: "$groupName" },
+            participantUsernames: { $first: "$participantUsernames" },
+            totalMessages: { $first: "$totalMessages" },
+            messages: { $first: "$messages" },
+            lastMessage: { $first: "$lastMessage" },
+            participants: { $first: "$participants" },
+            totalCount: { $first: "$totalCount" },
+            unReadCount: { $first: "$unReadCount" },
+            createdBy: { $first: "$createdBy" },
+          },
+        },
+        {
+          $sort: {
+            "lastMessage.createdAt": -1,
+          },
+        },
+        {
+          $project: {
+            chatType: 1,
+            groupName: 1,
+            isTicketClosed: 1,
+            isChatSupport: 1,
+            // messages: 1,
+            lastMessage: 1,
+            participants: 1,
+            totalCount: 1,
+            unReadCount: 1,
+            createdBy: 1,
+          },
+        },
+      ];
+      if (search) {
+        query.push(
+          ...[
+            {
+              $lookup: {
+                from: "users",
+                let: {
+                  participantIds: "$participants.user",
+                  isMuted: "$participants.isMuted",
+                },
+                pipeline: [
+                  {
+                    $match: {
+                      $expr: {
+                        $in: ["$_id", "$$participantIds"],
+                      },
+                    },
+                  },
+                  {
+                    $project: {
+                      firstName: 1,
+                      lastName: 1,
+                      username: 1,
+                      fullName: {
+                        $concat: ["$firstName", " ", "$lastName"],
+                      },
+                      email: 1,
+                      profileImage: 1,
+                      photoUrl: 1,
+                      isMuted: {
+                        $arrayElemAt: [
+                          "$$isMuted",
+                          {
+                            $indexOfArray: ["$$participantIds", "$_id"],
+                          },
+                        ],
+                      },
+                    },
+                  },
+                ],
+                as: "participantsData",
+              },
+            },
+            {
+              $match: {
+                $or: [
+                  {
+                    groupName: {
+                      $regex: search,
+                      $options: "i",
+                    },
+                  },
+                  {
+                    "participantsData.firstName": {
+                      $regex: search,
+                      $options: "i",
+                    },
+                  },
+                  {
+                    "participantsData.lastName": {
+                      $regex: search,
+                      $options: "i",
+                    },
+                  },
+                  {
+                    "participantsData.username": {
+                      $regex: search,
+                      $options: "i",
+                    },
+                  },
+                  {
+                    "participantsData.email": { $regex: search, $options: "i" },
+                  },
+                  // { email: { $regex: q, $options: 'i' } },
+                ],
+              },
+            },
+          ]
+        );
+        remainingQuery.splice(1, 1);
+      }
+      query.push(...remainingQuery);
+      const result = await Chat.aggregate(query);
+      return result;
+    } catch (error) {
+      throw ResponseHelper.sendResponse(500, (error as Error).message);
+    }
+  }
+
   async addChatForTask(payload: IChatPayload) {
     try {
       let messages: IMessage[] = [];
@@ -1497,7 +1845,6 @@ export class ChatRepository
         data: {
           chatId: data.chatId.toString(),
           user: e._id.toString(),
-          participants: data?.participants,
           chatType: data?.chatType,
           groupName: data?.groupName,
         },

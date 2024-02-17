@@ -40,6 +40,8 @@ class ChatRoutes extends BaseRoutes {
   };
 
   protected routes(): void {
+    this.router.get("/", this.validateRequest, this.chatController.index);
+
     this.router.patch(
       "/request/:id",
       multer().any(),
