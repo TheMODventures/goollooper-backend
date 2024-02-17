@@ -316,6 +316,7 @@ export class ChatRepository
             participants: 1,
             totalCount: 1,
             unReadCount: 1,
+            createdBy: 1,
           },
         },
       ];
