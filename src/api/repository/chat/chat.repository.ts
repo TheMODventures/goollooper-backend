@@ -145,6 +145,7 @@ export class ChatRepository
             participants: { $first: "$participantsData" },
             totalCount: { $first: "$totalCount" },
             unReadCount: { $first: "$unReadCount" },
+            createdBy: { $first: "$createdBy" },
           },
         },
         {
@@ -298,6 +299,7 @@ export class ChatRepository
             participants: { $first: "$participants" },
             totalCount: { $first: "$totalCount" },
             unReadCount: { $first: "$unReadCount" },
+            createdBy: { $first: "$createdBy" },
           },
         },
         {
@@ -575,14 +577,6 @@ export class ChatRepository
           }
         }
       });
-      // console.log(userIds);
-      const chatObj = await Chat.findById(chatId, [
-        ModelHelper.populateData(
-          "participants.user",
-          ModelHelper.userSelect,
-          "Users"
-        ),
-      ]);
       this.sendNotificationMsg(
         {
           userIds,
@@ -590,7 +584,6 @@ export class ChatRepository
           body: messageBody,
           chatId,
           urls,
-          participants: chatObj?.participants,
           chatType: chat.chatType,
           groupName: chat?.groupName,
         },
@@ -1497,7 +1490,6 @@ export class ChatRepository
         data: {
           chatId: data.chatId.toString(),
           user: e._id.toString(),
-          participants: data?.participants,
           chatType: data?.chatType,
           groupName: data?.groupName,
         },
