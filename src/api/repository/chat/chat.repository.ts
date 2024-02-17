@@ -575,6 +575,13 @@ export class ChatRepository
         }
       });
       // console.log(userIds);
+      const chatObj = await Chat.findById(chatId, [
+        ModelHelper.populateData(
+          "participants.user",
+          ModelHelper.userSelect,
+          "Users"
+        ),
+      ]);
       this.sendNotificationMsg(
         {
           userIds,
@@ -582,6 +589,9 @@ export class ChatRepository
           body: messageBody,
           chatId,
           urls,
+          participants: chatObj?.participants,
+          chatType: chat.chatType,
+          groupName: chat?.groupName,
         },
         chat
       );
@@ -1483,7 +1493,13 @@ export class ChatRepository
         body:
           data.urls?.length !== 0 && !data.body ? "sent a photo" : data.body,
         tokens: e.fcmTokens,
-        data: { chatId: data.chatId.toString(), user: e._id.toString() },
+        data: {
+          chatId: data.chatId.toString(),
+          user: e._id.toString(),
+          participants: data?.participants,
+          chatType: data?.chatType,
+          groupName: data?.groupName,
+        },
       });
     });
   }
