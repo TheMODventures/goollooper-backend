@@ -2,7 +2,10 @@ import * as SocketIO from "socket.io";
 import { Request } from "express";
 import _ from "lodash";
 
-import { SUCCESS_DATA_UPDATION_PASSED } from "../../constant";
+import {
+  SUCCESS_DATA_LIST_PASSED,
+  SUCCESS_DATA_UPDATION_PASSED,
+} from "../../constant";
 import {
   IChat,
   IMessage,
@@ -284,6 +287,34 @@ export class ChatService {
       }
       return ResponseHelper.sendSuccessResponse(
         SUCCESS_DATA_UPDATION_PASSED,
+        response
+      );
+    } catch (error) {
+      return ResponseHelper.sendResponse(500, (error as Error).message);
+    }
+  };
+
+  getChats = async (
+    userId: string,
+    page?: number,
+    pageSize: number = 20,
+    chatSupport?: boolean,
+    search?: string | undefined
+  ): Promise<ApiResponse> => {
+    try {
+      const response = await this.chatRepository.getAllChats(
+        userId,
+        page,
+        pageSize,
+        chatSupport,
+        null,
+        search
+      );
+      if (!response) {
+        return ResponseHelper.sendResponse(404);
+      }
+      return ResponseHelper.sendSuccessResponse(
+        SUCCESS_DATA_LIST_PASSED,
         response
       );
     } catch (error) {
