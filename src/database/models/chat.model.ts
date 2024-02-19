@@ -104,6 +104,10 @@ const chatSchema = new Schema(
           default: MessageType.message,
           required: true,
         },
+        requestId: {
+          type: Schema.Types.ObjectId,
+          default: null,
+        },
         ...deleteFields,
       },
     ],

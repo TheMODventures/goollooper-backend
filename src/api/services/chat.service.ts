@@ -228,9 +228,24 @@ export class ChatService {
         }
       }
 
+      dataset.createdBy = userId;
+      const requestId = await this.chatRepository.subDocAction<IChat>(
+        { _id },
+        { $push: { requests: dataset } },
+        { new: true }
+      );
+      const newRequest: IChat | any = await this.chatRepository.getOne({ _id });
+
+      if (!requestId || !newRequest) {
+        return ResponseHelper.sendResponse(404);
+      }
+
+      const newRequestId =
+        newRequest.requests[newRequest.requests.length - 1]._id;
       let msg: IMessage = {
         body: "Request",
         sentBy: _id,
+        requestId: newRequestId,
       };
       switch (dataset.type?.toString()) {
         case "1":
@@ -276,13 +291,12 @@ export class ChatService {
           break;
       }
 
-      dataset.createdBy = userId;
       const response = await this.chatRepository.subDocAction<IChat>(
         { _id },
-        { $push: { requests: dataset, messages: msg } },
+        { $push: { messages: msg } },
         { new: true }
       );
-      if (response === null) {
+      if (!response) {
         return ResponseHelper.sendResponse(404);
       }
       return ResponseHelper.sendSuccessResponse(
