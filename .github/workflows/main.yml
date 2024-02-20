@@ -27,7 +27,6 @@ jobs:
             git pull origin dev
             npm install
             echo '${{secrets.SERVICE_ACCOUNT}}' > src/api/helpers/goollooper-service.json
-            if [ -e "node_modules/mongoose-paginate-v2/index.d.ts" ]; then sed -i 's/LeanDocument/Document/'  node_modules/mongoose-paginate-v2/index.d.ts; else echo "File not found"; fi
             npm run build
             pm2 restart apis-goollooper
             pm2 list
