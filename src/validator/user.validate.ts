@@ -183,9 +183,9 @@ const updateRule = yup.object().shape({
         .object()
         .shape({
           name: yup.string().min(3).notRequired(),
-          website: yup.string().min(3),
-          affiliation: yup.string().min(3),
-          publication: yup.string().min(3),
+          website: yup.string().notRequired(),
+          affiliation: yup.string().notRequired(),
+          publication: yup.string().notRequired(),
         })
         .notRequired(),
       certificateFiles: yup.array().notRequired(),
