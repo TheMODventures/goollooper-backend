@@ -23,6 +23,7 @@ export interface IMessage {
   sentBy?: string | Types.ObjectId;
   type?: MessageType;
   receivedBy?: IReceivedBy[];
+  requestId?: string | Types.ObjectId;
   deleted?: boolean;
   deletedAt?: Date;
 }

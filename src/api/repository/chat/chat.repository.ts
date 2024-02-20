@@ -467,9 +467,20 @@ export class ChatRepository
         },
       },
       {
+        $lookup: {
+          from: "tasks",
+          localField: "task",
+          foreignField: "_id",
+          as: "task",
+        },
+      },
+      { $unwind: { path: "$task", preserveNullAndEmptyArrays: true } },
+      {
         $group: {
           _id: "$_id",
           messages: { $push: "$messages" },
+          requests: { $first: "$requests" },
+          task: { $first: "$task" },
           // totalCount: { $sum: 1 }, // Calculate the total count of messages in the chat
           // unReadCount: { $sum: "$unReadCount" }, // Calculate the total count of unread messages in the chat
         },
@@ -483,6 +494,8 @@ export class ChatRepository
         : [];
     const totalCount = result.length > 0 ? result[0].totalCount : 0;
     const unReadCount = result.length > 0 ? result[0].unReadCount : 0;
+    const requests = result.length > 0 ? result[0].requests : 0;
+    const task = result.length > 0 ? result[0].task : 0;
 
     // console.log("Messages:", messages);
     // console.log("Total Count:", totalCount);
@@ -493,7 +506,7 @@ export class ChatRepository
         totalCount,
         unReadCount,
       });
-    return { messages, totalCount, unReadCount };
+    return { messages, totalCount, unReadCount, requests, task };
   }
 
   async createMessage(
@@ -2231,6 +2244,7 @@ function findUserpipeline(match: any) {
         groupImageUrl: { $first: "$groupImageUrl" },
         // groupName: 1,
         participants: { $first: "$participants" },
+        createdBy: { $first: "$createdBy" },
         // Add other fields you want to include
       },
     },
@@ -2245,6 +2259,7 @@ function findUserpipeline(match: any) {
         // messages: { $reverseArray: { $slice: ["$messages", -40] } },
         // lastMessage: { $last: "$messages" },
         participants: 1,
+        createdBy: 1,
         // totalCount: 1,
         // unReadCount: 1,
       },
