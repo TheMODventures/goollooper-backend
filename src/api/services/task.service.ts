@@ -136,7 +136,7 @@ class TaskService {
       const match: any = { isDeleted: false };
       const userId = new mongoose.Types.ObjectId(user);
       if (type === "accepted") {
-        match["goList.serviceProviders"] = userId;
+        match["goList.serviceProviders.user"] = userId;
       } else {
         match.postedBy = { $eq: userId };
       }
