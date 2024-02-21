@@ -1,7 +1,7 @@
-# build/**/*.js
-# build/**/*.js.map
-# build/**/*.json
-# build/**/*.ejs
+build/**/*.js
+build/**/*.js.map
+build/**/*.json
+build/**/*.ejs
 /node_modules
 /json_data
 yarn.lock

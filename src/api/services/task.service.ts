@@ -1,6 +1,5 @@
-import { ObjectId } from "bson";
 import { Request } from "express";
-import { FilterQuery } from "mongoose";
+import mongoose, { FilterQuery } from "mongoose";
 import _ from "lodash";
 
 import { ResponseHelper } from "../helpers/reponseapi.helper";
@@ -72,12 +71,12 @@ class TaskService {
   ): Promise<ApiResponse> => {
     try {
       const match: any = {
-        postedBy: { $ne: new ObjectId(user) },
+        postedBy: { $ne: new mongoose.Types.ObjectId(user) },
       };
       match.isDeleted = false;
       if (taskInterests?.length > 0)
         match.taskInterests = {
-          $in: taskInterests.map((e) => new ObjectId(e)),
+          $in: taskInterests.map((e) => new mongoose.Types.ObjectId(e)),
         };
       if (title) {
         match.title = { $regex: title, $options: "i" };
@@ -135,7 +134,7 @@ class TaskService {
   ): Promise<ApiResponse> => {
     try {
       const match: any = { isDeleted: false };
-      const userId = new ObjectId(user);
+      const userId = new mongoose.Types.ObjectId(user);
       if (type === "accepted") {
         match["goList.serviceProviders"] = userId;
       } else {
@@ -229,7 +228,7 @@ class TaskService {
           goListId: payload.goList as string,
           title: goList.title,
           serviceProviders: payload.goListServiceProviders?.map((user) => ({
-            user: user as ObjectId,
+            user: user as mongoose.Types.ObjectId,
             status: ETaskUserStatus.STANDBY,
           })),
           taskInterests: goList.taskInterests,
@@ -353,7 +352,7 @@ class TaskService {
           goListId: dataset.goList as string,
           title: goList.title,
           serviceProviders: dataset.goListServiceProviders?.map((user) => ({
-            user: user as ObjectId,
+            user: user as mongoose.Types.ObjectId,
             status: ETaskUserStatus.STANDBY,
           })) as any,
           taskInterests: goList.taskInterests,
@@ -427,8 +426,8 @@ class TaskService {
   requestToAdded = async (_id: string, user: string) => {
     try {
       const isExist = await this.taskRepository.exists({
-        _id: new ObjectId(_id),
-        "users.user": new ObjectId(user),
+        _id: new mongoose.Types.ObjectId(_id),
+        "users.user": new mongoose.Types.ObjectId(user),
       });
       if (isExist)
         return ResponseHelper.sendResponse(422, "You are already in this task");
@@ -474,15 +473,17 @@ class TaskService {
       let isExist;
       if (type === "goList") {
         isExist = await this.taskRepository.exists({
-          _id: new ObjectId(_id),
+          _id: new mongoose.Types.ObjectId(_id),
           "goList.serviceProviders": {
-            $elemMatch: { user: new ObjectId(user), status },
+            $elemMatch: { user: new mongoose.Types.ObjectId(user), status },
           },
         });
       } else {
         isExist = await this.taskRepository.exists({
-          _id: new ObjectId(_id),
-          users: { $elemMatch: { user: new ObjectId(user), status } },
+          _id: new mongoose.Types.ObjectId(_id),
+          users: {
+            $elemMatch: { user: new mongoose.Types.ObjectId(user), status },
+          },
         });
       }
       if (isExist)
@@ -497,21 +498,27 @@ class TaskService {
       let response;
       if (type === "goList") {
         response = await this.taskRepository.updateByOne<ITask>(
-          { _id: new ObjectId(_id) },
+          { _id: new mongoose.Types.ObjectId(_id) },
           {
             $set: { "goList.serviceProviders.$[providers].status": status },
             ...updateCount,
           },
-          { arrayFilters: [{ "providers.user": new ObjectId(user) }] }
+          {
+            arrayFilters: [
+              { "providers.user": new mongoose.Types.ObjectId(user) },
+            ],
+          }
         );
       } else {
         response = await this.taskRepository.updateByOne<ITask>(
-          { _id: new ObjectId(_id) },
+          { _id: new mongoose.Types.ObjectId(_id) },
           {
             $set: { "users.$[users].status": status },
             ...updateCount,
           },
-          { arrayFilters: [{ "users.user": new ObjectId(user) }] }
+          {
+            arrayFilters: [{ "users.user": new mongoose.Types.ObjectId(user) }],
+          }
         );
       }
 
@@ -545,7 +552,7 @@ class TaskService {
         });
       } else if (response && status == ETaskUserStatus.REJECTED) {
         await this.calendarRepository.deleteMany({
-          user: new ObjectId(user),
+          user: new mongoose.Types.ObjectId(user),
           task: response._id,
         });
         this.notificationService.createAndSendNotification({
