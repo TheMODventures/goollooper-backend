@@ -1,5 +1,5 @@
+import mongoose from "mongoose";
 import axios, { AxiosResponse } from "axios";
-import { ObjectId } from "bson";
 import { Server } from "socket.io";
 import { RtcRole, RtcTokenBuilder } from "agora-access-token";
 import { uuid } from "uuidv4";
@@ -66,11 +66,11 @@ export class ChatRepository
   ) {
     try {
       const skip = (page - 1) * pageSize;
-      const currentUserId = new ObjectId(user);
+      const currentUserId = new mongoose.Types.ObjectId(user);
       const chatSupportPip: any = {
         isChatSupport: chatSupport == true,
       };
-      if (chatId) chatSupportPip._id = new ObjectId(chatId);
+      if (chatId) chatSupportPip._id = new mongoose.Types.ObjectId(chatId);
       const query: any = [
         {
           $match: {
@@ -425,7 +425,7 @@ export class ChatRepository
     const skip = (pageNumber - 1) * parseInt(pageSize.toString());
 
     const result = await Chat.aggregate([
-      { $match: { _id: new ObjectId(chatId) } }, // Match the chat ID
+      { $match: { _id: new mongoose.Types.ObjectId(chatId) } }, // Match the chat ID
       { $unwind: "$messages" }, // Unwind the messages array
       { $sort: { "messages.createdAt": -1 } }, // Sort messages by latest createdAt date
       { $skip: skip }, // Skip the specified number of messages
@@ -434,14 +434,14 @@ export class ChatRepository
         $match: {
           $or: [
             {
-              "messages.sentBy": new ObjectId(user),
+              "messages.sentBy": new mongoose.Types.ObjectId(user),
               "messages.deleted": { $ne: true },
             },
             {
               // "messages.receivedBy.user": { $ne: null },
               "messages.receivedBy": {
                 $elemMatch: {
-                  user: new ObjectId(user),
+                  user: new mongoose.Types.ObjectId(user),
                   deleted: { $ne: true },
                 },
               },
@@ -524,7 +524,7 @@ export class ChatRepository
         throw new Error("Chat not found");
       }
 
-      const id = new ObjectId();
+      const id = new mongoose.Types.ObjectId();
       let newMessage = {
         _id: id,
         body: messageBody,
@@ -548,7 +548,7 @@ export class ChatRepository
           participant.user != senderId
         ) {
           newMessage.receivedBy.push({
-            user: new ObjectId(participant.user),
+            user: new mongoose.Types.ObjectId(participant.user),
             status: EMessageStatus.SENT,
             deleted: false,
           });
@@ -661,11 +661,14 @@ export class ChatRepository
   }
 
   // Delete a message for a user
-  async deleteAllMessage(chatId: string, user: string | ObjectId) {
+  async deleteAllMessage(
+    chatId: string,
+    user: string | mongoose.Types.ObjectId
+  ) {
     try {
-      user = new ObjectId(user);
+      user = new mongoose.Types.ObjectId(user);
       const filter = {
-        _id: new ObjectId(chatId),
+        _id: new mongoose.Types.ObjectId(chatId),
         // $or: [
         //   {
         //     "messages.receivedBy.user": user,
@@ -800,7 +803,7 @@ export class ChatRepository
         });
 
       const msg = {
-        _id: new ObjectId(),
+        _id: new mongoose.Types.ObjectId(),
         body: `${username}joined the group`,
         addedUsers: participantIds,
         groupName: result.groupName,
@@ -877,7 +880,7 @@ export class ChatRepository
         });
       // // console.log(result)
       const msg = {
-        _id: new ObjectId(),
+        _id: new mongoose.Types.ObjectId(),
         body: `${username}leave the group`,
         removedUsers: participantIds,
         groupName: result.groupName,
@@ -1161,7 +1164,9 @@ export class ChatRepository
       let createdByUsername = "";
       const users = await this.userRepository.getAll(
         {
-          _id: participantIds.map((e: string) => new ObjectId(e)),
+          _id: participantIds.map(
+            (e: string) => new mongoose.Types.ObjectId(e)
+          ),
         },
         undefined,
         ModelHelper.userSelect
@@ -1244,11 +1249,11 @@ export class ChatRepository
   ) {
     try {
       const skip = (page - 1) * pageSize;
-      const currentUserId = new ObjectId(user);
+      const currentUserId = new mongoose.Types.ObjectId(user);
       const chatSupportPip: any = {
         isChatSupport: chatSupport == true,
       };
-      if (chatId) chatSupportPip._id = new ObjectId(chatId);
+      if (chatId) chatSupportPip._id = new mongoose.Types.ObjectId(chatId);
       const query: any = [
         {
           $match: {
@@ -1604,7 +1609,9 @@ export class ChatRepository
       const isExist = await Chat.exists({
         task: payload.task,
         participants: {
-          $elemMatch: { user: new ObjectId(payload.participant) },
+          $elemMatch: {
+            user: new mongoose.Types.ObjectId(payload.participant),
+          },
         },
       });
       if (isExist)
@@ -1720,7 +1727,7 @@ export class ChatRepository
       // Match the desired chat using its ID or any other criteria
       {
         $match: {
-          _id: new ObjectId(chatId),
+          _id: new mongoose.Types.ObjectId(chatId),
         },
       },
       // Unwind the messages array to create separate documents for each message
@@ -1733,11 +1740,11 @@ export class ChatRepository
           "messages.mediaUrls": { $exists: true, $ne: null },
           $or: [
             {
-              "messages.sentBy": new ObjectId(user),
+              "messages.sentBy": new mongoose.Types.ObjectId(user),
               "messages.deleted": { $ne: true },
             },
             {
-              "messages.receivedBy.user": new ObjectId(user),
+              "messages.receivedBy.user": new mongoose.Types.ObjectId(user),
               "messages.receivedBy.deleted": { $ne: true },
             },
           ],
@@ -1793,7 +1800,7 @@ export class ChatRepository
     m = null;
     m = (
       await Chat.aggregate([
-        { $match: { _id: new ObjectId(chatId) } },
+        { $match: { _id: new mongoose.Types.ObjectId(chatId) } },
         ...findUserpipeline({}),
       ])
     )[0];

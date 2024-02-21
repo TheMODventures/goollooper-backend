@@ -1,5 +1,8 @@
-import { FilterQuery, PipelineStage, PopulateOptions } from "mongoose";
-import { ObjectId } from "bson";
+import mongoose, {
+  FilterQuery,
+  PipelineStage,
+  PopulateOptions,
+} from "mongoose";
 
 import { IGolist } from "../../database/interfaces/golist.interface";
 import { GolistRepository } from "../repository/golist/golist.repository";
@@ -82,7 +85,7 @@ class GolistService {
   ): Promise<ApiResponse> => {
     try {
       const filter = {
-        _id: new ObjectId(_id),
+        _id: new mongoose.Types.ObjectId(_id),
       };
       const response: any = await this.golistRepository.getOne<IGolist>(
         filter,
@@ -192,7 +195,7 @@ class GolistService {
     coordinates: Number[],
     serviceId?: string[],
     volunteerIds?: string[],
-    subscription?: string | ObjectId,
+    subscription?: string | mongoose.Types.ObjectId,
     zipCode?: string | null,
     rating?: ERating | undefined,
     companyLogo?: boolean | undefined,
@@ -235,7 +238,7 @@ class GolistService {
         });
       }
       const match = {
-        _id: { $ne: new ObjectId(userId) },
+        _id: { $ne: new mongoose.Types.ObjectId(userId) },
         isDeleted: false,
         role: EUserRole.serviceProvider,
 
@@ -278,10 +281,14 @@ class GolistService {
         };
 
       if (subscription) {
-        match["subscription.subscription"] = new ObjectId(subscription);
+        match["subscription.subscription"] = new mongoose.Types.ObjectId(
+          subscription
+        );
       }
       if (serviceId && serviceId?.length > 0) {
-        const services = serviceId.map((e: string) => new ObjectId(e));
+        const services = serviceId.map(
+          (e: string) => new mongoose.Types.ObjectId(e)
+        );
         match["$or"] = [
           {
             services: {
@@ -291,7 +298,9 @@ class GolistService {
         ];
       }
       if (volunteerIds && volunteerIds?.length > 0) {
-        const volunteers = volunteerIds.map((e: string) => new ObjectId(e));
+        const volunteers = volunteerIds.map(
+          (e: string) => new mongoose.Types.ObjectId(e)
+        );
         match["$or"] = [
           {
             volunteer: {
@@ -380,7 +389,9 @@ class GolistService {
         receiver: e,
         type: ENOTIFICATION_TYPES.SHARE_PROVIDER,
         content: "#sender Shared A Service Provider",
-        data: { serviceProvider: new ObjectId(serviceProviderId) },
+        data: {
+          serviceProvider: new mongoose.Types.ObjectId(serviceProviderId),
+        },
       } as INotification;
     });
     const result = await this.notificationRepository.createMany(list);
