@@ -107,6 +107,22 @@ class TaskService {
           },
         },
         {
+          $lookup: {
+            from: "services",
+            localField: "taskInterests",
+            foreignField: "_id",
+            as: "taskInterests",
+            pipeline: [
+              {
+                $project: {
+                  title: 1,
+                  type: 1,
+                },
+              },
+            ],
+          },
+        },
+        {
           $unwind: "$postedBy",
         },
       ];
@@ -136,7 +152,7 @@ class TaskService {
       const match: any = { isDeleted: false };
       const userId = new mongoose.Types.ObjectId(user);
       if (type === "accepted") {
-        match["goList.serviceProviders"] = userId;
+        match["goList.serviceProviders.user"] = userId;
       } else {
         match.postedBy = { $eq: userId };
       }
@@ -146,7 +162,10 @@ class TaskService {
         undefined,
         undefined,
         { createdAt: -1 },
-        undefined,
+        [
+          ModelHelper.populateData("postedBy", ModelHelper.userSelect, "Users"),
+          ModelHelper.populateData("taskInterests", "title type", "Service"),
+        ],
         true,
         page,
         limit
