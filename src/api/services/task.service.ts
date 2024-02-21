@@ -146,7 +146,7 @@ class TaskService {
         undefined,
         undefined,
         { createdAt: -1 },
-        undefined,
+        [ModelHelper.populateData("postedBy", ModelHelper.userSelect, "Users")],
         true,
         page,
         limit
