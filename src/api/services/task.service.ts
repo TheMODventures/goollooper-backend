@@ -107,6 +107,22 @@ class TaskService {
           },
         },
         {
+          $lookup: {
+            from: "services",
+            localField: "taskInterests",
+            foreignField: "_id",
+            as: "taskInterests",
+            pipeline: [
+              {
+                $project: {
+                  title: 1,
+                  type: 1,
+                },
+              },
+            ],
+          },
+        },
+        {
           $unwind: "$postedBy",
         },
       ];
@@ -146,7 +162,10 @@ class TaskService {
         undefined,
         undefined,
         { createdAt: -1 },
-        [ModelHelper.populateData("postedBy", ModelHelper.userSelect, "Users")],
+        [
+          ModelHelper.populateData("postedBy", ModelHelper.userSelect, "Users"),
+          ModelHelper.populateData("taskInterests", "title type", "Service"),
+        ],
         true,
         page,
         limit
