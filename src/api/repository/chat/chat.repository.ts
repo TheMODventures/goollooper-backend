@@ -505,6 +505,8 @@ export class ChatRepository
         messages,
         totalCount,
         unReadCount,
+        requests,
+        task,
       });
     return { messages, totalCount, unReadCount, requests, task };
   }
