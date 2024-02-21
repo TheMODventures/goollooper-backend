@@ -541,8 +541,8 @@ class TaskService {
         );
       }
 
-      let loggedInUserData: IUser | null = await this.userRepository.getById(
-        loggedInUser,
+      let userData: IUser | null = await this.userRepository.getById(
+        user,
         undefined,
         "firstName"
       );
@@ -555,12 +555,12 @@ class TaskService {
           type: ECALENDARTaskType.accepted,
         } as ICalendar);
         this.notificationService.createAndSendNotification({
-          senderId: response.postedBy,
-          receiverId: user,
+          senderId: user,
+          receiverId: response.postedBy,
           type: ENOTIFICATION_TYPES.TASK_ACCEPTED,
           data: { task: response._id?.toString() },
           ntitle: "Task Accepted",
-          nbody: `${loggedInUserData?.firstName} accepted your task request`,
+          nbody: `${userData?.firstName} accepted your task request`,
         } as NotificationParams);
         chatId = await this.chatRepository.addChatForTask({
           user: response?.postedBy,
@@ -575,12 +575,12 @@ class TaskService {
           task: response._id,
         });
         this.notificationService.createAndSendNotification({
-          senderId: response.postedBy,
-          receiverId: user,
+          senderId: user,
+          receiverId: response.postedBy,
           type: ENOTIFICATION_TYPES.TASK_REJECTED,
           data: { task: response._id?.toString() },
           ntitle: "Task Rejected",
-          nbody: `${loggedInUserData?.firstName} rejected your task request`,
+          nbody: `${userData?.firstName} rejected your task request`,
         } as NotificationParams);
       }
 
