@@ -40,7 +40,7 @@ class TaskRoutes extends BaseRoutes {
   };
 
   protected routes(): void {
-    this.router.get("/", this.validateRequest, this.taskController.index);
+    this.router.patch("/", this.validateRequest, this.taskController.index);
     this.router.get(
       "/my-task",
       this.validateRequest,
