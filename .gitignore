@@ -12,3 +12,4 @@ my.txt
 src/api/helpers/goollooper-service.json
 .prod.env
 test.js
+.prod-env

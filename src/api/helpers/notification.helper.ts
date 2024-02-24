@@ -10,14 +10,15 @@ class NotificationHelperC {
 
   sendNotification = async (notification: PushNotification) => {
     try {
+      const data = replaceNullUndefinedWithEmptyString(notification.data ?? {});
       const message: admin.messaging.MulticastMessage = {
         tokens: notification.tokens,
         notification: {
           title: notification.title,
           body: notification.body,
         },
-        android: { data: notification.data },
-        data: notification.data,
+        android: { data },
+        data,
       };
 
       const response = await admin.messaging().sendEachForMulticast(message);
@@ -37,6 +38,16 @@ class NotificationHelperC {
   };
 }
 
+function replaceNullUndefinedWithEmptyString(obj: any) {
+  for (var key in obj) {
+    if (obj.hasOwnProperty(key)) {
+      if (obj[key] === null || obj[key] === undefined) {
+        obj[key] = "";
+      }
+    }
+  }
+  return obj;
+}
 export interface PushNotification {
   tokens: string[];
   title: string;
