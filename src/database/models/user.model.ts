@@ -182,4 +182,4 @@ userModel.pre("save", async function (next) {
 });
 
 export const User = mongoose.model<IUserDoc>("Users", userModel);
-User.ensureIndexes();
+// User.ensureIndexes();
