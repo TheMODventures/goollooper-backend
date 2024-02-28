@@ -244,7 +244,7 @@ export class ChatService {
         newRequest.requests[newRequest.requests.length - 1]._id;
       let msg: IMessage = {
         body: "Request",
-        sentBy: _id,
+        sentBy: userId,
         requestId: newRequestId,
       };
       switch (dataset.type?.toString()) {
