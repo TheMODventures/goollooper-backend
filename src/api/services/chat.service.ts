@@ -9,6 +9,7 @@ import {
 import {
   IChat,
   IMessage,
+  IParticipant,
   IRequest,
 } from "../../database/interfaces/chat.interface";
 import { ITask } from "../../database/interfaces/task.interface";
@@ -17,7 +18,11 @@ import { TaskRepository } from "../repository/task/task.repository";
 import { Authorize } from "../../middleware/authorize.middleware";
 import { ResponseHelper } from "../helpers/reponseapi.helper";
 import { UploadHelper } from "../helpers/upload.helper";
-import { ETaskStatus, MessageType } from "../../database/interfaces/enums";
+import {
+  EMessageStatus,
+  ETaskStatus,
+  MessageType,
+} from "../../database/interfaces/enums";
 
 interface CustomSocket extends SocketIO.Socket {
   user?: any; // Adjust the type according to your user structure
@@ -246,6 +251,10 @@ export class ChatService {
         body: "Request",
         sentBy: userId,
         requestId: newRequestId,
+        receivedBy: newRequest.participants.map((e: IParticipant) => ({
+          user: e.user,
+          status: EMessageStatus.SENT,
+        })),
       };
       switch (dataset.type?.toString()) {
         case "1":
@@ -278,8 +287,8 @@ export class ChatService {
           msg.type = MessageType.invoice;
           if (!dataset.amount)
             return ResponseHelper.sendResponse(404, "Amount is required");
+          msg.body = dataset.amount;
           if (dataset.mediaUrl) {
-            msg.body = dataset.amount;
             msg.mediaUrls = [dataset.mediaUrl];
           }
           await this.taskRepository.updateById<ITask>(chat?.task, {
