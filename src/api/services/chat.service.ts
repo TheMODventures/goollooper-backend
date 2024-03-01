@@ -22,6 +22,7 @@ import {
   EMessageStatus,
   ETaskStatus,
   MessageType,
+  RequestStatus,
 } from "../../database/interfaces/enums";
 
 interface CustomSocket extends SocketIO.Socket {
@@ -285,9 +286,12 @@ export class ChatService {
 
         case "5":
           msg.type = MessageType.invoice;
-          if (!dataset.amount)
+          if (
+            !dataset.amount &&
+            dataset.status === RequestStatus.SERVICE_PROVIDER_INVOICE_REQUEST
+          )
             return ResponseHelper.sendResponse(404, "Amount is required");
-          msg.body = dataset.amount;
+          msg.body = dataset?.amount || "0";
           if (dataset.mediaUrl) {
             msg.mediaUrls = [dataset.mediaUrl];
           }
@@ -305,6 +309,9 @@ export class ChatService {
         { $push: { messages: msg } },
         { new: true }
       );
+
+      await this.chatRepository.sendMessages(_id, newRequest.participants, msg);
+
       if (!response) {
         return ResponseHelper.sendResponse(404);
       }

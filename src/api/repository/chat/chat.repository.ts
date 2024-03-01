@@ -2158,6 +2158,22 @@ export class ChatRepository
       return false;
     }
   }
+
+  async sendMessages(
+    chatId: String,
+    participants: IParticipant[],
+    msg: IMessage
+  ) {
+    if (this.io) {
+      participants.forEach((participant: IParticipant) => {
+        this.io?.emit(
+          `newMessage/${chatId}/${participant.user.toString()}`,
+          msg
+        );
+      });
+    }
+    return;
+  }
 }
 
 function convertTo32BitInt(hexValue: string): Number {
