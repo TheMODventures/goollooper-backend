@@ -105,6 +105,7 @@ export enum Request {
   RELIEVE = 3,
   PROCEED = 4,
   INVOICE = 5,
+  COMPLETE = 6,
 }
 
 export enum RequestStatus {
@@ -121,6 +122,7 @@ export enum MessageType {
   relieve = "relieve",
   proceed = "proceed",
   invoice = "invoice",
+  complete = "complete",
   system = "system",
 }
 
