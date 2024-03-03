@@ -45,6 +45,7 @@ export interface ITask {
   slot: Slot;
   noOfServiceProvider: number;
   media: string;
+  commercial?: boolean;
   type: TaskType;
   taskInterests: string[];
   goList: GoList | string;
@@ -73,6 +74,7 @@ export interface ITaskPayload {
   slot: Slot;
   noOfServiceProvider: number;
   media: string;
+  commercial?: boolean;
   type: TaskType;
   taskInterests: string[];
   goList: GoList | string;

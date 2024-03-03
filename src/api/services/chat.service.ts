@@ -295,6 +295,22 @@ export class ChatService {
           if (dataset.mediaUrl) {
             msg.mediaUrls = [dataset.mediaUrl];
           }
+          let task: ITask | null = await this.taskRepository.getById(
+            chat?.task
+          );
+          if (task && !task?.commercial) {
+            await this.taskRepository.updateById<ITask>(chat?.task, {
+              status: ETaskStatus.completed,
+            });
+          }
+          break;
+
+        case "6":
+          msg.body = "Completed";
+          msg.type = MessageType.complete;
+          if (!dataset.amount)
+            return ResponseHelper.sendResponse(404, "Amount is required");
+          msg.body = dataset?.amount;
           await this.taskRepository.updateById<ITask>(chat?.task, {
             status: ETaskStatus.completed,
           });
