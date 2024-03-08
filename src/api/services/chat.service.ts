@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import * as SocketIO from "socket.io";
 import { Request } from "express";
 import _ from "lodash";
@@ -13,8 +14,10 @@ import {
   IRequest,
 } from "../../database/interfaces/chat.interface";
 import { ITask } from "../../database/interfaces/task.interface";
+import { ICalendar } from "../../database/interfaces/calendar.interface";
 import { ChatRepository } from "../repository/chat/chat.repository";
 import { TaskRepository } from "../repository/task/task.repository";
+import { CalendarRepository } from "../repository/calendar/calendar.repository";
 import { Authorize } from "../../middleware/authorize.middleware";
 import { ResponseHelper } from "../helpers/reponseapi.helper";
 import { UploadHelper } from "../helpers/upload.helper";
@@ -204,11 +207,13 @@ export default (io: SocketIO.Server) => {
 export class ChatService {
   private chatRepository: ChatRepository;
   private taskRepository: TaskRepository;
+  private calendarRepository: CalendarRepository;
   private uploadHelper: UploadHelper;
 
   constructor() {
     this.chatRepository = new ChatRepository();
     this.taskRepository = new TaskRepository();
+    this.calendarRepository = new CalendarRepository();
 
     this.uploadHelper = new UploadHelper("chat");
   }
@@ -299,9 +304,16 @@ export class ChatService {
             chat?.task
           );
           if (task && !task?.commercial) {
+            msg.type = MessageType.complete;
             await this.taskRepository.updateById<ITask>(chat?.task, {
               status: ETaskStatus.completed,
             });
+            await this.calendarRepository.updateMany<ICalendar>(
+              { task: new mongoose.Types.ObjectId(chat?.task) },
+              {
+                isActive: false,
+              }
+            );
           }
           break;
 
@@ -314,6 +326,12 @@ export class ChatService {
           await this.taskRepository.updateById<ITask>(chat?.task, {
             status: ETaskStatus.completed,
           });
+          await this.calendarRepository.updateMany<ICalendar>(
+            { task: new mongoose.Types.ObjectId(chat?.task) },
+            {
+              isActive: false,
+            }
+          );
           break;
 
         default:
