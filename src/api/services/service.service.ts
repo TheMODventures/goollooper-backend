@@ -1,4 +1,4 @@
-import { FilterQuery, PipelineStage } from "mongoose";
+import mongoose, { FilterQuery, PipelineStage } from "mongoose";
 
 import {
   SUCCESS_DATA_DELETION_PASSED,
@@ -46,7 +46,122 @@ class ServiceService {
           },
         },
         {
-          $unwind: "$subServices",
+          $unwind: {
+            path: "$subServices",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        {
+          $group: {
+            _id: "$_id",
+            title: { $first: "$title" },
+            type: { $first: "$type" },
+            parent: { $first: "$parent" },
+            subServices: { $push: "$subServices" },
+            matchedServices: {
+              $addToSet: {
+                $cond: {
+                  if: { $ne: ["$_id", "$subServices._id"] },
+                  then: "$_id",
+                  else: null,
+                },
+              },
+            },
+          },
+        },
+        {
+          $unwind: "$matchedServices",
+        },
+        {
+          $match: {
+            matchedServices: { $ne: null },
+          },
+        },
+        {
+          $project: {
+            title: 1,
+            type: 1,
+            parent: 1,
+            subServices: {
+              $map: {
+                input: "$subServices",
+                as: "child",
+                in: {
+                  _id: "$$child._id",
+                  title: "$$child.title",
+                  parent: "$$child.parent",
+                },
+              },
+            },
+          },
+        },
+        {
+          $match: {
+            parent: null,
+          },
+        },
+      ];
+
+      const response =
+        await this.serviceRepository.getAllWithAggregatePagination<IService>(
+          pipeline,
+          "",
+          "",
+          {
+            title: "asc",
+          },
+          undefined,
+          true,
+          page,
+          limit
+        );
+      return ResponseHelper.sendSuccessResponse(
+        SUCCESS_DATA_LIST_PASSED,
+        response,
+        getDocCount
+      );
+    } catch (error) {
+      return ResponseHelper.sendResponse(500, (error as Error).message);
+    }
+  };
+
+  create = async (payload: IService): Promise<ApiResponse> => {
+    try {
+      const data = await this.serviceRepository.create<IService>(payload);
+      return ResponseHelper.sendResponse(201, data);
+    } catch (error) {
+      return ResponseHelper.sendResponse(500, (error as Error).message);
+    }
+  };
+
+  show = async (_id: string): Promise<ApiResponse> => {
+    try {
+      const query: PipelineStage[] = [
+        { $match: { _id: new mongoose.Types.ObjectId(_id) } },
+        {
+          $lookup: {
+            from: "services",
+            localField: "_id",
+            foreignField: "parent",
+            as: "subServices",
+          },
+        },
+        {
+          $addFields: {
+            subServices: {
+              $filter: {
+                input: "$subServices",
+                as: "child",
+                cond: { $ne: ["$$child._id", "$_id"] },
+              },
+            },
+          },
+        },
+        {
+          $unwind: {
+            path: "$subServices",
+            preserveNullAndEmptyArrays: true,
+          },
         },
         {
           $group: {
@@ -91,51 +206,13 @@ class ServiceService {
           },
         },
       ];
-
-      const response =
-        await this.serviceRepository.getAllWithAggregatePagination<IService>(
-          pipeline,
-          "",
-          "",
-          {
-            title: "asc",
-          },
-          undefined,
-          true,
-          page,
-          limit
-        );
-      return ResponseHelper.sendSuccessResponse(
-        SUCCESS_DATA_LIST_PASSED,
-        response,
-        getDocCount
-      );
-    } catch (error) {
-      return ResponseHelper.sendResponse(500, (error as Error).message);
-    }
-  };
-
-  create = async (payload: IService): Promise<ApiResponse> => {
-    try {
-      const data = await this.serviceRepository.create<IService>(payload);
-      return ResponseHelper.sendResponse(201, data);
-    } catch (error) {
-      return ResponseHelper.sendResponse(500, (error as Error).message);
-    }
-  };
-
-  show = async (_id: string): Promise<ApiResponse> => {
-    try {
-      const filter = {
-        _id: _id,
-      };
-      const response = await this.serviceRepository.getOne<IService>(filter);
-      if (response === null) {
+      const response = await this.serviceRepository.getDataByAggregate(query);
+      if (!response.length) {
         return ResponseHelper.sendResponse(404);
       }
       return ResponseHelper.sendSuccessResponse(
         SUCCESS_DATA_SHOW_PASSED,
-        response
+        response[0] as any
       );
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);
