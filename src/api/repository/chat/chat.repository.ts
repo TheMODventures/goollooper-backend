@@ -533,6 +533,7 @@ export class ChatRepository
         mediaUrls: urls,
         sentBy: senderId,
         receivedBy: [],
+        type: MessageType.message,
         deleted: false,
         // Add other message properties if needed
       } as any;
