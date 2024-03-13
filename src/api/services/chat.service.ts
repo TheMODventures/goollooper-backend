@@ -344,7 +344,12 @@ export class ChatService {
         { new: true }
       );
 
-      await this.chatRepository.sendMessages(_id, newRequest.participants, msg);
+      await this.chatRepository.sendMessages(
+        _id,
+        newRequest.participants,
+        msg,
+        userId
+      );
 
       if (!response) {
         return ResponseHelper.sendResponse(404);

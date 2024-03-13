@@ -17,6 +17,7 @@ import {
 import { IChatRepository } from "./chat.repository.interface";
 import { IUser } from "../../../database/interfaces/user.interface";
 import { Chat } from "../../../database/models/chat.model";
+import { User } from "../../../database/models/user.model";
 import { ModelHelper } from "../../helpers/model.helper";
 import { BaseRepository } from "../base.repository";
 import { UserRepository } from "../user/user.repository";
@@ -2163,16 +2164,51 @@ export class ChatRepository
   async sendMessages(
     chatId: String,
     participants: IParticipant[],
-    msg: IMessage
+    msg: IMessage,
+    userId: string
   ) {
-    if (this.io) {
-      participants.forEach((participant: IParticipant) => {
-        this.io?.emit(
-          `newMessage/${chatId}/${participant.user.toString()}`,
-          msg
-        );
-      });
+    const chat = await Chat.findById(chatId).select("-messages");
+    const user = await User.findById(userId);
+    if (!chat) {
+      throw new Error("Chat not found");
     }
+    const userIds: any[] = [];
+    participants.forEach(async (participant: IParticipant) => {
+      if (
+        participant.status == EParticipantStatus.ACTIVE &&
+        participant.user != userId
+      ) {
+        if (!participant.isMuted) userIds.push(participant.user);
+        if (this.io) {
+          this.io?.emit(`newMessage/${chatId}/${participant.user}`, {
+            ...msg,
+            name: user?.firstName,
+            firstName: user?.firstName,
+            createdAt: new Date(),
+          });
+          await this.getChats(participant.user.toString());
+        }
+      }
+    });
+    this.sendNotificationMsg(
+      {
+        userIds,
+        title: user?.firstName,
+        body: msg,
+        chatId,
+        chatType: chat.chatType,
+        groupName: chat?.groupName,
+      },
+      chat
+    );
+    // if (this.io) {
+    //   participants.forEach((participant: IParticipant) => {
+    //     this.io?.emit(
+    //       `newMessage/${chatId}/${participant.user.toString()}`,
+    //       msg
+    //     );
+    //   });
+    // }
     return;
   }
 }
