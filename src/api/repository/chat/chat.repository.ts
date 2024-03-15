@@ -13,24 +13,31 @@ import {
   IMessage,
   IParticipant,
   IReceivedBy,
+  IRequest,
 } from "../../../database/interfaces/chat.interface";
 import { IChatRepository } from "./chat.repository.interface";
 import { IUser } from "../../../database/interfaces/user.interface";
-import { Chat } from "../../../database/models/chat.model";
-import { User } from "../../../database/models/user.model";
-import { ModelHelper } from "../../helpers/model.helper";
-import { BaseRepository } from "../base.repository";
-import { UserRepository } from "../user/user.repository";
-import { ResponseHelper } from "../../helpers/reponseapi.helper";
+import { ITask } from "../../../database/interfaces/task.interface";
+import { ICalendar } from "../../../database/interfaces/calendar.interface";
 import {
   ECALLDEVICETYPE,
   EChatType,
   EMessageStatus,
   EParticipantStatus,
   ETICKET_STATUS,
+  ETaskStatus,
   EUserRole,
   MessageType,
+  RequestStatus,
 } from "../../../database/interfaces/enums";
+import { Chat } from "../../../database/models/chat.model";
+import { User } from "../../../database/models/user.model";
+import { Task } from "../../../database/models/task.model";
+import { Calendar } from "../../../database/models/calendar.model";
+import { ModelHelper } from "../../helpers/model.helper";
+import { BaseRepository } from "../base.repository";
+import { UserRepository } from "../user/user.repository";
+import { ResponseHelper } from "../../helpers/reponseapi.helper";
 import {
   NotificationHelper,
   PushNotification,
@@ -579,7 +586,6 @@ export class ChatRepository
           participant.user != senderId
         ) {
           if (!participant.isMuted) userIds.push(participant.user);
-          // // console.log(`newMessage/${chatId}/${participant.user}`)
           if (this.io) {
             this.io?.emit(`newMessage/${chatId}/${participant.user}`, {
               ...newMessage,
@@ -587,9 +593,6 @@ export class ChatRepository
               firstName: name,
               createdAt: new Date(),
             });
-            // this.io?.emit(
-            //   `getChats/${participant.user}`, await this.getChats(participant.user)
-            // );
             await this.getChats(participant.user.toString());
           }
         }
@@ -613,6 +616,163 @@ export class ChatRepository
       throw error;
     }
   }
+
+  sendRequest = async (
+    chatId: string,
+    senderId: string,
+    dataset: Partial<IRequest>
+  ) => {
+    try {
+      let chat: IChat | any = await Chat.findOne({ _id: chatId });
+      if (!chat) return ResponseHelper.sendResponse(404, "Chat not found");
+
+      // dataset.createdBy = senderId;
+      const requestId = await Chat.updateOne(
+        { _id: chatId },
+        { $push: { requests: dataset } },
+        { new: true }
+      );
+      const newRequest: IChat | any = await Chat.findById(chatId);
+
+      if (!requestId || !newRequest) {
+        return ResponseHelper.sendResponse(404);
+      }
+
+      const newRequestId =
+        newRequest.requests[newRequest.requests.length - 1]._id;
+      let msg: IMessage = {
+        body: "Request",
+        sentBy: senderId,
+        requestId: newRequestId,
+        receivedBy: newRequest.participants.map((e: IParticipant) => ({
+          user: e.user,
+          status: EMessageStatus.SENT,
+        })),
+      };
+      switch (dataset.type?.toString()) {
+        case "1":
+          msg.type = MessageType.request;
+          if (dataset.mediaUrl) {
+            msg.body = "This is my Request";
+            msg.mediaUrls = [dataset.mediaUrl];
+          }
+          break;
+
+        case "2":
+          msg.body = "Pause";
+          msg.type = MessageType.pause;
+          break;
+
+        case "3":
+          msg.body = "Relieve";
+          msg.type = MessageType.relieve;
+          break;
+
+        case "4":
+          msg.body = "Proceed";
+          msg.type = MessageType.proceed;
+          await Task.updateOne<ITask>(
+            { _id: chat?.task },
+            {
+              status: ETaskStatus.assigned,
+            }
+          );
+          break;
+
+        case "5":
+          msg.type = MessageType.invoice;
+          if (
+            !dataset.amount &&
+            dataset.status === RequestStatus.SERVICE_PROVIDER_INVOICE_REQUEST
+          )
+            return ResponseHelper.sendResponse(404, "Amount is required");
+          msg.body = dataset?.amount || "0";
+          if (dataset.mediaUrl) {
+            msg.mediaUrls = [dataset.mediaUrl];
+          }
+          let task: ITask | null = await Task.findById(chat?.task);
+          if (task && !task?.commercial) {
+            msg.type = MessageType.complete;
+            await Task.updateOne<ITask>(
+              { _id: chat?.task },
+              {
+                status: ETaskStatus.completed,
+              }
+            );
+            await Calendar.updateMany<ICalendar>(
+              { task: new mongoose.Types.ObjectId(chat?.task) },
+              {
+                isActive: false,
+              }
+            );
+          }
+          break;
+
+        case "6":
+          msg.body = "Completed";
+          msg.type = MessageType.complete;
+          if (!dataset.amount)
+            return ResponseHelper.sendResponse(404, "Amount is required");
+          msg.body = dataset?.amount;
+          await Task.updateOne<ITask>(
+            { _id: chat?.task },
+            {
+              status: ETaskStatus.completed,
+            }
+          );
+          await Calendar.updateMany<ICalendar>(
+            { task: new mongoose.Types.ObjectId(chat?.task) },
+            {
+              isActive: false,
+            }
+          );
+          break;
+
+        default:
+          break;
+      }
+
+      const response = await Chat.updateOne<IChat>(
+        { _id: chatId },
+        { $push: { messages: msg } },
+        { new: true }
+      );
+
+      const user = await User.findById(senderId);
+      const userIds: any[] = [];
+      newRequest.participants?.forEach(async (participant: IParticipant) => {
+        if (participant.status == EParticipantStatus.ACTIVE) {
+          if (!participant.isMuted && participant.user != senderId)
+            userIds.push(participant.user);
+          if (this.io) {
+            this.io?.emit(`newRequest/${chatId}/${participant.user}`, {
+              request: newRequest.requests[newRequest.requests.length - 1],
+            });
+            this.io?.emit(`newMessage/${chatId}/${participant.user}`, {
+              ...msg,
+              senderId: user?._id,
+              firstName: user?.firstName,
+              lastName: user?.lastName,
+              createdAt: new Date(),
+            });
+            await this.getChats(participant.user.toString());
+          }
+        }
+      });
+      this.sendNotificationMsg({
+        userIds,
+        title: user?.firstName,
+        body: msg,
+        chatId,
+        chatType: chat.chatType,
+        groupName: chat?.groupName,
+      });
+
+      return response;
+    } catch (error) {
+      return ResponseHelper.sendResponse(500, (error as Error).message);
+    }
+  };
 
   // Mark all messages as read for a user
   async readAllMessages(chatId: string, user: string) {
