@@ -51,12 +51,9 @@ class UserService {
   getByFilter = async (filter: FilterQuery<IUser>): Promise<ApiResponse> => {
     try {
       const response = await this.userRepository.getOne<IUser>(filter);
-      if (response === null) {
-        return ResponseHelper.sendResponse(404);
-      }
       return ResponseHelper.sendSuccessResponse(
         SUCCESS_DATA_SHOW_PASSED,
-        response
+        response || ""
       );
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);
