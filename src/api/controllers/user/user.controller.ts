@@ -27,7 +27,7 @@ class UserController {
 
     return res
       .status(response.code)
-      .json({ available: response.data ? false : true });
+      .json({ available: response?.data ? false : true });
   };
 
   index = async (req: Request, res: Response) => {
