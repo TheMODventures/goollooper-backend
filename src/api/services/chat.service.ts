@@ -118,6 +118,29 @@ export default (io: SocketIO.Server) => {
     );
 
     socket.on(
+      "sendRequest",
+      async (data: {
+        chatId: string;
+        userId: string;
+        dataset: Partial<IRequest>;
+      }) => {
+        try {
+          await chatRepository.sendRequest(
+            data.chatId,
+            data.userId,
+            data.dataset
+          );
+        } catch (error) {
+          console.error("Error while sending chat:", error);
+          socket.emit(
+            `error/${data.userId}`,
+            "validation error while sending chat"
+          );
+        }
+      }
+    );
+
+    socket.on(
       "deleteMessages",
       async (data: { chatId: string; userId: string }) => {
         console.log("deleteMessages executed");
