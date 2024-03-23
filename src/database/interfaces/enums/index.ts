@@ -45,20 +45,6 @@ export enum Days {
   sunday = "sunday",
 }
 
-export enum Repetition {
-  none = "none",
-  day = "day",
-  week = "week",
-  month = "month",
-  year = "year",
-  custom = "custom",
-}
-
-export enum RepetitionEvery {
-  week = "week",
-  month = "month",
-}
-
 export enum EList {
   goList = 1,
   myList = 2,

@@ -130,7 +130,7 @@ class AuthService {
 
       const schedules = await this.scheduleRepository.getAll({
         user: userId,
-        isActive: true,
+        isDeleted: false,
       });
       const res = { ...response, schedule: schedules };
       const tokenResponse = await this.tokenService.create(

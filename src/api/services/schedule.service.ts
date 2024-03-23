@@ -78,22 +78,6 @@ class ScheduleService {
     dataset: Partial<ISchedule>
   ): Promise<ApiResponse> => {
     try {
-      if (!dataset.date)
-        return ResponseHelper.sendResponse(422, "Please Provide date");
-
-      if (!dataset.slots?.length) {
-        dataset.isActive = false;
-      } else {
-        const scheduleResponse =
-          await this.scheduleRepository.getOne<ISchedule>({ _id });
-        await this.scheduleRepository.updateCollidingSchedules(
-          new Date(dataset.date),
-          dataset.slots,
-          scheduleResponse?.user as mongoose.Types.ObjectId
-        );
-        dataset.isActive = true;
-      }
-
       const response = await this.scheduleRepository.updateById<ISchedule>(
         _id as string,
         dataset
@@ -112,7 +96,12 @@ class ScheduleService {
 
   delete = async (_id: string): Promise<ApiResponse> => {
     try {
-      const response = await this.scheduleRepository.delete<ISchedule>({ _id });
+      const response = await this.scheduleRepository.updateById<ISchedule>(
+        _id,
+        {
+          isDeleted: true,
+        }
+      );
       if (!response) {
         return ResponseHelper.sendResponse(404);
       }
