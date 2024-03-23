@@ -195,7 +195,7 @@ class GolistService {
     coordinates: Number[],
     serviceId?: string[],
     volunteerIds?: string[],
-    subscription?: string | mongoose.Types.ObjectId,
+    subscription?: string[] | mongoose.Types.ObjectId[],
     zipCode?: string | null,
     rating?: ERating | undefined,
     companyLogo?: boolean | undefined,
@@ -280,10 +280,16 @@ class GolistService {
           $regex: /\.(mp4|avi|mov|mkv|jpg|jpeg|png|gif|bmp)$/i,
         };
 
-      if (subscription) {
-        match["subscription.subscription"] = new mongoose.Types.ObjectId(
-          subscription
+      // if (subscription) {
+      //   match["subscription.subscription"] = new mongoose.Types.ObjectId(
+      //     subscription
+      //   );
+      // }
+      if (subscription && subscription?.length > 0) {
+        const subscriptionIds = subscription.map(
+          (e: any) => new mongoose.Types.ObjectId(e)
         );
+        match["subscription.subscription"] = { $in: subscriptionIds };
       }
       if (serviceId && serviceId?.length > 0) {
         const services = serviceId.map(
