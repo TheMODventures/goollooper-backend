@@ -175,7 +175,7 @@ class GolistController {
       coordinates,
       taskInterests as string[],
       volunteers as undefined | string[],
-      subscription as undefined | string,
+      subscription as undefined | string[],
       zipCode?.toString(),
       rating ? (parseInt(rating.toString()) as ERating) : undefined,
       companyLogo as boolean | undefined,
