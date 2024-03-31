@@ -384,6 +384,209 @@ class GolistService {
     }
   };
 
+  getNearestUsers = async (
+    page: number,
+    limit = 10,
+    userId: string | undefined,
+    coordinates: Number[],
+    serviceId?: string[],
+    volunteerIds?: string[],
+    subscription?: string[] | mongoose.Types.ObjectId[],
+    zipCode?: string | null,
+    rating?: ERating | undefined,
+    companyLogo?: boolean | undefined,
+    companyRegistration?: boolean | undefined,
+    companyWebsite?: boolean | undefined,
+    companyAffilation?: boolean | undefined,
+    companyPublication?: boolean | undefined,
+    companyResume?: boolean | undefined,
+    certificate?: boolean | undefined,
+    license?: boolean | undefined,
+    reference?: boolean | undefined,
+    insurance?: boolean | undefined,
+    search?: string,
+    visualPhotos?: boolean | undefined,
+    visualVideos?: boolean | undefined,
+    userRole?: EUserRole | undefined
+  ) => {
+    try {
+      const query: PipelineStage[] = [];
+      if (zipCode) {
+        const googleCoordinates = (await GoogleMapHelper.searchLocation(
+          zipCode,
+          ""
+        )) as Number[] | null;
+        if (!googleCoordinates)
+          return ResponseHelper.sendResponse(404, "postal code is invalid");
+        coordinates = googleCoordinates;
+      }
+      if (coordinates?.length !== 0 && !isNaN(coordinates[0] as number)) {
+        query.push({
+          $geoNear: {
+            near: {
+              type: "Point",
+              coordinates: coordinates as [number, number],
+            },
+            distanceField: "distance",
+            spherical: true,
+            maxDistance: 10000,
+          },
+        });
+      }
+      const match = {
+        _id: { $ne: new mongoose.Types.ObjectId(userId) },
+        isDeleted: false,
+        // role: EUserRole.serviceProvider,
+        // isActive: true,
+        // isVerified: true,
+        isProfileCompleted: true,
+      } as any;
+
+      if (companyLogo) match["company.logo"] = { $ne: null };
+      if (companyRegistration) match["company.name"] = { $ne: null };
+      if (companyWebsite) match["company.website"] = { $ne: null };
+      if (companyAffilation) match["company.affiliation"] = { $ne: null };
+      if (companyPublication) match["company.publication"] = { $ne: null };
+      if (companyResume) match["company.resume"] = { $ne: null };
+
+      if (insurance) match["insurances"] = { $ne: [] };
+      else if (insurance === false) match["insurances"] = [];
+
+      if (certificate) match["certificates"] = { $ne: [] };
+      else if (certificate === false) match["certificates"] = [];
+
+      if (reference) match["reference.name"] = { $ne: null };
+      else if (reference === false) match["reference.name"] = null;
+
+      if (license) match["licenses"] = { $ne: [] };
+      else if (license === false) match["licenses"] = [];
+
+      if (visualPhotos)
+        match["visuals"] = { $regex: /\.(jpg|jpeg|png|gif|bmp)$/i };
+      else if (visualPhotos === false && visualVideos === false)
+        match["visuals"] = [];
+
+      if (visualVideos) match["visuals"] = { $regex: /\.(mp4|avi|mov|mkv)$/i };
+      else if (visualPhotos === false && visualVideos === false)
+        match["visuals"] = [];
+
+      if (visualPhotos && visualVideos)
+        match["visuals"] = {
+          $regex: /\.(mp4|avi|mov|mkv|jpg|jpeg|png|gif|bmp)$/i,
+        };
+
+      if (subscription && subscription?.length > 0) {
+        const subscriptionIds = subscription.map(
+          (e: any) => new mongoose.Types.ObjectId(e)
+        );
+        match["subscription.subscription"] = { $in: subscriptionIds };
+      }
+      if (serviceId && serviceId?.length > 0) {
+        const services = serviceId.map(
+          (e: string) => new mongoose.Types.ObjectId(e)
+        );
+        match["$or"] = [
+          {
+            services: {
+              $in: services,
+            },
+          },
+        ];
+      }
+      if (volunteerIds && volunteerIds?.length > 0) {
+        const volunteers = volunteerIds.map(
+          (e: string) => new mongoose.Types.ObjectId(e)
+        );
+        match["$or"] = [
+          {
+            volunteer: {
+              $in: volunteers,
+            },
+          },
+        ];
+      }
+      query.push({
+        $match: match,
+      });
+      query.push({
+        $addFields: {
+          fullName: { $concat: ["$firstName", " ", "$lastName"] },
+        },
+      });
+      if (search) {
+        query.push({
+          $match: {
+            $or: [
+              { fullName: { $regex: search, $options: "i" } },
+              { firstName: { $regex: search, $options: "i" } },
+              { lastName: { $regex: search, $options: "i" } },
+              { username: { $regex: search, $options: "i" } },
+              { email: { $regex: search, $options: "i" } },
+            ],
+          },
+        });
+      }
+      if (rating) {
+        query.push({ $sort: { averageRating: rating } });
+      }
+      query.push(
+        ...[
+          {
+            $lookup: {
+              as: "subscription",
+              from: "subscriptions",
+              localField: "subscription.subscription",
+              foreignField: "_id",
+            },
+          },
+          {
+            $addFields: {
+              subscription: { $first: "$subscription" },
+            },
+          },
+          {
+            $lookup: {
+              from: "golists",
+              localField: "_id",
+              foreignField: "serviceProviders",
+              as: "golistData",
+            },
+          },
+          {
+            $match: {
+              "golistData.createdBy": new mongoose.Types.ObjectId(userId),
+            },
+          },
+          {
+            $project: {
+              _id: 1,
+              username: 1,
+              firstName: 1,
+              lastName: 1,
+              email: 1,
+              phone: 1,
+              ratingCount: 1,
+              averageRating: 1,
+              profileImage: 1,
+              subscriptionName: {
+                $ifNull: ["$subscription.name", null],
+              },
+              distance: 1,
+            },
+          },
+        ]
+      );
+      const users = await new UserService().getDataByAggregate(
+        page,
+        limit,
+        query
+      );
+      return users;
+    } catch (error) {
+      return ResponseHelper.sendResponse(500, (error as Error).message);
+    }
+  };
+
   shareToMyList = async (
     sender: string,
     serviceProviderId: string,
