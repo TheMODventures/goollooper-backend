@@ -1,33 +1,44 @@
-name: Pull & Deploy
+name: Node.js CI
+
 on:
   push:
-    branches: ["dev"]
+    branches: [main]
 
 jobs:
-  deploy:
-    runs-on: ubuntu-latest
+  build:
+    runs-on: self-hosted
+
+    strategy:
+      matrix:
+        node-version: [18.x]
+
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
-      - name: Install Node.js
-        uses: actions/setup-node@v2
-        with:
-          node-version: "16"
+      # - name: Create package-lock.json
+      #   run: echo "" > package-lock.json
 
-      - name: Deploy NodeJS App
-        uses: appleboy/ssh-action@v0.1.7
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
         with:
-          host: ${{secrets.SSH_HOST}}
-          key: ${{secrets.SSH_KEY}}
-          username: ${{secrets.SSH_USERNAME}}
-          script: |
-            cd /mnt/goollooper
-            git checkout dev
-            git pull origin dev
-            npm install
-            echo '${{secrets.SERVICE_ACCOUNT}}' > src/api/helpers/goollooper-service.json
-            npm run build
-            pm2 restart apis-goollooper
-            pm2 list
-            git reset --hard
+          node-version: ${{ matrix.node-version }}
+          cache: "npm"
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Create .env file
+        run: echo "${{secrets.PROD_ENV}}" > .env
+
+      - name: Create service account file
+        run: echo '${{secrets.SERVICE_ACCOUNT}}' > src/api/helpers/goollooper-service.json
+
+      - name: Edit package
+        run: if [ -e "node_modules/mongoose-paginate-v2/index.d.ts" ]; then sed -i 's/LeanDocument/Document/'  node_modules/mongoose-paginate-v2/index.d.ts; else echo "File not found"; fi
+
+      - name: Build
+        run: npm run build
+
+      - name: Restart Server
+        run: pm2 restart apis-goolooper
