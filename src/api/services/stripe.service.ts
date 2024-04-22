@@ -280,6 +280,8 @@ class StripeService {
         "stripeCustomerId"
       );
       if (!user) return ResponseHelper.sendResponse(404, "User not found");
+      if (!user.stripeCustomerId)
+        return ResponseHelper.sendResponse(404, "Stripe customer id not found");
       const customer = await stripeHelper.getStripeCustomer(
         user.stripeCustomerId as string
       );
