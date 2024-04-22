@@ -151,6 +151,17 @@ class AuthService {
           $addToSet: { fcmTokens: fcmToken },
         });
 
+      if (!response.stripeCustomerId) {
+        const CustomerCreate = await stripeHelper.createStripeCustomer(
+          response.email
+        );
+        if (CustomerCreate) {
+          await this.userRepository.updateById(response._id?.toString() ?? "", {
+            stripeCustomerId: CustomerCreate.id,
+          });
+        }
+      }
+
       return ResponseHelper.sendSignTokenResponse(
         200,
         SUCCESS_LOGIN_PASSED,
