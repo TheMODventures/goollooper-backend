@@ -141,15 +141,6 @@ class AuthService {
         user: userId,
         isActive: true,
       });
-      const res = { ...response, schedule: schedules };
-      const tokenResponse = await this.tokenService.create(
-        userId,
-        response.role
-      );
-      if (fcmToken)
-        this.userRepository.updateById(response._id?.toString() ?? "", {
-          $addToSet: { fcmTokens: fcmToken },
-        });
 
       if (!response.stripeCustomerId) {
         const CustomerCreate = await stripeHelper.createStripeCustomer(
@@ -161,6 +152,20 @@ class AuthService {
           });
         }
       }
+
+      const res = {
+        ...response,
+        schedule: schedules,
+        stripeCustomerId: response.stripeCustomerId,
+      };
+      const tokenResponse = await this.tokenService.create(
+        userId,
+        response.role
+      );
+      if (fcmToken)
+        this.userRepository.updateById(response._id?.toString() ?? "", {
+          $addToSet: { fcmTokens: fcmToken },
+        });
 
       return ResponseHelper.sendSignTokenResponse(
         200,
