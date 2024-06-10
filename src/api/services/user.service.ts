@@ -29,20 +29,21 @@ import { ISchedule } from "../../database/interfaces/schedule.interface";
 import { DateHelper } from "../helpers/date.helper";
 import { UploadHelper } from "../helpers/upload.helper";
 import TokenService from "./token.service";
+import { ISubscription } from "../../database/interfaces/subscription.interface";
 
 class UserService {
   private userRepository: UserRepository;
   private scheduleRepository: ScheduleRepository;
   private dateHelper: DateHelper;
   private uploadHelper: UploadHelper;
-
+  private subscriptionRepository: SubscriptionRepository;
   private tokenService: TokenService;
 
   constructor() {
     this.userRepository = new UserRepository();
     this.scheduleRepository = new ScheduleRepository();
     this.uploadHelper = new UploadHelper("user");
-
+    this.subscriptionRepository = new SubscriptionRepository();
     this.tokenService = new TokenService();
 
     this.dateHelper = new DateHelper();
@@ -297,26 +298,26 @@ class UserService {
         }
       }
 
-      // checking if subscription is bsp then location should be local
-      // removing condition because of frontend
-      // if (dataset.subscription?.subscription) {
-      // let subscription =
-      //   await this.subscriptionRepository.getById<ISubscription>(
-      //     dataset.subscription.subscription
-      //   );
+      if (dataset.subscription?.subscription) {
+        let subscription =
+          await this.subscriptionRepository.getById<ISubscription>(
+            dataset.subscription.subscription
+          );
+        // check if the subscription is BSL and the location is more than 3
+        if (
+          subscription &&
+          subscription.name.toLocaleLowerCase() ===
+            Subscription.bsl.toLocaleLowerCase()
+        ) {
+          if (dataset.location && dataset.location?.length > 3) {
+            return ResponseHelper.sendResponse(
+              422,
+              "BSL can select only 3 locations"
+            );
+          }
+        }
+      }
 
-      // if (
-      //   subscription &&
-      //   subscription.name.toLowerCase() === Subscription.bsl &&
-      //   dataset?.locationType !== EUserLocationType.local
-      // )
-      //   return ResponseHelper.sendResponse(
-      //     422,
-      //     "Location should be local while subscribing to BSL"
-      //   );
-      // }
-
-      // checking if location is local then all location details should be provided
       if (
         dataset.locationType &&
         dataset.locationType === EUserLocationType.local &&
@@ -331,17 +332,31 @@ class UserService {
       ) {
         for (let i = 0; i < dataset.location.length; i++) {
           const element = dataset.location[i];
-          if (
-            element.coordinates.length < 2 ||
-            !element.state ||
-            !element.city ||
-            !element.county ||
-            (dataset.zipCode && !dataset.zipCode.length)
-          ) {
-            return ResponseHelper.sendResponse(
-              422,
-              "Provide all location details"
-            );
+          if (dataset.role == 3) {
+            if (
+              element.county ||
+              element.city ||
+              element.state ||
+              (dataset.zipCode && dataset.zipCode.length)
+            ) {
+              return ResponseHelper.sendResponse(
+                422,
+                "Country, city, state, and zipcode are forbidden for this role"
+              );
+            }
+          } else {
+            if (
+              element.coordinates.length < 2 ||
+              !element.state ||
+              !element.city ||
+              !element.county ||
+              (dataset.zipCode && !dataset.zipCode.length)
+            ) {
+              return ResponseHelper.sendResponse(
+                422,
+                "Provide all location details"
+              );
+            }
           }
           dataset.location[i].coordinates?.map((e) => parseFloat(e.toString()));
           dataset.location[i].type ??= "Point";
@@ -351,297 +366,297 @@ class UserService {
       }
 
       // schedule creation
-      if (dataset.schedule) {
-        let schedule = dataset.schedule;
-        let noOfDays: number = 60;
-        const daysInWeek = 7;
-        let startDate = new Date(schedule.startDate);
-        const currentDate: Date = new Date();
-        let daysRemaining: number =
-          noOfDays -
-          Math.ceil(
-            (startDate.getTime() - currentDate.getTime()) / (1000 * 3600 * 24)
-          );
+      // if (dataset.schedule) {
+      //   let schedule = dataset.schedule;
+      //   let noOfDays: number = 60;
+      //   const daysInWeek = 7;
+      //   let startDate = new Date(schedule.startDate);
+      //   const currentDate: Date = new Date();
+      //   let daysRemaining: number =
+      //     noOfDays -
+      //     Math.ceil(
+      //       (startDate.getTime() - currentDate.getTime()) / (1000 * 3600 * 24)
+      //     );
 
-        if (schedule.repetition === Repetition.none) {
-          const scheduleStartDate = new Date(startDate);
-          scheduleStartDate.setDate(startDate.getDate());
+      //   if (schedule.repetition === Repetition.none) {
+      //     const scheduleStartDate = new Date(startDate);
+      //     scheduleStartDate.setDate(startDate.getDate());
 
-          await this.scheduleRepository.updateCollidingSchedules(
-            scheduleStartDate,
-            schedule.slots,
-            _id as mongoose.Types.ObjectId
-          );
+      //     await this.scheduleRepository.updateCollidingSchedules(
+      //       scheduleStartDate,
+      //       schedule.slots,
+      //       _id as mongoose.Types.ObjectId
+      //     );
 
-          await this.scheduleRepository.create<ISchedule>({
-            date: scheduleStartDate,
-            day: this.dateHelper.getDayOfWeek(scheduleStartDate) as Days,
-            slots: schedule.slots,
-            user: _id as mongoose.Types.ObjectId,
-          });
-        } else if (schedule.repetition === Repetition.day) {
-          for (let i = 0; i < daysRemaining; i++) {
-            const scheduleStartDate = new Date(startDate);
-            scheduleStartDate.setDate(startDate.getDate() + i);
+      //     await this.scheduleRepository.create<ISchedule>({
+      //       date: scheduleStartDate,
+      //       day: this.dateHelper.getDayOfWeek(scheduleStartDate) as Days,
+      //       slots: schedule.slots,
+      //       user: _id as mongoose.Types.ObjectId,
+      //     });
+      //   } else if (schedule.repetition === Repetition.day) {
+      //     for (let i = 0; i < daysRemaining; i++) {
+      //       const scheduleStartDate = new Date(startDate);
+      //       scheduleStartDate.setDate(startDate.getDate() + i);
 
-            await this.scheduleRepository.updateCollidingSchedules(
-              scheduleStartDate,
-              schedule.slots,
-              _id as mongoose.Types.ObjectId
-            );
+      //       await this.scheduleRepository.updateCollidingSchedules(
+      //         scheduleStartDate,
+      //         schedule.slots,
+      //         _id as mongoose.Types.ObjectId
+      //       );
 
-            await this.scheduleRepository.create<ISchedule>({
-              date: scheduleStartDate,
-              day: this.dateHelper.getDayOfWeek(scheduleStartDate) as Days,
-              slots: schedule.slots,
-              user: _id as mongoose.Types.ObjectId,
-            });
-          }
-        } else if (schedule.repetition === Repetition.week) {
-          const noOfWeeks = Math.ceil(daysRemaining / daysInWeek);
+      //       await this.scheduleRepository.create<ISchedule>({
+      //         date: scheduleStartDate,
+      //         day: this.dateHelper.getDayOfWeek(scheduleStartDate) as Days,
+      //         slots: schedule.slots,
+      //         user: _id as mongoose.Types.ObjectId,
+      //       });
+      //     }
+      //   } else if (schedule.repetition === Repetition.week) {
+      //     const noOfWeeks = Math.ceil(daysRemaining / daysInWeek);
 
-          for (let i = 0; i < noOfWeeks; i++) {
-            const scheduleStartDate = new Date(startDate);
-            scheduleStartDate.setDate(startDate.getDate() + i * daysInWeek);
+      //     for (let i = 0; i < noOfWeeks; i++) {
+      //       const scheduleStartDate = new Date(startDate);
+      //       scheduleStartDate.setDate(startDate.getDate() + i * daysInWeek);
 
-            await this.scheduleRepository.updateCollidingSchedules(
-              scheduleStartDate,
-              schedule.slots,
-              _id as mongoose.Types.ObjectId
-            );
+      //       await this.scheduleRepository.updateCollidingSchedules(
+      //         scheduleStartDate,
+      //         schedule.slots,
+      //         _id as mongoose.Types.ObjectId
+      //       );
 
-            await this.scheduleRepository.create<ISchedule>({
-              date: scheduleStartDate,
-              day: this.dateHelper.getDayOfWeek(scheduleStartDate) as Days,
-              slots: schedule.slots,
-              user: _id as mongoose.Types.ObjectId,
-            });
-          }
-        } else if (schedule.repetition === Repetition.month) {
-          const scheduleStartDate = new Date(startDate);
+      //       await this.scheduleRepository.create<ISchedule>({
+      //         date: scheduleStartDate,
+      //         day: this.dateHelper.getDayOfWeek(scheduleStartDate) as Days,
+      //         slots: schedule.slots,
+      //         user: _id as mongoose.Types.ObjectId,
+      //       });
+      //     }
+      //   } else if (schedule.repetition === Repetition.month) {
+      //     const scheduleStartDate = new Date(startDate);
 
-          while (daysRemaining > 0) {
-            await this.scheduleRepository.updateCollidingSchedules(
-              scheduleStartDate,
-              schedule.slots,
-              _id as mongoose.Types.ObjectId
-            );
+      //     while (daysRemaining > 0) {
+      //       await this.scheduleRepository.updateCollidingSchedules(
+      //         scheduleStartDate,
+      //         schedule.slots,
+      //         _id as mongoose.Types.ObjectId
+      //       );
 
-            await this.scheduleRepository.create<ISchedule>({
-              date: scheduleStartDate,
-              day: this.dateHelper.getDayOfWeek(scheduleStartDate) as Days,
-              slots: schedule.slots,
-              user: _id as mongoose.Types.ObjectId,
-            });
+      //       await this.scheduleRepository.create<ISchedule>({
+      //         date: scheduleStartDate,
+      //         day: this.dateHelper.getDayOfWeek(scheduleStartDate) as Days,
+      //         slots: schedule.slots,
+      //         user: _id as mongoose.Types.ObjectId,
+      //       });
 
-            // Move to the next month
-            scheduleStartDate.setMonth(scheduleStartDate.getMonth() + 1);
+      //       // Move to the next month
+      //       scheduleStartDate.setMonth(scheduleStartDate.getMonth() + 1);
 
-            // Subtract the actual number of days in the month from the remaining days
-            daysRemaining -= this.dateHelper.getDaysInMonth(scheduleStartDate);
-          }
-        } else if (schedule.repetition === Repetition.year) {
-          const scheduleStartDate = new Date(startDate);
+      //       // Subtract the actual number of days in the month from the remaining days
+      //       daysRemaining -= this.dateHelper.getDaysInMonth(scheduleStartDate);
+      //     }
+      //   } else if (schedule.repetition === Repetition.year) {
+      //     const scheduleStartDate = new Date(startDate);
 
-          while (daysRemaining > 0) {
-            await this.scheduleRepository.updateCollidingSchedules(
-              scheduleStartDate,
-              schedule.slots,
-              _id as mongoose.Types.ObjectId
-            );
+      //     while (daysRemaining > 0) {
+      //       await this.scheduleRepository.updateCollidingSchedules(
+      //         scheduleStartDate,
+      //         schedule.slots,
+      //         _id as mongoose.Types.ObjectId
+      //       );
 
-            await this.scheduleRepository.create<ISchedule>({
-              date: scheduleStartDate,
-              day: this.dateHelper.getDayOfWeek(scheduleStartDate) as Days,
-              slots: schedule.slots,
-              user: _id as mongoose.Types.ObjectId,
-            });
+      //       await this.scheduleRepository.create<ISchedule>({
+      //         date: scheduleStartDate,
+      //         day: this.dateHelper.getDayOfWeek(scheduleStartDate) as Days,
+      //         slots: schedule.slots,
+      //         user: _id as mongoose.Types.ObjectId,
+      //       });
 
-            // Move to the next year
-            scheduleStartDate.setFullYear(scheduleStartDate.getFullYear() + 1);
+      //       // Move to the next year
+      //       scheduleStartDate.setFullYear(scheduleStartDate.getFullYear() + 1);
 
-            // Subtract the actual number of days in the year from the remaining days
-            daysRemaining -= this.dateHelper.getDaysInYear(scheduleStartDate);
-          }
-        } else if (schedule.repetition === Repetition.custom) {
-          if (
-            !schedule.repeatsEvery ||
-            !schedule.repeatsOn ||
-            !schedule.repeatsAfter
-          ) {
-            return ResponseHelper.sendResponse(
-              422,
-              "Provide all schedule details required"
-            );
-          }
+      //       // Subtract the actual number of days in the year from the remaining days
+      //       daysRemaining -= this.dateHelper.getDaysInYear(scheduleStartDate);
+      //     }
+      //   } else if (schedule.repetition === Repetition.custom) {
+      //     if (
+      //       !schedule.repeatsEvery ||
+      //       !schedule.repeatsOn ||
+      //       !schedule.repeatsAfter
+      //     ) {
+      //       return ResponseHelper.sendResponse(
+      //         422,
+      //         "Provide all schedule details required"
+      //       );
+      //     }
 
-          let daysDifference = 0;
-          // check if end date is provided
-          if (schedule.endDate) {
-            daysDifference = this.dateHelper.isDateDifferenceGreaterThan(
-              schedule.startDate,
-              schedule.endDate
-            );
-          } else if (schedule.occurrence) {
-            let endDate = startDate;
-            endDate.setDate(startDate.getDate() + +schedule.occurrence * 7);
+      //     let daysDifference = 0;
+      //     // check if end date is provided
+      //     if (schedule.endDate) {
+      //       daysDifference = this.dateHelper.isDateDifferenceGreaterThan(
+      //         schedule.startDate,
+      //         schedule.endDate
+      //       );
+      //     } else if (schedule.occurrence) {
+      //       let endDate = startDate;
+      //       endDate.setDate(startDate.getDate() + +schedule.occurrence * 7);
 
-            daysDifference = daysDifference =
-              this.dateHelper.isDateDifferenceGreaterThan(
-                schedule.startDate,
-                endDate.toString()
-              );
-          } else if (!schedule.endDate && !schedule.occurrence) {
-            daysDifference = daysRemaining + 1;
-          }
+      //       daysDifference = daysDifference =
+      //         this.dateHelper.isDateDifferenceGreaterThan(
+      //           schedule.startDate,
+      //           endDate.toString()
+      //         );
+      //     } else if (!schedule.endDate && !schedule.occurrence) {
+      //       daysDifference = daysRemaining + 1;
+      //     }
 
-          // if schedule is greater than {noOfDays} days
-          if (daysDifference > daysRemaining) {
-            if (schedule.repeatsEvery === RepetitionEvery.week) {
-              const selectedDays = schedule.repeatsOn;
-              const noOfWeeks = Math.ceil(daysRemaining / daysInWeek);
-              let repeatsAfter = schedule.repeatsAfter || 1;
-              for (let i = 0; i < noOfWeeks; i += +repeatsAfter) {
-                // iterate through selected days and create schedules
-                for (const day of selectedDays) {
-                  // calculating next occurrence of the selected day
-                  const scheduleStartDate = this.dateHelper.getNextWeekdayByDay(
-                    schedule.startDate,
-                    day,
-                    i
-                  );
+      //     // if schedule is greater than {noOfDays} days
+      //     if (daysDifference > daysRemaining) {
+      //       if (schedule.repeatsEvery === RepetitionEvery.week) {
+      //         const selectedDays = schedule.repeatsOn;
+      //         const noOfWeeks = Math.ceil(daysRemaining / daysInWeek);
+      //         let repeatsAfter = schedule.repeatsAfter || 1;
+      //         for (let i = 0; i < noOfWeeks; i += +repeatsAfter) {
+      //           // iterate through selected days and create schedules
+      //           for (const day of selectedDays) {
+      //             // calculating next occurrence of the selected day
+      //             const scheduleStartDate = this.dateHelper.getNextWeekdayByDay(
+      //               schedule.startDate,
+      //               day,
+      //               i
+      //             );
 
-                  await this.scheduleRepository.updateCollidingSchedules(
-                    scheduleStartDate,
-                    schedule.slots,
-                    _id as mongoose.Types.ObjectId
-                  );
+      //             await this.scheduleRepository.updateCollidingSchedules(
+      //               scheduleStartDate,
+      //               schedule.slots,
+      //               _id as mongoose.Types.ObjectId
+      //             );
 
-                  await this.scheduleRepository.create<ISchedule>({
-                    date: scheduleStartDate,
-                    day: this.dateHelper.getDayOfWeek(
-                      scheduleStartDate
-                    ) as Days,
-                    slots: schedule.slots,
-                    user: _id as mongoose.Types.ObjectId,
-                  });
-                }
-              }
-            } else if (schedule.repeatsEvery === RepetitionEvery.month) {
-              const selectedDays = schedule.repeatsOn;
-              const daysInMonth = this.dateHelper.getDaysInMonth(
-                new Date(schedule.startDate)
-              );
-              const repeatsAfter = schedule.repeatsAfter || 1; // Default to 1 if repeatsAfter is not provided
+      //             await this.scheduleRepository.create<ISchedule>({
+      //               date: scheduleStartDate,
+      //               day: this.dateHelper.getDayOfWeek(
+      //                 scheduleStartDate
+      //               ) as Days,
+      //               slots: schedule.slots,
+      //               user: _id as mongoose.Types.ObjectId,
+      //             });
+      //           }
+      //         }
+      //       } else if (schedule.repeatsEvery === RepetitionEvery.month) {
+      //         const selectedDays = schedule.repeatsOn;
+      //         const daysInMonth = this.dateHelper.getDaysInMonth(
+      //           new Date(schedule.startDate)
+      //         );
+      //         const repeatsAfter = schedule.repeatsAfter || 1; // Default to 1 if repeatsAfter is not provided
 
-              // Calculate the number of months needed based on the total number of days
-              const totalMonths = Math.ceil(
-                daysRemaining / (daysInMonth * +repeatsAfter)
-              );
+      //         // Calculate the number of months needed based on the total number of days
+      //         const totalMonths = Math.ceil(
+      //           daysRemaining / (daysInMonth * +repeatsAfter)
+      //         );
 
-              for (let i = 0; i < totalMonths; i++) {
-                // Iterate through selected days and create schedules
-                for (const day of selectedDays) {
-                  // Calculate the next occurrence of the selected day in the current month
-                  const scheduleStartDate =
-                    this.dateHelper.getNextMonthdayByDay(
-                      schedule.startDate,
-                      day,
-                      i * +repeatsAfter
-                    );
+      //         for (let i = 0; i < totalMonths; i++) {
+      //           // Iterate through selected days and create schedules
+      //           for (const day of selectedDays) {
+      //             // Calculate the next occurrence of the selected day in the current month
+      //             const scheduleStartDate =
+      //               this.dateHelper.getNextMonthdayByDay(
+      //                 schedule.startDate,
+      //                 day,
+      //                 i * +repeatsAfter
+      //               );
 
-                  await this.scheduleRepository.updateCollidingSchedules(
-                    scheduleStartDate,
-                    schedule.slots,
-                    _id as mongoose.Types.ObjectId
-                  );
+      //             await this.scheduleRepository.updateCollidingSchedules(
+      //               scheduleStartDate,
+      //               schedule.slots,
+      //               _id as mongoose.Types.ObjectId
+      //             );
 
-                  await this.scheduleRepository.create<ISchedule>({
-                    date: scheduleStartDate,
-                    day: this.dateHelper.getDayOfWeek(
-                      scheduleStartDate
-                    ) as Days,
-                    slots: schedule.slots,
-                    user: _id as mongoose.Types.ObjectId,
-                  });
-                }
-              }
-            }
-          } else {
-            // schedule is less than {noOfDays} days
-            if (schedule.repeatsEvery === RepetitionEvery.week) {
-              const selectedDays = schedule.repeatsOn;
-              const noOfWeeks = Math.ceil(daysDifference / daysInWeek);
-              let repeatsAfter = schedule.repeatsAfter || 1;
-              for (let i = 0; i < noOfWeeks; i += +repeatsAfter) {
-                // iterate through selected days and create schedules
-                for (const day of selectedDays) {
-                  // calculating next occurrence of the selected day
-                  const scheduleStartDate = this.dateHelper.getNextWeekdayByDay(
-                    schedule.startDate,
-                    day,
-                    i
-                  );
+      //             await this.scheduleRepository.create<ISchedule>({
+      //               date: scheduleStartDate,
+      //               day: this.dateHelper.getDayOfWeek(
+      //                 scheduleStartDate
+      //               ) as Days,
+      //               slots: schedule.slots,
+      //               user: _id as mongoose.Types.ObjectId,
+      //             });
+      //           }
+      //         }
+      //       }
+      //     } else {
+      //       // schedule is less than {noOfDays} days
+      //       if (schedule.repeatsEvery === RepetitionEvery.week) {
+      //         const selectedDays = schedule.repeatsOn;
+      //         const noOfWeeks = Math.ceil(daysDifference / daysInWeek);
+      //         let repeatsAfter = schedule.repeatsAfter || 1;
+      //         for (let i = 0; i < noOfWeeks; i += +repeatsAfter) {
+      //           // iterate through selected days and create schedules
+      //           for (const day of selectedDays) {
+      //             // calculating next occurrence of the selected day
+      //             const scheduleStartDate = this.dateHelper.getNextWeekdayByDay(
+      //               schedule.startDate,
+      //               day,
+      //               i
+      //             );
 
-                  await this.scheduleRepository.updateCollidingSchedules(
-                    scheduleStartDate,
-                    schedule.slots,
-                    _id as mongoose.Types.ObjectId
-                  );
+      //             await this.scheduleRepository.updateCollidingSchedules(
+      //               scheduleStartDate,
+      //               schedule.slots,
+      //               _id as mongoose.Types.ObjectId
+      //             );
 
-                  await this.scheduleRepository.create<ISchedule>({
-                    date: scheduleStartDate,
-                    day: this.dateHelper.getDayOfWeek(
-                      scheduleStartDate
-                    ) as Days,
-                    slots: schedule.slots,
-                    user: _id as mongoose.Types.ObjectId,
-                  });
-                }
-              }
-            } else if (schedule.repeatsEvery === RepetitionEvery.month) {
-              const selectedDays = schedule.repeatsOn;
-              const daysInMonth = this.dateHelper.getDaysInMonth(
-                new Date(schedule.startDate)
-              );
-              const repeatsAfter = schedule.repeatsAfter || 1; // Default to 1 if repeatsAfter is not provided
+      //             await this.scheduleRepository.create<ISchedule>({
+      //               date: scheduleStartDate,
+      //               day: this.dateHelper.getDayOfWeek(
+      //                 scheduleStartDate
+      //               ) as Days,
+      //               slots: schedule.slots,
+      //               user: _id as mongoose.Types.ObjectId,
+      //             });
+      //           }
+      //         }
+      //       } else if (schedule.repeatsEvery === RepetitionEvery.month) {
+      //         const selectedDays = schedule.repeatsOn;
+      //         const daysInMonth = this.dateHelper.getDaysInMonth(
+      //           new Date(schedule.startDate)
+      //         );
+      //         const repeatsAfter = schedule.repeatsAfter || 1; // Default to 1 if repeatsAfter is not provided
 
-              // Calculate the number of months needed based on the total number of days
-              const totalMonths = Math.ceil(
-                daysDifference / (daysInMonth * +repeatsAfter)
-              );
+      //         // Calculate the number of months needed based on the total number of days
+      //         const totalMonths = Math.ceil(
+      //           daysDifference / (daysInMonth * +repeatsAfter)
+      //         );
 
-              for (let i = 0; i < totalMonths; i++) {
-                // Iterate through selected days and create schedules
-                for (const day of selectedDays) {
-                  // Calculate the next occurrence of the selected day in the current month
-                  const scheduleStartDate =
-                    this.dateHelper.getNextMonthdayByDay(
-                      schedule.startDate,
-                      day,
-                      i * +repeatsAfter
-                    );
+      //         for (let i = 0; i < totalMonths; i++) {
+      //           // Iterate through selected days and create schedules
+      //           for (const day of selectedDays) {
+      //             // Calculate the next occurrence of the selected day in the current month
+      //             const scheduleStartDate =
+      //               this.dateHelper.getNextMonthdayByDay(
+      //                 schedule.startDate,
+      //                 day,
+      //                 i * +repeatsAfter
+      //               );
 
-                  await this.scheduleRepository.updateCollidingSchedules(
-                    scheduleStartDate,
-                    schedule.slots,
-                    _id as mongoose.Types.ObjectId
-                  );
+      //             await this.scheduleRepository.updateCollidingSchedules(
+      //               scheduleStartDate,
+      //               schedule.slots,
+      //               _id as mongoose.Types.ObjectId
+      //             );
 
-                  await this.scheduleRepository.create<ISchedule>({
-                    date: scheduleStartDate,
-                    day: this.dateHelper.getDayOfWeek(
-                      scheduleStartDate
-                    ) as Days,
-                    slots: schedule.slots,
-                    user: _id as mongoose.Types.ObjectId,
-                  });
-                }
-              }
-            }
-          }
-        }
-      }
+      //             await this.scheduleRepository.create<ISchedule>({
+      //               date: scheduleStartDate,
+      //               day: this.dateHelper.getDayOfWeek(
+      //                 scheduleStartDate
+      //               ) as Days,
+      //               slots: schedule.slots,
+      //               user: _id as mongoose.Types.ObjectId,
+      //             });
+      //           }
+      //         }
+      //       }
+      //     }
+      //   }
+      // }
 
       if (dataset.phoneCode && dataset.phone) {
         dataset.completePhone = dataset.phoneCode + dataset.phone;

@@ -246,7 +246,8 @@ class GolistService {
         // isVerified: true,
         isProfileCompleted: true,
       } as any;
-
+      // 67.0011364,
+      // 24.8607343
       if (companyLogo) match["company.logo"] = { $ne: null };
       if (companyRegistration) match["company.name"] = { $ne: null };
       if (companyWebsite) match["company.website"] = { $ne: null };
