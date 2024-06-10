@@ -31,7 +31,6 @@ class AuthService {
   private userRepository: UserRepository;
   private scheduleRepository: ScheduleRepository;
   private walletRepository: WalletRepository;
-
   constructor() {
     this.userRepository = new UserRepository();
     this.tokenService = new TokenService();
@@ -65,6 +64,16 @@ class AuthService {
       const userId = new mongoose.Types.ObjectId(data._id!);
       const tokenResponse = await this.tokenService.create(userId, role);
       // await this.walletRepository.create({ user: data._id } as IWallet);
+      const CustomerCreate = await stripeHelper.createStripeCustomer(
+        user.email
+      );
+
+      if (CustomerCreate) {
+        await this.userRepository.updateById(data._id?.toString() ?? "", {
+          stripeCustomerId: CustomerCreate.id,
+        });
+      }
+
       return ResponseHelper.sendSignTokenResponse(
         201,
         SUCCESS_REGISTRATION_PASSED,
@@ -132,7 +141,23 @@ class AuthService {
         user: userId,
         isDeleted: false,
       });
-      const res = { ...response, schedule: schedules };
+
+      if (!response.stripeCustomerId) {
+        const CustomerCreate = await stripeHelper.createStripeCustomer(
+          response.email
+        );
+        if (CustomerCreate) {
+          await this.userRepository.updateById(response._id?.toString() ?? "", {
+            stripeCustomerId: CustomerCreate.id,
+          });
+        }
+      }
+
+      const res = {
+        ...response,
+        schedule: schedules,
+        stripeCustomerId: response.stripeCustomerId,
+      };
       const tokenResponse = await this.tokenService.create(
         userId,
         response.role

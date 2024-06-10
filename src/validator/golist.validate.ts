@@ -2,7 +2,7 @@ import { isObjectIdOrHexString } from "mongoose";
 import * as yup from "yup";
 
 import UserService from "../api/services/user.service";
-import { ELiability, EList, ERating } from "../database/interfaces/enums";
+import { EList, ERating, EUserRole } from "../database/interfaces/enums";
 
 const userService = new UserService();
 
@@ -163,7 +163,7 @@ const getNearestServiceProvidersRule = yup.object().shape({
         .oneOf([...Object.values(ERating).map((value) => value.toString())]),
       taskInterests: yup.array().of(paramRule.id).notRequired(),
       volunteers: yup.array().of(paramRule.id).notRequired(),
-      subscription: yup.string().notRequired(),
+      subscription: yup.array().of(paramRule.id).notRequired(),
       companyLogo: yup.boolean().notRequired(),
       companyRegistration: yup.boolean().notRequired(),
       companyWebsite: yup.boolean().notRequired(),
@@ -204,6 +204,64 @@ const getNearestServiceProvidersRule = yup.object().shape({
     })
     .noUnknown(),
 });
+const getNearestUsers = yup.object().shape({
+  params: yup.object().shape({}).noUnknown(),
+  body: yup
+    .object()
+    .shape({
+      zipCode: yup.string(),
+      latitude: yup.string(),
+      longitude: yup.string(),
+      rating: yup
+        .string()
+        .oneOf([...Object.values(ERating).map((value) => value.toString())]),
+      taskInterests: yup.array().of(paramRule.id).notRequired(),
+      volunteers: yup.array().of(paramRule.id).notRequired(),
+      subscription: yup.array().of(paramRule.id).notRequired(),
+      companyLogo: yup.boolean().notRequired(),
+      companyRegistration: yup.boolean().notRequired(),
+      companyWebsite: yup.boolean().notRequired(),
+      companyAffilation: yup.boolean().notRequired(),
+      companyPublication: yup.boolean().notRequired(),
+      companyResume: yup.boolean().notRequired(),
+      certificate: yup.boolean().notRequired(),
+      license: yup.boolean().notRequired(),
+      reference: yup.boolean().notRequired(),
+      insurance: yup.boolean().notRequired(),
+      visualPhotos: yup.boolean().notRequired(),
+      visualVideos: yup.boolean().notRequired(),
+      search: yup.string(),
+      userRole: yup
+        .string()
+        .oneOf([...Object.values(EUserRole).map((value) => value.toString())]),
+    })
+    .test(
+      "zipCodeOrCoordinates",
+      "Either zipCode or both latitude and longitude are required",
+      function (value) {
+        const { zipCode, latitude, longitude } = value;
+
+        if (zipCode && (latitude || longitude)) {
+          return this.createError({
+            message:
+              "Either zipCode or both latitude and longitude are required",
+            path: "zipCode",
+          });
+        }
+
+        return true;
+      }
+    )
+    .noUnknown(),
+  query: yup
+    .object()
+    .shape({
+      page: yup.string().required(),
+      limit: yup.string().notRequired(),
+    })
+    .noUnknown(),
+});
+
 export = {
   "/": indexRule,
   "/create": createRule,
@@ -212,5 +270,6 @@ export = {
   "/delete": showRule,
   "/zip-code": checkPostalCodeRule,
   "/nearest-service-provider": getNearestServiceProvidersRule,
+  "/nearest-user": getNearestUsers,
   "/share": shareRule,
 };

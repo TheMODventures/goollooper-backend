@@ -3,7 +3,7 @@ import { Request, Response } from "express";
 
 import GolistService from "../../services/golist.service";
 import UserService from "../../services/user.service";
-import { ELiability, EList, ERating } from "../../../database/interfaces/enums";
+import { EList, ERating, EUserRole } from "../../../database/interfaces/enums";
 import { IUser } from "../../../database/interfaces/user.interface";
 import { IGolist } from "../../../database/interfaces/golist.interface";
 import { ModelHelper } from "../../helpers/model.helper";
@@ -175,7 +175,7 @@ class GolistController {
       coordinates,
       taskInterests as string[],
       volunteers as undefined | string[],
-      subscription as undefined | string,
+      subscription as undefined | string[],
       zipCode?.toString(),
       rating ? (parseInt(rating.toString()) as ERating) : undefined,
       companyLogo as boolean | undefined,
@@ -191,6 +191,61 @@ class GolistController {
       search as string,
       visualPhotos as boolean | undefined,
       visualVideos as boolean | undefined
+    );
+    return res.status(response.code).json(response);
+  };
+
+  getNearestUsers = async (req: Request, res: Response) => {
+    const { limit, page } = req.query;
+    const {
+      latitude,
+      longitude,
+      zipCode,
+      taskInterests = [],
+      volunteers,
+      subscription,
+      rating,
+      companyLogo,
+      companyRegistration,
+      companyWebsite,
+      companyAffilation,
+      companyPublication,
+      companyResume,
+      certificate,
+      license,
+      reference,
+      insurance,
+      search,
+      visualPhotos,
+      visualVideos,
+      userRole,
+    } = req.body;
+    const limitNow = limit ? limit : 10;
+    const coordinates = [Number(longitude), Number(latitude)];
+    const response = await this.golistService.getNearestUsers(
+      Number(page),
+      Number(limitNow),
+      req.locals.auth?.userId,
+      coordinates,
+      taskInterests as string[],
+      volunteers as undefined | string[],
+      subscription as undefined | string[],
+      zipCode?.toString(),
+      rating ? (parseInt(rating.toString()) as ERating) : undefined,
+      companyLogo as boolean | undefined,
+      companyRegistration as boolean | undefined,
+      companyWebsite as boolean | undefined,
+      companyAffilation as boolean | undefined,
+      companyPublication as boolean | undefined,
+      companyResume as boolean | undefined,
+      certificate as boolean | undefined,
+      license as boolean | undefined,
+      reference as boolean | undefined,
+      insurance as boolean | undefined,
+      search as string,
+      visualPhotos as boolean | undefined,
+      visualVideos as boolean | undefined,
+      userRole as EUserRole | undefined
     );
     return res.status(response.code).json(response);
   };

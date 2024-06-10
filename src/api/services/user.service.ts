@@ -20,19 +20,20 @@ import { ResponseHelper } from "../helpers/reponseapi.helper";
 import { ISchedule } from "../../database/interfaces/schedule.interface";
 import { UploadHelper } from "../helpers/upload.helper";
 import TokenService from "./token.service";
+import { ISubscription } from "../../database/interfaces/subscription.interface";
 
 class UserService {
   private userRepository: UserRepository;
   private scheduleRepository: ScheduleRepository;
   private uploadHelper: UploadHelper;
-
+  private subscriptionRepository: SubscriptionRepository;
   private tokenService: TokenService;
 
   constructor() {
     this.userRepository = new UserRepository();
     this.scheduleRepository = new ScheduleRepository();
     this.uploadHelper = new UploadHelper("user");
-
+    this.subscriptionRepository = new SubscriptionRepository();
     this.tokenService = new TokenService();
   }
 
@@ -285,26 +286,26 @@ class UserService {
         }
       }
 
-      // checking if subscription is bsp then location should be local
-      // removing condition because of frontend
-      // if (dataset.subscription?.subscription) {
-      // let subscription =
-      //   await this.subscriptionRepository.getById<ISubscription>(
-      //     dataset.subscription.subscription
-      //   );
+      if (dataset.subscription?.subscription) {
+        let subscription =
+          await this.subscriptionRepository.getById<ISubscription>(
+            dataset.subscription.subscription
+          );
+        // check if the subscription is BSL and the location is more than 3
+        if (
+          subscription &&
+          subscription.name.toLocaleLowerCase() ===
+            Subscription.bsl.toLocaleLowerCase()
+        ) {
+          if (dataset.location && dataset.location?.length > 3) {
+            return ResponseHelper.sendResponse(
+              422,
+              "BSL can select only 3 locations"
+            );
+          }
+        }
+      }
 
-      // if (
-      //   subscription &&
-      //   subscription.name.toLowerCase() === Subscription.bsl &&
-      //   dataset?.locationType !== EUserLocationType.local
-      // )
-      //   return ResponseHelper.sendResponse(
-      //     422,
-      //     "Location should be local while subscribing to BSL"
-      //   );
-      // }
-
-      // checking if location is local then all location details should be provided
       if (
         dataset.locationType &&
         dataset.locationType === EUserLocationType.local &&
@@ -319,17 +320,31 @@ class UserService {
       ) {
         for (let i = 0; i < dataset.location.length; i++) {
           const element = dataset.location[i];
-          if (
-            element.coordinates.length < 2 ||
-            !element.state ||
-            !element.city ||
-            !element.county ||
-            (dataset.zipCode && !dataset.zipCode.length)
-          ) {
-            return ResponseHelper.sendResponse(
-              422,
-              "Provide all location details"
-            );
+          if (dataset.role == 3) {
+            if (
+              element.county ||
+              element.city ||
+              element.state ||
+              (dataset.zipCode && dataset.zipCode.length)
+            ) {
+              return ResponseHelper.sendResponse(
+                422,
+                "Country, city, state, and zipcode are forbidden for this role"
+              );
+            }
+          } else {
+            if (
+              element.coordinates.length < 2 ||
+              !element.state ||
+              !element.city ||
+              !element.county ||
+              (dataset.zipCode && !dataset.zipCode.length)
+            ) {
+              return ResponseHelper.sendResponse(
+                422,
+                "Provide all location details"
+              );
+            }
           }
           dataset.location[i].coordinates?.map((e) => parseFloat(e.toString()));
           dataset.location[i].type ??= "Point";
@@ -339,6 +354,7 @@ class UserService {
       }
 
       // schedule creation
+
       if (dataset?.schedule?.length) {
         for (const schedule of dataset.schedule) {
           let scheduleExists = await this.scheduleRepository.getOne<ISchedule>({
@@ -365,6 +381,7 @@ class UserService {
           }
         }
       }
+
 
       if (dataset.phoneCode && dataset.phone) {
         dataset.completePhone = dataset.phoneCode + dataset.phone;
