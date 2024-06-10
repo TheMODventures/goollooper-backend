@@ -3,20 +3,15 @@ import { Moment } from "moment";
 
 import { Days } from "./enums";
 
-export interface ISlot {
-  startTime: string;
-  endTime: string;
-}
-
 export interface ISchedule {
   _id?: mongoose.Types.ObjectId | string;
-  date: Date;
-  slots: ISlot[];
   day: Days;
-  isActive?: boolean;
+  startTime: string;
+  endTime: string;
   user: mongoose.Types.ObjectId;
   createdAt?: Date | Moment;
   updatedAt?: Date | Moment;
+  isDeleted?: boolean;
 }
 
 export interface IScheduleDoc extends ISchedule, Document {

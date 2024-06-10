@@ -4,8 +4,6 @@ import {
   Days,
   EUserLocationType,
   EUserRole,
-  Repetition,
-  RepetitionEvery,
   UserRole,
 } from "../database/interfaces/enums";
 
@@ -103,72 +101,31 @@ const updateRule = yup.object().shape({
         )
         .notRequired(),
       schedule: yup
-        .object()
-        .shape({
-          startDate: yup
-            .string()
-            .matches(
-              /^(19|20)\d{2}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/,
-              "Please enter a valid start date in the format YYYY-MM-DD"
-            )
-            .required("Start Date is required"),
-          endDate: yup
-            .string()
-            .matches(
-              /^(19|20)\d{2}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/,
-              "Please enter a valid end date in the format YYYY-MM-DD"
-            )
-            .notRequired(),
-          slots: yup
-            .array()
-            .min(1)
-            .of(
-              yup.object().shape({
-                startTime: yup
-                  .string()
-                  .matches(
-                    /^([01]\d|2[0-3]):[0-5]\d$/,
-                    "Invalid start time format. Please use HH:mm format."
-                  )
-                  .required("Start time is required"),
-                endTime: yup
-                  .string()
-                  .matches(
-                    /^([01]\d|2[0-3]):[0-5]\d$/,
-                    "Invalid end time format. Please use HH:mm format."
-                  )
-                  .required("End time is required"),
-              })
-            )
-            .required(),
-          repetition: yup
-            .string()
-            .oneOf([
-              ...Object.values(Repetition).map((value) => value?.toString()),
-            ])
-            .required(),
-          repeatsAfter: yup.string().notRequired(),
-          repeatsEvery: yup
-            .string()
-            .oneOf([
-              ...Object.values(RepetitionEvery).map((value) =>
-                value?.toString()
-              ),
-            ])
-            .notRequired(),
-          repeatsOn: yup
-            .array()
-            .of(
-              yup
-                .string()
-                .oneOf([
-                  ...Object.values(Days).map((value) => value?.toString()),
-                ])
-            )
-            .notRequired(),
-          occurrence: yup.string().notRequired(),
-        })
+        .array()
+        .of(
+          yup.object().shape({
+            day: yup
+              .string()
+              .oneOf([...Object.values(Days).map((value) => value)])
+              .required(),
+            startTime: yup
+              .string()
+              .matches(
+                /^([01]\d|2[0-3]):[0-5]\d$/,
+                "Invalid start time format. Please use HH:mm format."
+              )
+              .required("Start time is required"),
+            endTime: yup
+              .string()
+              .matches(
+                /^([01]\d|2[0-3]):[0-5]\d$/,
+                "Invalid end time format. Please use HH:mm format."
+              )
+              .required("End time is required"),
+          })
+        )
         .notRequired(),
+      // .notRequired(),
       zipCode: yup
         .array()
         .of(
@@ -207,32 +164,19 @@ const updateRule = yup.object().shape({
 const updateScheduleRule = yup.object().shape({
   params: yup.object().shape(paramRule).noUnknown(),
   body: yup.object().shape({
-    date: yup
+    // day: yup.string().oneOf([...Object.values(Days).map((value) => value)]).notRequired(),
+    startTime: yup
       .string()
       .matches(
-        /^(19|20)\d{2}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/,
-        "Please enter a valid start date in the format YYYY-MM-DD"
+        /^([01]\d|2[0-3]):[0-5]\d$/,
+        "Invalid start time format. Please use HH:mm format."
       )
-      .required(),
-    slots: yup
-      .array()
-      .of(
-        yup.object().shape({
-          startTime: yup
-            .string()
-            .matches(
-              /^([01]\d|2[0-3]):[0-5]\d$/,
-              "Invalid start time format. Please use HH:mm format."
-            )
-            .required("Start time is required"),
-          endTime: yup
-            .string()
-            .matches(
-              /^([01]\d|2[0-3]):[0-5]\d$/,
-              "Invalid end time format. Please use HH:mm format."
-            )
-            .required("End time is required"),
-        })
+      .notRequired(),
+    endTime: yup
+      .string()
+      .matches(
+        /^([01]\d|2[0-3]):[0-5]\d$/,
+        "Invalid end time format. Please use HH:mm format."
       )
       .notRequired(),
   }),

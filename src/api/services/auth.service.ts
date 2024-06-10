@@ -139,7 +139,7 @@ class AuthService {
 
       const schedules = await this.scheduleRepository.getAll({
         user: userId,
-        isActive: true,
+        isDeleted: false,
       });
 
       if (!response.stripeCustomerId) {
