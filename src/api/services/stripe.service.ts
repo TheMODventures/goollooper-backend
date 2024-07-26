@@ -52,7 +52,7 @@ class StripeService {
   }
 
   async addCardToCustomer(req: Request): Promise<ApiResponse> {
-    const { cardNumber, expMonth, expYear, cvc }: any = req.body;
+    const { token }: any = req.body;
 
     try {
       const user: IUser | null = await this.userRepository.getById(
@@ -62,17 +62,10 @@ class StripeService {
       );
       if (!user) return ResponseHelper.sendResponse(404, "User not found");
 
-      const cardObj = {
-        number: cardNumber,
-        exp_month: expMonth,
-        exp_year: expYear,
-        cvc: cvc,
-      };
-
-      const token = await stripeHelper.createToken({ card: cardObj });
+      // const token = await stripeHelper.createToken({ token:"tok_visa" });
       const card = await stripeHelper.addCard(
         user?.stripeCustomerId as string,
-        token.id
+        token
       );
       if (!card) return ResponseHelper.sendResponse(404, "Card not added");
       return ResponseHelper.sendSuccessResponse(
@@ -124,11 +117,14 @@ class StripeService {
         "stripeCustomerId"
       );
       if (!user) return ResponseHelper.sendResponse(404, "User not found");
-      const banks = await stripeHelper.getCustomerCards(
+      const cards = await stripeHelper.getCustomerCards(
         user.stripeCustomerId as string,
         parseInt(req.body.page)
       );
-      return ResponseHelper.sendSuccessResponse("Card list found", banks);
+
+      if (cards.data.length == 0)
+        return ResponseHelper.sendResponse(404, "Card list not found");
+      return ResponseHelper.sendSuccessResponse("Card list found", cards);
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }

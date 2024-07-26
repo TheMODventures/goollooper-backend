@@ -233,7 +233,7 @@ class GolistService {
             },
             distanceField: "distance",
             spherical: true,
-            maxDistance: 10000,
+            maxDistance: 2000,
           },
         });
       }

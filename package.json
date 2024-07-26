@@ -61,6 +61,7 @@
     "mongoose-paginate-v2": "^1.8.0",
     "morgan": "^1.10.0",
     "multer": "^1.4.5-lts.1",
+    "nodemailer": "^6.9.14",
     "phone": "^3.1.41",
     "socket.io": "^4.5.2",
     "stripe": "^14.14.0",
@@ -71,6 +72,7 @@
   },
   "devDependencies": {
     "@types/mongoose-aggregate-paginate-v2": "^1.0.12",
+    "@types/nodemailer": "^6.4.15",
     "cpy-cli": "^5.0.0",
     "husky": "^8.0.3",
     "nodemon": "^1.14.9",

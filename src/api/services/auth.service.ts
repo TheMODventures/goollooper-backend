@@ -25,12 +25,14 @@ import TokenService from "./token.service";
 import { stripeHelper } from "../helpers/stripe.helper";
 import { WalletRepository } from "../repository/wallet/wallet.repository";
 import { IWallet } from "../../database/interfaces/wallet.interface";
+import Mailer from "../helpers/mailer.helper";
 
 class AuthService {
   private tokenService: TokenService;
   private userRepository: UserRepository;
   private scheduleRepository: ScheduleRepository;
   private walletRepository: WalletRepository;
+
   constructor() {
     this.userRepository = new UserRepository();
     this.tokenService = new TokenService();
@@ -73,6 +75,12 @@ class AuthService {
           stripeCustomerId: CustomerCreate.id,
         });
       }
+
+      Mailer.sendEmail({
+        email: data.email,
+        subject: "Verification Code",
+        message: `<h1>Your Verification Code is ${createCode}</h1>`,
+      });
 
       return ResponseHelper.sendSignTokenResponse(
         201,
@@ -187,6 +195,13 @@ class AuthService {
         return ResponseHelper.sendResponse(404);
       }
       const response = await this.resendOtp(email as string);
+
+      Mailer.sendEmail({
+        email: responseData.email,
+        subject: "OTP",
+        message: `<h1>Your OTP is ${response.data.otpCode}</h1>`,
+      });
+
       const userId = new mongoose.Types.ObjectId(responseData._id!);
       const tokenResponse = await this.tokenService.create(
         userId,
@@ -264,6 +279,7 @@ class AuthService {
       if (response === null) {
         return ResponseHelper.sendResponse(404);
       }
+
       return ResponseHelper.sendSuccessResponse(
         SUCCESS_OTP_SEND_PASSED,
         updateObj

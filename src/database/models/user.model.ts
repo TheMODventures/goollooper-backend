@@ -77,10 +77,11 @@ const userModel: Schema = new Schema(
     location: [
       {
         type: { type: String, enum: ["Point"], default: "Point" },
-        coordinates: { type: [Number, Number] },
+        coordinates: { type: [Number, Number], default: [0, 0] },
         state: { type: String, default: null },
         city: { type: String, default: null },
         county: { type: String, default: null },
+        town: { type: String, default: null },
         isSelected: { type: Boolean, default: false },
         readableLocation: { type: String, default: null },
       },
