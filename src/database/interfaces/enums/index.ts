@@ -106,6 +106,7 @@ export enum Request {
   PROCEED = 4,
   INVOICE = 5,
   COMPLETE = 6,
+  TOUR = 7,
 }
 
 export enum RequestStatus {
@@ -113,6 +114,9 @@ export enum RequestStatus {
   SERVICE_PROVIDER_REQUEST = 2,
   CLIENT_INVOICE_REQUEST = 3,
   SERVICE_PROVIDER_INVOICE_REQUEST = 4,
+  SERVICE_PROVIDER_TOUR_REQUEST = 5,
+  CLIENT_TOUR_REQUEST_ACCEPT = 6,
+  CLIENT_TOUR_REQUEST_DECLINE = 7,
 }
 
 export enum MessageType {
@@ -124,6 +128,7 @@ export enum MessageType {
   invoice = "invoice",
   complete = "complete",
   system = "system",
+  tour = "tour",
 }
 
 export enum EChatType {

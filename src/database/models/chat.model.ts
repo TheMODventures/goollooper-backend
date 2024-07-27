@@ -13,6 +13,14 @@ import {
   ETICKET_STATUS,
 } from "../interfaces/enums";
 
+const timeValidator = (value: string) => {
+  const regex = /^([01]\d|2[0-3]):[0-5]\d$/; // Regular expression for HH:mm format
+  if (!regex.test(value)) {
+    throw new Error("Invalid time format. Please use HH:mm format.");
+  }
+  return true;
+};
+
 const deleteFields = {
   deleted: {
     type: Boolean,
@@ -146,6 +154,12 @@ const chatSchema = new Schema(
         title: { type: String, default: null },
         mediaUrl: { type: String, default: null },
         amount: { type: String, default: null },
+        date: { type: Date, required: false },
+        time: {
+          type: String,
+          required: false,
+          validate: [timeValidator, "time"],
+        },
         type: {
           type: String,
           enum: Request,
