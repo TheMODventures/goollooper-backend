@@ -39,6 +39,8 @@ export interface IRequest {
   title?: string;
   mediaUrl?: string;
   amount?: string;
+  date?: Date;
+  time?: string;
   type: Request;
   status: RequestStatus;
   createdBy?: string | Types.ObjectId;

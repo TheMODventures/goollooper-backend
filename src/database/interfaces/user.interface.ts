@@ -11,10 +11,11 @@ import {
 
 interface Location {
   type: string;
-  coordinates: [number, number];
+  coordinates?: [number, number];
   state?: string;
   zipCode?: string;
   city?: string;
+  town?: string;
   county?: string;
   isSelected: string;
   readableLocation?: string;

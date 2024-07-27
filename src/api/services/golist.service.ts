@@ -224,19 +224,19 @@ class GolistService {
           return ResponseHelper.sendResponse(404, "postal code is invalid");
         coordinates = googleCoordinates;
       }
-      if (coordinates?.length !== 0 && !isNaN(coordinates[0] as number)) {
-        query.push({
-          $geoNear: {
-            near: {
-              type: "Point",
-              coordinates: coordinates as [number, number],
-            },
-            distanceField: "distance",
-            spherical: true,
-            maxDistance: 10000,
-          },
-        });
-      }
+      // if (coordinates?.length !== 0 && !isNaN(coordinates[0] as number)) {
+      //   query.push({
+      //     $geoNear: {
+      //       near: {
+      //         type: "Point",
+      //         coordinates: coordinates as [number, number],
+      //       },
+      //       distanceField: "distance",
+      //       spherical: true,
+      //       maxDistance: 2000,
+      //     },
+      //   });
+      // }
       const match = {
         _id: { $ne: new mongoose.Types.ObjectId(userId) },
         isDeleted: false,
