@@ -5,7 +5,7 @@ import {
 } from "../../config/environment.config";
 
 const stripe = new Stripe(STRIPE_SECRET_KEY as string, {});
-
+const stripePk = new Stripe(process.env.STRIPE_PUBLISHABLE_KEY as string, {});
 class StripeHelper {
   createStripeCustomer(email: string): Promise<Stripe.Customer> {
     return stripe.customers.create({ email });
@@ -70,7 +70,7 @@ class StripeHelper {
   }
 
   createToken(obj: Stripe.TokenCreateParams): Promise<Stripe.Token> {
-    return stripe.tokens.create(obj);
+    return stripePk.tokens.create(obj);
   }
 
   createPaymentIntent(

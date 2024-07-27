@@ -58,7 +58,8 @@ class WalletService {
   };
 
   create = async (payload: IWallet, req: Request): Promise<ApiResponse> => {
-    const { idNumber, ssnLast4, dob } = req.body;
+    const { idNumber, ssnLast4, dob, countryCode, city, firstName, lastName } =
+      req.body;
     payload.user = req.locals.auth?.userId as string;
     try {
       const user: IUser | null = await this.userRepository.getById(
@@ -79,7 +80,7 @@ class WalletService {
 
       if (
         !user.stripeConnectId &&
-        user.countryCode == "US" &&
+        countryCode == "US" &&
         (!idNumber || !ssnLast4)
       ) {
         return ResponseHelper.sendResponse(
@@ -90,15 +91,11 @@ class WalletService {
       let stripeDataset: Stripe.AccountCreateParams = { individual: {} };
       stripeDataset = {
         email: user.email,
-        country: user.countryCode,
+        country: countryCode,
         individual: {
           address: {
-            line1: user.selectedLocation?.readableLocation,
-            line2: user.selectedLocation?.readableLocation,
-            country: user.selectedLocation?.county,
-            state: user.selectedLocation?.state,
+            country: countryCode,
             city: user.selectedLocation?.city,
-            postal_code: user.selectedLocation?.zipCode,
           },
           email: user.email,
           gender: user.gender,

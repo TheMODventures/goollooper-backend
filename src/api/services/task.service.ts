@@ -29,6 +29,8 @@ import { ModelHelper } from "../helpers/model.helper";
 import NotificationService, {
   NotificationParams,
 } from "./notification.service";
+import { WalletRepository } from "../repository/wallet/wallet.repository";
+import { IWallet } from "../../database/interfaces/wallet.interface";
 
 class TaskService {
   private taskRepository: TaskRepository;
@@ -38,7 +40,7 @@ class TaskService {
   private uploadHelper: UploadHelper;
   private chatRepository: ChatRepository;
   private userRepository: UserRepository;
-
+  private userWalletRepository: WalletRepository;
   constructor() {
     this.taskRepository = new TaskRepository();
     this.golistRepository = new GolistRepository();
@@ -46,7 +48,7 @@ class TaskService {
     this.chatRepository = new ChatRepository();
     this.userRepository = new UserRepository();
     this.notificationService = new NotificationService();
-
+    this.userWalletRepository = new WalletRepository();
     this.uploadHelper = new UploadHelper("task");
   }
 
@@ -215,6 +217,25 @@ class TaskService {
     try {
       const userId = req?.locals?.auth?.userId!;
       payload.postedBy = userId;
+
+      if (Boolean(payload?.commercial) == true) {
+        console.log("Task is created for commercial");
+        const wallet = await this.userWalletRepository.getOne<IWallet>({
+          user: userId,
+        });
+
+        if (!wallet) {
+          return ResponseHelper.sendResponse(404, "Wallet not found");
+        }
+
+        if (wallet.balance < 25) {
+          return ResponseHelper.sendResponse(
+            422,
+            "Insufficient balance cant create commercial task"
+          );
+        }
+      }
+
       if (
         req &&
         _.isArray(req.files) &&
