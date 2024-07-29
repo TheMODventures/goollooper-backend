@@ -50,6 +50,12 @@ class ChatRoutes extends BaseRoutes {
       this.chatController.addRequest
     );
 
+    this.router.get(
+      "/details",
+      this.validateRequest,
+      this.chatController.chatDetails
+    );
+
     this.router.patch(
       "/call/token/:id",
       this.validateRequest,

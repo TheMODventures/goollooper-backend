@@ -52,7 +52,7 @@ class StripeService {
   }
 
   async addCardToCustomer(req: Request): Promise<ApiResponse> {
-    const { token }: any = req.body;
+    const { cardNumber, expMonth, expYear, cvc }: any = req.body;
 
     try {
       const user: IUser | null = await this.userRepository.getById(
@@ -62,10 +62,19 @@ class StripeService {
       );
       if (!user) return ResponseHelper.sendResponse(404, "User not found");
 
-      // const token = await stripeHelper.createToken({ token:"tok_visa" });
+      const cardObj = {
+        name: user.firstName + " " + user.lastName,
+        number: cardNumber,
+        exp_month: expMonth,
+        exp_year: expYear,
+        cvc: cvc,
+      };
+
+      const token = await stripeHelper.createToken({ card: cardObj });
+
       const card = await stripeHelper.addCard(
         user?.stripeCustomerId as string,
-        token
+        token.id
       );
       if (!card) return ResponseHelper.sendResponse(404, "Card not added");
       return ResponseHelper.sendSuccessResponse(
@@ -463,7 +472,7 @@ class StripeService {
             wallet: wallet?._id,
           } as ITransaction);
           return ResponseHelper.sendSuccessResponse(
-            "Withdrawal successfull",
+            "Withdrawal successful",
             withdraw
           );
         }

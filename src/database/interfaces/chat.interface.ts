@@ -86,3 +86,11 @@ export interface IChatDoc extends IChat, Document {
   createdAt?: Date;
   updatedAt?: Date;
 }
+
+export interface ChatDetailsData {
+  userId: string;
+  page?: number;
+  chatSupport?: boolean;
+  chatId?: string;
+  search?: string;
+}

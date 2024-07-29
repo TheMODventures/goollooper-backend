@@ -29,6 +29,8 @@ import { ModelHelper } from "../helpers/model.helper";
 import NotificationService, {
   NotificationParams,
 } from "./notification.service";
+import { WalletRepository } from "../repository/wallet/wallet.repository";
+import { IWallet } from "../../database/interfaces/wallet.interface";
 
 class TaskService {
   private taskRepository: TaskRepository;
@@ -38,7 +40,7 @@ class TaskService {
   private uploadHelper: UploadHelper;
   private chatRepository: ChatRepository;
   private userRepository: UserRepository;
-
+  private userWalletRepository: WalletRepository;
   constructor() {
     this.taskRepository = new TaskRepository();
     this.golistRepository = new GolistRepository();
@@ -46,7 +48,7 @@ class TaskService {
     this.chatRepository = new ChatRepository();
     this.userRepository = new UserRepository();
     this.notificationService = new NotificationService();
-
+    this.userWalletRepository = new WalletRepository();
     this.uploadHelper = new UploadHelper("task");
   }
 
@@ -215,6 +217,31 @@ class TaskService {
     try {
       const userId = req?.locals?.auth?.userId!;
       payload.postedBy = userId;
+
+      const wallet = await this.userWalletRepository.getOne<IWallet>({
+        user: userId,
+      });
+
+      // Helper function to handle wallet errors
+      const handleWalletErrors = (wallet: IWallet | null, type: TaskType) => {
+        if (type === TaskType.megablast) {
+          if (!wallet) {
+            return ResponseHelper.sendResponse(404, "Wallet not found");
+          }
+          if (wallet.balance < 10) {
+            return ResponseHelper.sendResponse(
+              422,
+              "Insufficient balance, can't create Mega Blast task"
+            );
+          }
+        }
+        return null;
+      };
+
+      // Check wallet errors
+      const walletError = handleWalletErrors(wallet, payload.type);
+      if (walletError) return walletError;
+
       if (
         req &&
         _.isArray(req.files) &&
@@ -301,6 +328,10 @@ class TaskService {
             nbody: payload.title,
           } as NotificationParams);
         });
+
+        await this.userWalletRepository.updateById(wallet?._id as string, {
+          $inc: { balance: -10 },
+        });
       }
       if (
         payload.type !== TaskType.megablast &&
@@ -319,6 +350,15 @@ class TaskService {
         task: data._id,
         date: data.date,
       } as ICalendar);
+
+      if (payload.type !== TaskType.normal) {
+        if (wallet) {
+          await this.userWalletRepository.updateById(wallet._id as string, {
+            $inc: { balance: -10 },
+          });
+        }
+      }
+
       return ResponseHelper.sendResponse(201, data);
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);

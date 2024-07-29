@@ -24,6 +24,7 @@ class TransactionService {
   ): Promise<ApiResponse> => {
     try {
       const getDocCount = await this.transactionRepository.getCount(filter);
+
       const response = await this.transactionRepository.getAll<ITransaction>(
         filter,
         "",
@@ -36,6 +37,11 @@ class TransactionService {
         page,
         limit
       );
+
+      if (response.length === 0) {
+        return ResponseHelper.sendResponse(404, "No data found");
+      }
+
       return ResponseHelper.sendSuccessResponse(
         SUCCESS_DATA_LIST_PASSED,
         response,
