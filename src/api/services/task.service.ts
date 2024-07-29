@@ -218,23 +218,29 @@ class TaskService {
       const userId = req?.locals?.auth?.userId!;
       payload.postedBy = userId;
 
-      if (Boolean(payload?.commercial) == true) {
-        console.log("Task is created for commercial");
-        const wallet = await this.userWalletRepository.getOne<IWallet>({
-          user: userId,
-        });
+      const wallet = await this.userWalletRepository.getOne<IWallet>({
+        user: userId,
+      });
 
-        if (!wallet) {
-          return ResponseHelper.sendResponse(404, "Wallet not found");
+      // Helper function to handle wallet errors
+      const handleWalletErrors = (wallet: IWallet | null, type: TaskType) => {
+        if (type === TaskType.megablast) {
+          if (!wallet) {
+            return ResponseHelper.sendResponse(404, "Wallet not found");
+          }
+          if (wallet.balance < 10) {
+            return ResponseHelper.sendResponse(
+              422,
+              "Insufficient balance, can't create Mega Blast task"
+            );
+          }
         }
+        return null;
+      };
 
-        if (wallet.balance < 25) {
-          return ResponseHelper.sendResponse(
-            422,
-            "Insufficient balance cant create commercial task"
-          );
-        }
-      }
+      // Check wallet errors
+      const walletError = handleWalletErrors(wallet, payload.type);
+      if (walletError) return walletError;
 
       if (
         req &&
@@ -322,6 +328,10 @@ class TaskService {
             nbody: payload.title,
           } as NotificationParams);
         });
+
+        await this.userWalletRepository.updateById(wallet?._id as string, {
+          $inc: { balance: -10 },
+        });
       }
       if (
         payload.type !== TaskType.megablast &&
@@ -340,6 +350,15 @@ class TaskService {
         task: data._id,
         date: data.date,
       } as ICalendar);
+
+      if (payload.type !== TaskType.normal) {
+        if (wallet) {
+          await this.userWalletRepository.updateById(wallet._id as string, {
+            $inc: { balance: -10 },
+          });
+        }
+      }
+
       return ResponseHelper.sendResponse(201, data);
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);

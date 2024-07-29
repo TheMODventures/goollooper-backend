@@ -69,7 +69,7 @@ export class ChatRepository
     page = 1,
     pageSize = 20,
     chatSupport = false,
-    chatId = null,
+    chatId: string | null = null,
     search?: string
   ) {
     try {

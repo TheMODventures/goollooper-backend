@@ -192,6 +192,8 @@ class GolistService {
     page: number,
     limit = 10,
     userId: string | undefined,
+    city: string,
+    town: string,
     coordinates: Number[],
     serviceId?: string[],
     volunteerIds?: string[],
@@ -214,16 +216,16 @@ class GolistService {
   ) => {
     try {
       const query: PipelineStage[] = [];
-      if (zipCode) {
-        // coordinates = []
-        const googleCoordinates = (await GoogleMapHelper.searchLocation(
-          zipCode,
-          ""
-        )) as Number[] | null;
-        if (!googleCoordinates)
-          return ResponseHelper.sendResponse(404, "postal code is invalid");
-        coordinates = googleCoordinates;
-      }
+      // if (zipCode) {
+      //   // coordinates = []
+      //   const googleCoordinates = (await GoogleMapHelper.searchLocation(
+      //     zipCode,
+      //     ""
+      //   )) as Number[] | null;
+      //   if (!googleCoordinates)
+      //     return ResponseHelper.sendResponse(404, "postal code is invalid");
+      //   coordinates = googleCoordinates;
+      // }
       // if (coordinates?.length !== 0 && !isNaN(coordinates[0] as number)) {
       //   query.push({
       //     $geoNear: {
@@ -247,6 +249,15 @@ class GolistService {
         isProfileCompleted: true,
       } as any;
 
+      if (town) {
+        match["location"] = {
+          $elemMatch: { town: { $regex: town, $options: "i" } },
+        };
+      } else {
+        match["location"] = {
+          $elemMatch: { city: { $regex: city, $options: "i" } },
+        };
+      }
       if (companyLogo) match["company.logo"] = { $ne: null };
       if (companyRegistration) match["company.name"] = { $ne: null };
       if (companyWebsite) match["company.website"] = { $ne: null };
