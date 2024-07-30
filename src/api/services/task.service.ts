@@ -441,10 +441,7 @@ class TaskService {
         }
       }
 
-      const response = await this.taskRepository.updateById<ITask>(
-        _id,
-        dataset
-      );
+      let response = await this.taskRepository.updateById<ITask>(_id, dataset);
       if (response === null) {
         return ResponseHelper.sendResponse(404);
       }
@@ -456,9 +453,24 @@ class TaskService {
         await this.calendarRepository.updateMany({ task: response._id }, {
           date: response.date,
         } as ICalendar);
+
+      if (dataset?.date) {
+        await this.calendarRepository.updateMany({ task: response._id }, {
+          date: response.date,
+        } as ICalendar);
+      }
+
+      let chat = await this.chatRepository.getOne(
+        { task: _id as string },
+        "",
+        "groupName participants"
+      );
+
+      let mergedResult = { response, chat };
+
       return ResponseHelper.sendSuccessResponse(
         SUCCESS_DATA_UPDATION_PASSED,
-        response
+        mergedResult
       );
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);
