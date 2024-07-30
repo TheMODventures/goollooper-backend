@@ -11,6 +11,7 @@ import { Database } from "./config/database.config";
 import AdminRoutes from "./api/routes/admin/admin.route";
 import UserRoutes from "./api/routes/user.route";
 import ChatService from "./api/services/chat.service";
+import { notificationSockets } from "./api/services/notification.service";
 
 class App {
   protected app: Application;
@@ -45,6 +46,7 @@ class App {
     });
     this.io = new SocketIOServer(httpServer);
     ChatService(this.io);
+    notificationSockets(this.io);
   }
 }
 

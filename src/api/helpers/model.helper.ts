@@ -18,7 +18,7 @@ class ModelHelperC {
   readonly userSelect: string =
     "username firstName lastName email phone profileImage ratingCount averageRating";
   readonly subscriptionSelect: string = "name";
-  readonly taskSelect: string = "title description";
+  readonly taskSelect: string = "title description status";
 }
 
 export const ModelHelper = new ModelHelperC();
