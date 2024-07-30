@@ -463,7 +463,7 @@ class TaskService {
       let chat = await this.chatRepository.getOne(
         { task: _id as string },
         "",
-        "groupName participants"
+        "groupName chatType participants createdBy"
       );
 
       let mergedResult = { response, chat };
