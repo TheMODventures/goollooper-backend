@@ -741,6 +741,11 @@ export class ChatRepository
           msg.body = "Tour Request";
           break;
 
+        case "8":
+          msg.type = MessageType.reschedule;
+          msg.body = "Task Rescheduled";
+          break;
+
         default:
           break;
       }
