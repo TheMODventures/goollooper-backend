@@ -107,6 +107,7 @@ export enum Request {
   INVOICE = 5,
   COMPLETE = 6,
   TOUR = 7,
+  RESCHEDULE = 8,
 }
 
 export enum RequestStatus {
@@ -117,6 +118,7 @@ export enum RequestStatus {
   SERVICE_PROVIDER_TOUR_REQUEST = 5,
   CLIENT_TOUR_REQUEST_ACCEPT = 6,
   CLIENT_TOUR_REQUEST_DECLINE = 7,
+  CLIENT_TASK_RESCHEDULE = 8,
 }
 
 export enum MessageType {
@@ -129,6 +131,7 @@ export enum MessageType {
   complete = "complete",
   system = "system",
   tour = "tour",
+  reschedule = "tour",
 }
 
 export enum EChatType {
