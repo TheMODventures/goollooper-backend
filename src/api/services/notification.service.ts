@@ -14,7 +14,7 @@ import { ResponseHelper } from "../helpers/reponseapi.helper";
 import { NotificationRepository } from "../repository/notification/notification.repository";
 import { UserRepository } from "../repository/user/user.repository";
 import { IUser } from "../../database/interfaces/user.interface";
-import * as SocketIO from "socket.io";
+import SocketIO from "socket.io";
 
 import {
   ENOTIFICATION_TYPES,
