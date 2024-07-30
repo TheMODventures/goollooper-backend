@@ -14,12 +14,43 @@ import { ResponseHelper } from "../helpers/reponseapi.helper";
 import { NotificationRepository } from "../repository/notification/notification.repository";
 import { UserRepository } from "../repository/user/user.repository";
 import { IUser } from "../../database/interfaces/user.interface";
+import * as SocketIO from "socket.io";
+
 import {
   ENOTIFICATION_TYPES,
   EUserRole,
 } from "../../database/interfaces/enums";
 import { NotificationHelper } from "../helpers/notification.helper";
+import { Authorize } from "../../middleware/authorize.middleware";
 
+interface CustomSocket extends SocketIO.Socket {
+  user?: any;
+}
+
+export const notificationSockets = (io: SocketIO.Server) => {
+  console.log("Notification Socket Initialized");
+
+  const authorize = new Authorize();
+  const notificationService = new NotificationService();
+  io.use(async (socket: CustomSocket, next) => {
+    const token = socket.handshake.query.token;
+    const result = await authorize.validateAuthSocket(token as string);
+
+    if (result?.userId) {
+      socket.user = result;
+      next();
+    } else next(new Error(result));
+  });
+
+  io.on("connection", async (socket: CustomSocket) => {
+    socket.on("notification-event", async () => {
+      const count = await notificationService.getNotificationCount(
+        socket.user.userId
+      );
+      io.emit("notification-event", count);
+    });
+  });
+};
 class NotificationService {
   private notificationRepository: NotificationRepository;
   private userRepository: UserRepository;
@@ -265,6 +296,13 @@ class NotificationService {
 
     return notification;
   };
+
+  async getNotificationCount(userId: string) {
+    const count = await this.notificationRepository.getCount({
+      receiver: userId,
+    });
+    return count;
+  }
 }
 
 export interface NotificationParams {
