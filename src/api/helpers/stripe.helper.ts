@@ -247,6 +247,18 @@ class StripeHelper {
     }
     return stripe.products.list();
   }
+  async createSubscriptionItem(customerId: string, price: string) {
+    const obj = stripe.subscriptions.create({
+      customer: customerId,
+      items: [
+        {
+          price: price,
+        },
+      ],
+    });
+    console.log(obj, "Subscription Item");
+    return obj;
+  }
 }
 
 export const stripeHelper = new StripeHelper();

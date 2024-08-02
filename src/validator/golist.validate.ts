@@ -165,7 +165,7 @@ const getNearestServiceProvidersRule = yup.object().shape({
       town: yup.string().notRequired(),
       city: yup.string().notRequired(),
       volunteers: yup.array().of(paramRule.id).notRequired(),
-      subscription: yup.array().of(paramRule.id).notRequired(),
+      subscription: yup.array().of(yup.string()).notRequired(),
       companyLogo: yup.boolean().notRequired(),
       companyRegistration: yup.boolean().notRequired(),
       companyWebsite: yup.boolean().notRequired(),
@@ -192,7 +192,6 @@ const getNearestServiceProvidersRule = yup.object().shape({
             path: "city",
           });
         }
-
         return true;
       }
     )

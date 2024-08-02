@@ -298,9 +298,8 @@ class GolistService {
       //   );
       // }
       if (subscription && subscription?.length > 0) {
-        const subscriptionIds = subscription.map(
-          (e: any) => new mongoose.Types.ObjectId(e)
-        );
+        const subscriptionIds = subscription.map((e: any) => e);
+
         console.log(subscription);
         match["subscription.subscription"] = { $in: subscriptionIds };
       }
