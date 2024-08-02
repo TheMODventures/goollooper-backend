@@ -247,6 +247,12 @@ const toggleRequestRule = yup.object().shape({
   query: yup.object().noUnknown(),
 });
 
+const cancelTask = yup.object().shape({
+  params: yup.object().shape(paramRule).noUnknown(),
+  body: yup.object().shape({}).noUnknown(),
+  query: yup.object().noUnknown(),
+});
+
 export = {
   "/": indexRule,
   "/my-task": myTaskRule,
@@ -256,4 +262,5 @@ export = {
   "/delete": showRule,
   "/toggle-request": toggleRequestRule,
   "/request": showRule,
+  "/cancel": cancelTask,
 };

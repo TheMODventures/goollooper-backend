@@ -4,13 +4,11 @@ import { Moment } from "moment";
 import { SubscriptionType } from "./enums";
 
 export interface ISubscription extends JwtToken {
-  _id?: mongoose.Types.ObjectId | string;
+  subscription: string;
   name: string;
-  tagline: string;
-  description: string;
-  isDeleted?: boolean;
-  createdAt?: Date | Moment;
-  updatedAt?: Date | Moment;
+  plan: string;
+  subscribe?: boolean;
+  subscriptionAuthId?: string;
 }
 
 export interface IPlans extends JwtToken {

@@ -4,6 +4,9 @@ import _ from "lodash";
 
 import { ResponseHelper } from "../helpers/reponseapi.helper";
 import {
+  MEGA_BLAST_FEE,
+  REQUEST_ADDED_FEE,
+  SERVICE_INITIATION_FEE,
   SUCCESS_DATA_DELETION_PASSED,
   SUCCESS_DATA_LIST_PASSED,
   SUCCESS_DATA_SHOW_PASSED,
@@ -14,11 +17,16 @@ import { GolistRepository } from "../repository/golist/golist.repository";
 import { CalendarRepository } from "../repository/calendar/calendar.repository";
 import { ChatRepository } from "../repository/chat/chat.repository";
 import { UserRepository } from "../repository/user/user.repository";
-import { ITask, ITaskPayload } from "../../database/interfaces/task.interface";
+import {
+  GoList,
+  ITask,
+  ITaskPayload,
+} from "../../database/interfaces/task.interface";
 import { IGolist } from "../../database/interfaces/golist.interface";
 import {
   ECALENDARTaskType,
   ENOTIFICATION_TYPES,
+  ETaskStatus,
   ETaskUserStatus,
   TaskType,
 } from "../../database/interfaces/enums";
@@ -228,9 +236,10 @@ class TaskService {
           if (!wallet) {
             return ResponseHelper.sendResponse(404, "Wallet not found");
           }
-          if (wallet.balance < 10) {
+          // added service initiation fee and + 10 for mega blast package creation
+          if (wallet.balance < MEGA_BLAST_FEE) {
             return ResponseHelper.sendResponse(
-              422,
+              400, // bad request
               "Insufficient balance, can't create Mega Blast task"
             );
           }
@@ -341,10 +350,20 @@ class TaskService {
           } as ICalendar);
         });
       }
-
-      if (payload.type === TaskType.megablast) {
+      // in from data boolean value come in string format
+      if (String(payload.commercial) == "true" && wallet) {
+        if (wallet?.balance < SERVICE_INITIATION_FEE) {
+          return ResponseHelper.sendResponse(
+            400,
+            "Insufficient balance, can't create task "
+          );
+        }
         await this.userWalletRepository.updateById(wallet?._id as string, {
-          $inc: { balance: -10 },
+          $inc: {
+            balance: -SERVICE_INITIATION_FEE,
+            amountHeld: +SERVICE_INITIATION_FEE,
+          },
+          //  will be send to goollooper wallet later
         });
       }
 
@@ -354,6 +373,12 @@ class TaskService {
         date: data.date,
       } as ICalendar);
 
+      if (payload.type === TaskType.megablast) {
+        await this.userWalletRepository.updateById(wallet?._id as string, {
+          $inc: { balance: -MEGA_BLAST_FEE },
+          // amount will be send to Goolloper wallet later
+        });
+      }
       return ResponseHelper.sendResponse(201, data);
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);
@@ -485,6 +510,21 @@ class TaskService {
       });
       if (isExist)
         return ResponseHelper.sendResponse(422, "You are already in this task");
+
+      const wallet = await this.userWalletRepository.getOne<IWallet>({
+        user,
+      });
+      if (!wallet) {
+        return ResponseHelper.sendResponse(404, "Wallet not found");
+      }
+
+      if (wallet.balance < REQUEST_ADDED_FEE) {
+        return ResponseHelper.sendResponse(
+          400,
+          "Insufficient balance, can't request to be added in task"
+        );
+      }
+
       const response: ITask | null = await this.taskRepository.updateById(_id, {
         $addToSet: { users: { user } },
         $inc: { pendingCount: 1 },
@@ -627,6 +667,57 @@ class TaskService {
         chat: chatId,
       });
     } catch (error) {
+      return ResponseHelper.sendResponse(500, (error as Error).message);
+    }
+  };
+
+  cancelTask = async (id: string) => {
+    try {
+      const response = await this.taskRepository.updateById<ITask>(id, {
+        status: ETaskStatus.cancelled,
+        populate: ["goList.serviceProviders.user"],
+      });
+
+      if (response?.status == ETaskStatus.cancelled) {
+        return ResponseHelper.sendResponse(400, "Task already cancelled");
+      }
+
+      if (response === null) {
+        return ResponseHelper.sendResponse(404, "Task not found");
+      }
+
+      if (response.commercial) {
+        const goList = response.goList as GoList;
+        const serviceProvider = goList.serviceProviders[0]?.user;
+
+        const [wallet, serviceProviderWallet] = await Promise.all([
+          this.userWalletRepository.getOne<IWallet>({
+            user: response.postedBy,
+          }),
+          this.userWalletRepository.getOne<IWallet>({ user: serviceProvider }),
+        ]);
+
+        if (!wallet || !serviceProviderWallet) {
+          return ResponseHelper.sendResponse(404, "Wallet not found");
+        }
+
+        await Promise.all([
+          this.userWalletRepository.updateById(wallet._id as string, {
+            $inc: { amountHeld: -SERVICE_INITIATION_FEE },
+          }),
+          this.userWalletRepository.updateById(
+            serviceProviderWallet._id as string,
+            { $inc: { balance: SERVICE_INITIATION_FEE } }
+          ),
+        ]);
+      }
+
+      return ResponseHelper.sendSuccessResponse(
+        "Task cancelled successfully",
+        response
+      );
+    } catch (error) {
+      console.error("Error cancelling task:", error);
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   };
