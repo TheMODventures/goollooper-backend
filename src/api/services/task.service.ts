@@ -328,10 +328,6 @@ class TaskService {
             nbody: payload.title,
           } as NotificationParams);
         });
-
-        await this.userWalletRepository.updateById(wallet?._id as string, {
-          $inc: { balance: -10 },
-        });
       }
       if (
         payload.type !== TaskType.megablast &&
@@ -345,19 +341,18 @@ class TaskService {
           } as ICalendar);
         });
       }
+
+      if (payload.type === TaskType.megablast) {
+        await this.userWalletRepository.updateById(wallet?._id as string, {
+          $inc: { balance: -10 },
+        });
+      }
+
       await this.calendarRepository.create({
         user: payload.postedBy as string,
         task: data._id,
         date: data.date,
       } as ICalendar);
-
-      if (payload.type !== TaskType.normal) {
-        if (wallet) {
-          await this.userWalletRepository.updateById(wallet._id as string, {
-            $inc: { balance: -10 },
-          });
-        }
-      }
 
       return ResponseHelper.sendResponse(201, data);
     } catch (error) {

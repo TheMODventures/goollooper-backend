@@ -41,7 +41,6 @@ export default (io: SocketIO.Server) => {
 
   io.use(async (socket: CustomSocket, next) => {
     const token = socket.handshake.query.token;
-    console.log("token", token);
     const result = await authorize.validateAuthSocket(token as string);
     if (result?.userId) {
       socket.user = result;
