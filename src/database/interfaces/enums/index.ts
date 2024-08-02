@@ -131,7 +131,7 @@ export enum MessageType {
   complete = "complete",
   system = "system",
   tour = "tour",
-  reschedule = "tour",
+  reschedule = "reschedule",
 }
 
 export enum EChatType {
