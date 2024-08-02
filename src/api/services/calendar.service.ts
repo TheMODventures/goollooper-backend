@@ -32,7 +32,20 @@ class CalendarService {
         {
           createdAt: "desc",
         },
-        [ModelHelper.populateData("task", ModelHelper.taskSelect)],
+        [
+          ModelHelper.populateData(
+            "task",
+            "title description postedBy",
+            "Task",
+            [
+              ModelHelper.populateData(
+                "postedBy",
+                ModelHelper.userSelect,
+                "Users"
+              ),
+            ]
+          ),
+        ],
         true,
         page,
         limit
