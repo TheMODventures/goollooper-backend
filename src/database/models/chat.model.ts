@@ -155,10 +155,17 @@ const chatSchema = new Schema(
         mediaUrl: { type: String, default: null },
         amount: { type: String, default: null },
         date: { type: Date, required: false },
-        time: {
-          type: String,
-          required: false,
-          validate: [timeValidator, "time"],
+        slot: {
+          startTime: {
+            type: String,
+            required: false,
+            validate: [timeValidator, "Invalid start time"],
+          },
+          endTime: {
+            type: String,
+            required: false,
+            validate: [timeValidator, "Invalid end time"],
+          },
         },
         type: {
           type: String,
