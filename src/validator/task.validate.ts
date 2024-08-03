@@ -35,6 +35,13 @@ const indexRule = yup.object().shape({
     })
     .noUnknown(),
 });
+const deleteRule = yup.object().shape({
+  params: yup.object().shape(paramRule).noUnknown(),
+  body: yup.object().shape({}).noUnknown(),
+  query: yup.object().shape({
+    chatId: yup.string().required(),
+  }),
+});
 
 const myTaskRule = yup.object().shape({
   params: yup.object().noUnknown(),
@@ -236,9 +243,10 @@ const toggleRequestRule = yup.object().shape({
           ETaskUserStatus.ACCEPTED,
           ETaskUserStatus.REJECTED,
           ETaskUserStatus.STANDBY,
+          ETaskUserStatus.IDLE,
         ])
         .required(),
-      type: yup.string().oneOf(["goList", "user"]).required(),
+      // type: yup.string().oneOf(["goList", "user"]).required(),
     })
     .noUnknown(),
   query: yup.object().noUnknown(),

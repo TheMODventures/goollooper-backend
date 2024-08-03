@@ -2,7 +2,7 @@ import mongoose, { FilterQuery, PipelineStage } from "mongoose";
 import { Request } from "express";
 import _ from "lodash";
 
-import { EUserLocationType, EUserRole } from "../../database/interfaces/enums";
+import { EUserRole, Subscription } from "../../database/interfaces/enums";
 import {
   IUser,
   IUserWithSchedule,
@@ -17,23 +17,19 @@ import {
   SUCCESS_DATA_UPDATION_PASSED,
 } from "../../constant";
 import { ResponseHelper } from "../helpers/reponseapi.helper";
-import { ISchedule } from "../../database/interfaces/schedule.interface";
 import { UploadHelper } from "../helpers/upload.helper";
 import TokenService from "./token.service";
-import { ISubscription } from "../../database/interfaces/subscription.interface";
 
 class UserService {
   private userRepository: UserRepository;
   private scheduleRepository: ScheduleRepository;
   private uploadHelper: UploadHelper;
-  private subscriptionRepository: SubscriptionRepository;
   private tokenService: TokenService;
 
   constructor() {
     this.userRepository = new UserRepository();
     this.scheduleRepository = new ScheduleRepository();
     this.uploadHelper = new UploadHelper("user");
-    this.subscriptionRepository = new SubscriptionRepository();
     this.tokenService = new TokenService();
   }
 
@@ -398,7 +394,6 @@ class UserService {
       //     }
       //   }
       // }
-
 
       if (dataset.phoneCode && dataset.phone) {
         dataset.completePhone = dataset.phoneCode + dataset.phone;

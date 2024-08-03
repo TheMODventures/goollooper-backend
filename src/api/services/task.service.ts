@@ -318,7 +318,6 @@ class TaskService {
         }
       }
       const data = await this.taskRepository.create<ITask>(payload);
-      console.log("🚀 ~", data);
 
       if (
         payload.type === TaskType.megablast &&
@@ -501,19 +500,24 @@ class TaskService {
     }
   };
 
-  delete = async (_id: string): Promise<ApiResponse> => {
+  delete = async (_id: string, chatId: string): Promise<ApiResponse> => {
     try {
-      const response = await this.taskRepository.updateById<ITask>(_id, {
-        isDeleted: true,
-      });
-      if (!response) {
-        return ResponseHelper.sendResponse(404);
+      // Start update operations concurrently
+      const [taskUpdate, chatUpdate] = await Promise.all([
+        this.taskRepository.updateById<ITask>(_id, { isDeleted: true }),
+        this.chatRepository.updateById(chatId, { deleted: true }),
+      ]);
+
+      if (!taskUpdate) {
+        return ResponseHelper.sendResponse(404, "Task not found");
       }
-      await this.calendarRepository.deleteMany({
-        task: response._id,
-      });
+
+      // Delete related calendar entries
+      await this.calendarRepository.deleteMany({ task: taskUpdate._id });
+
       return ResponseHelper.sendSuccessResponse(SUCCESS_DATA_DELETION_PASSED);
     } catch (error) {
+      console.error("Error deleting task and chat:", error);
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   };
@@ -576,8 +580,7 @@ class TaskService {
     _id: string,
     loggedInUser: string,
     user: string,
-    status: number,
-    type: string
+    status: number
   ) => {
     try {
       const isExist = await this.taskRepository.exists({
@@ -589,23 +592,37 @@ class TaskService {
 
       if (isExist)
         return ResponseHelper.sendResponse(422, `Status is already ${status}`);
-      const updateCount: any = { $inc: {} };
 
-      if (status == ETaskUserStatus.REJECTED)
-        updateCount["$inc"].idleCount = -1;
-
-      if (status == ETaskUserStatus.ACCEPTED) {
-        updateCount["$inc"].idleCount = -1;
-        updateCount["$inc"].acceptedCount = 1;
-      }
       const task = await this.taskRepository.getById<ITask>(_id);
+
       if (!task) {
         return ResponseHelper.sendResponse(404, "Task not found");
       }
+      const updateCount: any = { $inc: {} };
+
       const noOfServiceProvider = task?.noOfServiceProvider;
       const acceptedProvidersCount = task?.serviceProviders.filter(
         (provider) => provider.status === 4
       ).length;
+
+      if (
+        status === ETaskUserStatus.ACCEPTED &&
+        acceptedProvidersCount >= noOfServiceProvider
+      ) {
+        // If the number of needed service providers is full, put the new service provider on standby
+        status = 3; // Set status to standby
+        // Do not increase the accepted count, handle only standby count
+      } else if (status === ETaskUserStatus.ACCEPTED) {
+        // If the service provider can be accepted, increase the accepted count
+        updateCount["$inc"].acceptedCount = 1;
+      }
+
+      if (status === ETaskUserStatus.REJECTED) {
+        updateCount["$inc"].idleCount = -1;
+      } else if (status === ETaskUserStatus.ACCEPTED || status === 3) {
+        // Status 3 is for standby
+        updateCount["$inc"].idleCount = -1;
+      }
 
       let response = await this.taskRepository.updateByOne<ITask>(
         { _id: new mongoose.Types.ObjectId(_id) },
@@ -620,10 +637,6 @@ class TaskService {
         }
       );
 
-      console.log(
-        "🚀 ~ file: task.service.ts ~ line 366 ~ TaskService ~ toggleRequest ~ response",
-        response
-      );
       // console.log("🚀 ~ file: task.service.ts ~ line 366 ~ TaskService ~ toggleRequest ~ status", status);
 
       let userData: IUser | null = await this.userRepository.getById(
