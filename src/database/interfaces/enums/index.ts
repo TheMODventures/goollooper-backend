@@ -24,7 +24,7 @@ export enum ServiceType {
 
 export enum SubscriptionType {
   day = "day",
-  month = "month",
+  monthly = "monthly",
   annum = "annum",
 }
 
@@ -71,13 +71,14 @@ export enum ETaskStatus {
   pending = "pending",
   assigned = "assigned",
   completed = "completed",
+  cancelled = "cancelled",
 }
-
 export enum ETaskUserStatus {
   PENDING = 1,
   REJECTED = 2,
   STANDBY = 3,
   ACCEPTED = 4,
+  IDLE = 5,
 }
 
 export enum ECALENDARTaskType {
@@ -92,6 +93,8 @@ export enum Request {
   PROCEED = 4,
   INVOICE = 5,
   COMPLETE = 6,
+  TOUR = 7,
+  RESCHEDULE = 8,
 }
 
 export enum RequestStatus {
@@ -99,6 +102,10 @@ export enum RequestStatus {
   SERVICE_PROVIDER_REQUEST = 2,
   CLIENT_INVOICE_REQUEST = 3,
   SERVICE_PROVIDER_INVOICE_REQUEST = 4,
+  SERVICE_PROVIDER_TOUR_REQUEST = 5,
+  CLIENT_TOUR_REQUEST_ACCEPT = 6,
+  CLIENT_TOUR_REQUEST_DECLINE = 7,
+  CLIENT_TASK_RESCHEDULE = 8,
 }
 
 export enum MessageType {
@@ -110,6 +117,8 @@ export enum MessageType {
   invoice = "invoice",
   complete = "complete",
   system = "system",
+  tour = "tour",
+  reschedule = "reschedule",
 }
 
 export enum EChatType {

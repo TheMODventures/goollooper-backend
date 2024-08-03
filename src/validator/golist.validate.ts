@@ -162,8 +162,10 @@ const getNearestServiceProvidersRule = yup.object().shape({
         .string()
         .oneOf([...Object.values(ERating).map((value) => value.toString())]),
       taskInterests: yup.array().of(paramRule.id).notRequired(),
+      town: yup.string().notRequired(),
+      city: yup.string().notRequired(),
       volunteers: yup.array().of(paramRule.id).notRequired(),
-      subscription: yup.array().of(paramRule.id).notRequired(),
+      subscription: yup.array().of(yup.string()).notRequired(),
       companyLogo: yup.boolean().notRequired(),
       companyRegistration: yup.boolean().notRequired(),
       companyWebsite: yup.boolean().notRequired(),
@@ -182,16 +184,14 @@ const getNearestServiceProvidersRule = yup.object().shape({
       "zipCodeOrCoordinates",
       "Either zipCode or both latitude and longitude are required",
       function (value) {
-        const { zipCode, latitude, longitude } = value;
+        const { city, town } = value;
 
-        if (zipCode && (latitude || longitude)) {
+        if (city && town) {
           return this.createError({
-            message:
-              "Either zipCode or both latitude and longitude are required",
-            path: "zipCode",
+            message: "Either City or Town are required",
+            path: "city",
           });
         }
-
         return true;
       }
     )

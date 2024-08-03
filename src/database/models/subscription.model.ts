@@ -9,19 +9,10 @@ const schemaOptions = {
 
 const subscriptionModel: Schema = new Schema(
   {
-    name: { type: String, required: true },
-    tagline: { type: String, required: true },
-    description: { type: String, required: true },
-    plans: [
-      {
-        price: { type: String, required: true },
-        duration: {
-          type: String,
-          enum: Object.values(SubscriptionType),
-          default: SubscriptionType.day,
-        },
-      },
-    ],
+    name: { type: String, required: false },
+    tagline: { type: String, required: false },
+    description: { type: String, required: false },
+    price: { type: Number, default: 0 },
     isDeleted: { type: Boolean, default: false },
   },
   schemaOptions

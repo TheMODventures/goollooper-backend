@@ -69,7 +69,7 @@ export class ChatRepository
     page = 1,
     pageSize = 20,
     chatSupport = false,
-    chatId = null,
+    chatId: string | null = null,
     search?: string
   ) {
     try {
@@ -496,16 +496,13 @@ export class ChatRepository
     ]);
 
     // Step 3: Extract the messages, total count, and unread count from the result
-    const messages =
-      result.length > 0
-        ? processChatMessages(result[0].messages as IMessage[])
-        : [];
+    const messages = result.length > 0 ? result[0].messages : [];
     const totalCount = result.length > 0 ? result[0].totalCount : 0;
     const unReadCount = result.length > 0 ? result[0].unReadCount : 0;
     const requests = result.length > 0 ? result[0].requests : 0;
     const task = result.length > 0 ? result[0].task : 0;
 
-    // console.log("Messages:", messages);
+    console.log("Messages:", messages);
     // console.log("Total Count:", totalCount);
     // console.log("Unread Count:", unReadCount);
     if (this.io)
@@ -685,7 +682,7 @@ export class ChatRepository
             !dataset.amount &&
             dataset.status === RequestStatus.SERVICE_PROVIDER_INVOICE_REQUEST
           )
-            return ResponseHelper.sendResponse(404, "Amount is required");
+            return ResponseHelper.sendResponse(400, "Amount is required");
           msg.body = dataset?.amount || "0";
           if (dataset.mediaUrl) {
             msg.mediaUrls = [dataset.mediaUrl];
@@ -712,7 +709,7 @@ export class ChatRepository
           msg.body = "Completed";
           msg.type = MessageType.complete;
           if (!dataset.amount)
-            return ResponseHelper.sendResponse(404, "Amount is required");
+            return ResponseHelper.sendResponse(400, "Amount is required");
           msg.body = dataset?.amount;
           await Task.updateOne<ITask>(
             { _id: chat?.task },
@@ -726,6 +723,24 @@ export class ChatRepository
               isActive: false,
             }
           );
+          break;
+
+        case "7":
+          msg.type = MessageType.tour;
+          if (
+            (!dataset?.date || !dataset?.slot) &&
+            dataset.status === RequestStatus.CLIENT_TOUR_REQUEST_ACCEPT
+          )
+            return ResponseHelper.sendResponse(
+              400,
+              "Date and Time is required"
+            );
+          msg.body = "Tour Request";
+          break;
+
+        case "8":
+          msg.type = MessageType.reschedule;
+          msg.body = "Task Rescheduled";
           break;
 
         default:

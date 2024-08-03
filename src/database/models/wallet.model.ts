@@ -11,6 +11,7 @@ const walletModel: Schema = new Schema(
   {
     user: { type: Schema.Types.ObjectId, ref: "User", required: true },
     balance: { type: Number, default: 0, positive: true },
+    amountHeld: { type: Number, required: true, default: 0, positive: true },
     selectedTopupMethod: {
       type: String,
       enum: TOPUP_METHOD,

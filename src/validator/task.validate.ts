@@ -99,10 +99,7 @@ const createRule = yup.object().shape({
         .notRequired(),
       taskInterests: yup.array().of(yup.string().length(24)).default([]),
       goList: yup.string().length(24).notRequired(),
-      goListServiceProviders: yup
-        .array()
-        .of(yup.string().length(24))
-        .notRequired(),
+      goListServiceProviders: yup.array().of(yup.string()).notRequired(),
       myList: yup.array().of(yup.string().length(24)).default([]),
       subTasks: yup
         .array()
@@ -247,6 +244,12 @@ const toggleRequestRule = yup.object().shape({
   query: yup.object().noUnknown(),
 });
 
+const cancelTask = yup.object().shape({
+  params: yup.object().shape(paramRule).noUnknown(),
+  body: yup.object().shape({}).noUnknown(),
+  query: yup.object().noUnknown(),
+});
+
 export = {
   "/": indexRule,
   "/my-task": myTaskRule,
@@ -256,4 +259,5 @@ export = {
   "/delete": showRule,
   "/toggle-request": toggleRequestRule,
   "/request": showRule,
+  "/cancel": cancelTask,
 };

@@ -5,10 +5,11 @@ import { Days, EUserLocationType, EUserRole } from "./enums";
 
 interface Location {
   type: string;
-  coordinates: [number, number];
+  coordinates?: [number, number];
   state?: string;
   zipCode?: string;
   city?: string;
+  town?: string;
   county?: string;
   isSelected: string;
   readableLocation?: string;
@@ -48,6 +49,7 @@ export interface IUser {
   subscription?: {
     subscription: string;
     plan: string;
+    name: string;
   };
   locationType?: EUserLocationType;
   location?: Location[];

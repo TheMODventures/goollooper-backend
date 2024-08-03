@@ -192,6 +192,8 @@ class GolistService {
     page: number,
     limit = 10,
     userId: string | undefined,
+    city: string,
+    town: string,
     coordinates: Number[],
     serviceId?: string[],
     volunteerIds?: string[],
@@ -214,29 +216,29 @@ class GolistService {
   ) => {
     try {
       const query: PipelineStage[] = [];
-      if (zipCode) {
-        // coordinates = []
-        const googleCoordinates = (await GoogleMapHelper.searchLocation(
-          zipCode,
-          ""
-        )) as Number[] | null;
-        if (!googleCoordinates)
-          return ResponseHelper.sendResponse(404, "postal code is invalid");
-        coordinates = googleCoordinates;
-      }
-      if (coordinates?.length !== 0 && !isNaN(coordinates[0] as number)) {
-        query.push({
-          $geoNear: {
-            near: {
-              type: "Point",
-              coordinates: coordinates as [number, number],
-            },
-            distanceField: "distance",
-            spherical: true,
-            maxDistance: 10000,
-          },
-        });
-      }
+      // if (zipCode) {
+      //   // coordinates = []
+      //   const googleCoordinates = (await GoogleMapHelper.searchLocation(
+      //     zipCode,
+      //     ""
+      //   )) as Number[] | null;
+      //   if (!googleCoordinates)
+      //     return ResponseHelper.sendResponse(404, "postal code is invalid");
+      //   coordinates = googleCoordinates;
+      // }
+      // if (coordinates?.length !== 0 && !isNaN(coordinates[0] as number)) {
+      //   query.push({
+      //     $geoNear: {
+      //       near: {
+      //         type: "Point",
+      //         coordinates: coordinates as [number, number],
+      //       },
+      //       distanceField: "distance",
+      //       spherical: true,
+      //       maxDistance: 2000,
+      //     },
+      //   });
+      // }
       const match = {
         _id: { $ne: new mongoose.Types.ObjectId(userId) },
         isDeleted: false,
@@ -246,8 +248,16 @@ class GolistService {
         // isVerified: true,
         isProfileCompleted: true,
       } as any;
-      // 67.0011364,
-      // 24.8607343
+      if (town) {
+        match["location"] = {
+          $elemMatch: { town: { $regex: town, $options: "i" } },
+        };
+      }
+      if (city) {
+        match["location"] = {
+          $elemMatch: { city: { $regex: city, $options: "i" } },
+        };
+      }
       if (companyLogo) match["company.logo"] = { $ne: null };
       if (companyRegistration) match["company.name"] = { $ne: null };
       if (companyWebsite) match["company.website"] = { $ne: null };
@@ -287,9 +297,9 @@ class GolistService {
       //   );
       // }
       if (subscription && subscription?.length > 0) {
-        const subscriptionIds = subscription.map(
-          (e: any) => new mongoose.Types.ObjectId(e)
-        );
+        const subscriptionIds = subscription.map((e: any) => e);
+
+        console.log(subscription);
         match["subscription.subscription"] = { $in: subscriptionIds };
       }
       if (serviceId && serviceId?.length > 0) {
@@ -366,6 +376,7 @@ class GolistService {
               ratingCount: 1,
               averageRating: 1,
               profileImage: 1,
+              role: 1,
               subscriptionName: {
                 $ifNull: ["$subscription.name", null],
               },

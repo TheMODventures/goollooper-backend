@@ -66,7 +66,7 @@ export default (io: SocketIO.Server) => {
           data.page ?? 0,
           20,
           data.chatSupport ?? false,
-          null,
+          data.chatId ?? null,
           data.search
         );
       }
@@ -404,6 +404,33 @@ export class ChatService {
       );
       if (!response) {
         return ResponseHelper.sendResponse(404);
+      }
+      return ResponseHelper.sendSuccessResponse(
+        SUCCESS_DATA_LIST_PASSED,
+        response
+      );
+    } catch (error) {
+      return ResponseHelper.sendResponse(500, (error as Error).message);
+    }
+  };
+
+  chatDetails = async (
+    chatId: string | null | undefined,
+    user: string,
+    chatSupport: boolean
+  ): Promise<ApiResponse> => {
+    try {
+      const response = await this.chatRepository.getChats(
+        user,
+        1,
+        20,
+        chatSupport,
+        chatId,
+        ""
+      );
+
+      if (!response) {
+        return ResponseHelper.sendResponse(404, "Chat not found");
       }
       return ResponseHelper.sendSuccessResponse(
         SUCCESS_DATA_LIST_PASSED,

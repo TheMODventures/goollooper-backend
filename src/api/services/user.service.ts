@@ -157,10 +157,10 @@ class UserService {
           model: "Service",
           select: "title type parent",
         },
-        {
-          path: "subscription.subscription",
-          model: "Subscription",
-        },
+        // {
+        //   path: "subscription.subscription",
+        //   model: "Subscription",
+        // },
       ]);
 
       if (response === null) {
@@ -286,101 +286,118 @@ class UserService {
         }
       }
 
-      if (dataset.subscription?.subscription) {
-        let subscription =
-          await this.subscriptionRepository.getById<ISubscription>(
-            dataset.subscription.subscription
-          );
-        // check if the subscription is BSL and the location is more than 3
-        if (
-          subscription &&
-          subscription.name.toLocaleLowerCase() ===
-            Subscription.bsl.toLocaleLowerCase()
-        ) {
-          if (dataset.location && dataset.location?.length > 3) {
+      if (dataset?.subscription?.subscription) {
+        let subscription = dataset.subscription.name;
+
+        if (subscription) {
+          const isBSL =
+            subscription.toLocaleLowerCase() ===
+            Subscription.bsl.toLocaleLowerCase();
+
+          // service provider can add upto 3 location max
+          if (dataset.location && dataset.location.length > 3) {
             return ResponseHelper.sendResponse(
               422,
-              "BSL can select only 3 locations"
+              "Service Provider can add upto 3 locations Max"
             );
           }
-        }
-      }
 
-      if (
-        dataset.locationType &&
-        dataset.locationType === EUserLocationType.local &&
-        (!dataset.location || !dataset.location.length)
-      ) {
-        return ResponseHelper.sendResponse(422, "Provide all location details");
-      } else if (
-        dataset.locationType &&
-        dataset.locationType === EUserLocationType.local &&
-        dataset.location &&
-        dataset.location.length
-      ) {
-        for (let i = 0; i < dataset.location.length; i++) {
-          const element = dataset.location[i];
-          if (dataset.role == 3) {
-            if (
-              element.county ||
-              element.city ||
-              element.state ||
-              (dataset.zipCode && dataset.zipCode.length)
-            ) {
-              return ResponseHelper.sendResponse(
-                422,
-                "Country, city, state, and zipcode are forbidden for this role"
-              );
-            }
-          } else {
-            if (
-              element.coordinates.length < 2 ||
-              !element.state ||
-              !element.city ||
-              !element.county ||
-              (dataset.zipCode && !dataset.zipCode.length)
-            ) {
-              return ResponseHelper.sendResponse(
-                422,
-                "Provide all location details"
-              );
-            }
-          }
-          dataset.location[i].coordinates?.map((e) => parseFloat(e.toString()));
-          dataset.location[i].type ??= "Point";
-          if (element.isSelected === "true")
-            dataset.selectedLocation = dataset.location[i];
-        }
-      }
+          // Validate location details
+          if (dataset.location && dataset.location.length) {
+            for (let i = 0; i < dataset.location.length; i++) {
+              const element = dataset.location[i];
+              if (isBSL) {
+                // BSL subscription: no country or zip code allowed
+                if (element.county || element.zipCode) {
+                  return ResponseHelper.sendResponse(
+                    422,
+                    "Country and zipcode are forbidden for BSL subscription"
+                  );
+                }
 
-      // schedule creation
+                // Ensure coordinates, city, and town are present
+                // town is optional for all service providers
+                if ((element?.coordinates?.length ?? 0) < 2 || !element.city) {
+                  return ResponseHelper.sendResponse(
+                    422,
+                    "Provide coordinates, city, and town for BSL subscription"
+                  );
+                }
+              } else {
+                // Non-BSL subscription: no coordinates allowed
+                if (element?.coordinates?.length ?? 0 > 0) {
+                  return ResponseHelper.sendResponse(
+                    422,
+                    "Coordinates are forbidden for non-BSL subscription"
+                  );
+                }
 
-      if (dataset?.schedule?.length) {
-        for (const schedule of dataset.schedule) {
-          let scheduleExists = await this.scheduleRepository.getOne<ISchedule>({
-            day: schedule.day,
-            user: _id,
-          });
-          if (scheduleExists) {
-            await this.scheduleRepository.updateById<ISchedule>(
-              scheduleExists._id as string,
-              {
-                day: schedule.day,
-                startTime: schedule.startTime,
-                endTime: schedule.endTime,
-                user: _id as mongoose.Types.ObjectId,
+                // Ensure city, are present
+                if (!element.city) {
+                  return ResponseHelper.sendResponse(
+                    422,
+                    "Provide  city, town, for non-BSL subscription"
+                  );
+                }
               }
-            );
-          } else {
-            await this.scheduleRepository.create<ISchedule>({
-              day: schedule.day,
-              startTime: schedule.startTime,
-              endTime: schedule.endTime,
-              user: _id as mongoose.Types.ObjectId,
-            });
+
+              // Convert coordinates to float if they exist
+              dataset.location[i].coordinates?.map((e) =>
+                parseFloat(e.toString())
+              );
+              dataset.location[i].type ??= "Point";
+
+              // Ensure `type` is set to "Point"
+              element.type = "Point";
+
+              // Check if the element is selected
+              if (element.isSelected === "true") {
+                // Ensure that the element.coordinates follows the schema definition
+                if (!element.coordinates || element.coordinates.length !== 2) {
+                  // If coordinates are missing or not in the expected format, set default coordinates
+                  element.coordinates = [0, 0];
+                }
+                // Assign the element to selectedLocation
+                dataset.selectedLocation = element;
+              }
+            }
           }
         }
       }
+      // Check if locationType is local and all location details are provided
+      // if (
+      //   dataset.locationType === EUserLocationType.local &&
+      //   (!dataset.location || !dataset.location.length)
+      // ) {
+      //   return ResponseHelper.sendResponse(422, "Provide all location details");
+      // }
+
+      // if (
+      //   dataset.locationType === EUserLocationType.local &&
+      //   dataset.location &&
+      //   dataset.location.length
+      // ) {
+      //   for (let i = 0; i < dataset.location.length; i++) {
+      //     const element = dataset.location[i];
+      //     if (dataset.role == 3) {
+      //       if (element.county || element.city || element.state || (dataset.zipCode && dataset.zipCode.length)) {
+      //         return ResponseHelper.sendResponse(422, "Country, city, state, and zipcode are forbidden for this role");
+      //       }
+      //     } else {
+      //       if (element.coordinates.length < 2 || !element.state || !element.city || !element.county || (dataset.zipCode && !dataset.zipCode.length)) {
+      //         return ResponseHelper.sendResponse(422, "Provide all location details");
+      //       }
+      //     }
+
+      //     // Convert coordinates to float if they exist
+      //     dataset.location[i].coordinates?.map(e => parseFloat(e.toString()));
+      //     dataset.location[i].type ??= "Point";
+
+      //     if (element.isSelected === "true") {
+      //       dataset.selectedLocation = dataset.location[i];
+      //     }
+      //   }
+      // }
 
 
       if (dataset.phoneCode && dataset.phone) {

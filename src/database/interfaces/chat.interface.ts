@@ -35,10 +35,21 @@ export interface IParticipant {
   isBlocked: boolean;
 }
 
+interface Slot {
+  startTime: {
+    type: string;
+  };
+  endTime: {
+    type: string;
+  };
+}
+
 export interface IRequest {
   title?: string;
   mediaUrl?: string;
   amount?: string;
+  date?: Date;
+  slot?: Slot;
   type: Request;
   status: RequestStatus;
   createdBy?: string | Types.ObjectId;
@@ -83,4 +94,12 @@ export interface IChatDoc extends IChat, Document {
   _id?: mongoose.Types.ObjectId;
   createdAt?: Date;
   updatedAt?: Date;
+}
+
+export interface ChatDetailsData {
+  userId: string;
+  page?: number;
+  chatSupport?: boolean;
+  chatId?: string;
+  search?: string;
 }

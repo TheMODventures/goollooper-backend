@@ -46,7 +46,7 @@ const taskModel: Schema = new Schema(
         validate: [timeValidator, "Invalid end time"],
       },
     },
-    noOfServiceProvider: { type: Number },
+    noOfServiceProvider: { type: Number, default: 1 },
     media: { type: String },
     commercial: { type: Boolean, default: false },
     type: {
@@ -65,22 +65,6 @@ const taskModel: Schema = new Schema(
     goList: {
       title: {
         type: String,
-      },
-      serviceProviders: {
-        type: [
-          {
-            user: {
-              type: Schema.Types.ObjectId,
-              required: true,
-              ref: "Users",
-            },
-            status: {
-              type: Number,
-              // enum: Object.values(ETaskUserStatus),
-              default: ETaskUserStatus.STANDBY,
-            },
-          },
-        ],
       },
       taskInterests: [
         {
@@ -125,7 +109,7 @@ const taskModel: Schema = new Schema(
     ageFrom: { type: Number, default: null },
     ageTo: { type: Number, default: null },
     endDate: { type: Date, required: false },
-    users: {
+    serviceProviders: {
       type: [
         {
           _id: false,
@@ -136,8 +120,7 @@ const taskModel: Schema = new Schema(
           },
           status: {
             type: Number,
-            enum: Object.values(ETaskUserStatus),
-            default: ETaskUserStatus.PENDING,
+            enum: ETaskUserStatus,
           },
         },
       ],
@@ -145,6 +128,7 @@ const taskModel: Schema = new Schema(
     },
     pendingCount: { type: Number, default: 0 },
     acceptedCount: { type: Number, default: 0 },
+    idleCount: { type: Number, default: 0 },
     status: {
       type: String,
       enum: Object.values(ETaskStatus),

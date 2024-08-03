@@ -50,6 +50,7 @@ class TokenService {
         refreshToken: response.refreshToken,
       };
     } catch (err) {
+      console.log(err);
       throw new Error("Something went wrong while creating token");
     }
   };

@@ -46,7 +46,15 @@ const updateCallTokenRule = yup.object().shape({
   query: yup.object().noUnknown(),
 });
 
+const chatDetailsRule = yup.object().shape({
+  query: yup.object().shape({
+    chatId: yup.string().required(),
+    userId: yup.string().required(),
+  }),
+});
+
 export = {
   "/request": updateRule,
   "/call/token": updateCallTokenRule,
+  "/details": chatDetailsRule,
 };
