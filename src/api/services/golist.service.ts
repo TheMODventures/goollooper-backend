@@ -248,7 +248,6 @@ class GolistService {
         // isVerified: true,
         isProfileCompleted: true,
       } as any;
-
       if (town) {
         match["location"] = {
           $elemMatch: { town: { $regex: town, $options: "i" } },

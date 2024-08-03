@@ -2,20 +2,12 @@ import mongoose, { FilterQuery, PipelineStage } from "mongoose";
 import { Request } from "express";
 import _ from "lodash";
 
-import {
-  Days,
-  EUserLocationType,
-  EUserRole,
-  Repetition,
-  RepetitionEvery,
-  Subscription,
-} from "../../database/interfaces/enums";
+import { EUserLocationType, EUserRole } from "../../database/interfaces/enums";
 import {
   IUser,
   IUserWithSchedule,
 } from "../../database/interfaces/user.interface";
 import { UserRepository } from "../repository/user/user.repository";
-import { SubscriptionRepository } from "../repository/subscription/subscription.repository";
 import { ScheduleRepository } from "../repository/schedule/schedule.repository";
 import {
   SUCCESS_DATA_DELETION_PASSED,
@@ -26,7 +18,6 @@ import {
 } from "../../constant";
 import { ResponseHelper } from "../helpers/reponseapi.helper";
 import { ISchedule } from "../../database/interfaces/schedule.interface";
-import { DateHelper } from "../helpers/date.helper";
 import { UploadHelper } from "../helpers/upload.helper";
 import TokenService from "./token.service";
 import { ISubscription } from "../../database/interfaces/subscription.interface";
@@ -34,7 +25,6 @@ import { ISubscription } from "../../database/interfaces/subscription.interface"
 class UserService {
   private userRepository: UserRepository;
   private scheduleRepository: ScheduleRepository;
-  private dateHelper: DateHelper;
   private uploadHelper: UploadHelper;
   private subscriptionRepository: SubscriptionRepository;
   private tokenService: TokenService;
@@ -45,8 +35,6 @@ class UserService {
     this.uploadHelper = new UploadHelper("user");
     this.subscriptionRepository = new SubscriptionRepository();
     this.tokenService = new TokenService();
-
-    this.dateHelper = new DateHelper();
   }
 
   getByFilter = async (filter: FilterQuery<IUser>): Promise<ApiResponse> => {
@@ -181,7 +169,7 @@ class UserService {
 
       const schedules = await this.scheduleRepository.getAll({
         user: _id,
-        isActive: true,
+        isDeleted: false,
       });
       const res = { ...response, schedule: schedules };
       return ResponseHelper.sendSuccessResponse(SUCCESS_DATA_SHOW_PASSED, res);
@@ -411,6 +399,7 @@ class UserService {
       //   }
       // }
 
+
       if (dataset.phoneCode && dataset.phone) {
         dataset.completePhone = dataset.phoneCode + dataset.phone;
       }
@@ -576,7 +565,7 @@ class UserService {
       );
       const schedules = await this.scheduleRepository.getAll({
         user: _id,
-        isActive: true,
+        isDeleted: false,
       });
       const res = { ...userResponse, schedule: schedules };
 
