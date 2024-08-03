@@ -587,9 +587,11 @@ class TaskService {
         updateCount["$inc"].acceptedCount = 1;
       }
       const task = await this.taskRepository.getById<ITask>(_id);
-
-      const noOfServiceProvider = task.noOfServiceProvider;
-      const acceptedProvidersCount = task.serviceProviders.filter(
+      if (!task) {
+        return ResponseHelper.sendResponse(404, "Task not found");
+      }
+      const noOfServiceProvider = task?.noOfServiceProvider;
+      const acceptedProvidersCount = task?.serviceProviders.filter(
         (provider) => provider.status === 4
       ).length;
 
