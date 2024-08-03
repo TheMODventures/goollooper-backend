@@ -2,13 +2,18 @@ import mongoose, { FilterQuery, PipelineStage } from "mongoose";
 import { Request } from "express";
 import _ from "lodash";
 
-import { EUserLocationType, EUserRole } from "../../database/interfaces/enums";
+import {
+  EUserLocationType,
+  EUserRole,
+  Subscription,
+} from "../../database/interfaces/enums";
 import {
   IUser,
   IUserWithSchedule,
 } from "../../database/interfaces/user.interface";
 import { UserRepository } from "../repository/user/user.repository";
 import { ScheduleRepository } from "../repository/schedule/schedule.repository";
+import { SubscriptionRepository } from "../repository/subscription/subscription.repository";
 import {
   SUCCESS_DATA_DELETION_PASSED,
   SUCCESS_DATA_INSERTION_PASSED,
@@ -398,7 +403,6 @@ class UserService {
       //     }
       //   }
       // }
-
 
       if (dataset.phoneCode && dataset.phone) {
         dataset.completePhone = dataset.phoneCode + dataset.phone;
