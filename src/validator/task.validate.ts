@@ -99,10 +99,7 @@ const createRule = yup.object().shape({
         .notRequired(),
       taskInterests: yup.array().of(yup.string().length(24)).default([]),
       goList: yup.string().length(24).notRequired(),
-      goListServiceProviders: yup
-        .array()
-        .of(yup.string().length(24))
-        .notRequired(),
+      goListServiceProviders: yup.array().of(yup.string()).notRequired(),
       myList: yup.array().of(yup.string().length(24)).default([]),
       subTasks: yup
         .array()

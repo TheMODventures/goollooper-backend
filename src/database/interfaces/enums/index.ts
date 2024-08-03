@@ -87,12 +87,12 @@ export enum ETaskStatus {
   completed = "completed",
   cancelled = "cancelled",
 }
-
 export enum ETaskUserStatus {
   PENDING = 1,
   REJECTED = 2,
   STANDBY = 3,
   ACCEPTED = 4,
+  IDLE = 5,
 }
 
 export enum ECALENDARTaskType {

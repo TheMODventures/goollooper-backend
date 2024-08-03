@@ -251,6 +251,7 @@ class TaskService {
       const walletError = handleWalletErrors(wallet, payload.type);
       if (walletError) return walletError;
 
+      // file uploading
       if (
         req &&
         _.isArray(req.files) &&
@@ -282,13 +283,16 @@ class TaskService {
         payload.goList = {
           goListId: payload.goList as string,
           title: goList.title,
-          serviceProviders: payload.goListServiceProviders?.map((user) => ({
-            user: user as mongoose.Types.ObjectId,
-            status: ETaskUserStatus.STANDBY,
-          })),
           taskInterests: goList.taskInterests,
         };
-        payload.pendingCount = payload.goListServiceProviders.length;
+
+        (payload.serviceProviders = payload.goListServiceProviders?.map(
+          (user) => ({
+            user: user as mongoose.Types.ObjectId,
+            status: ETaskUserStatus.IDLE,
+          })
+        )),
+          (payload.idleCount = payload.serviceProviders.length);
       }
 
       if (payload.subTasks?.length) {
@@ -314,6 +318,7 @@ class TaskService {
         }
       }
       const data = await this.taskRepository.create<ITask>(payload);
+      console.log("🚀 ~", data);
 
       if (
         payload.type === TaskType.megablast &&
@@ -323,11 +328,13 @@ class TaskService {
           volunteer: { $in: payload.taskInterests },
         });
         users?.map(async (user: any) => {
+          // when task created it wont add to users calender only notification will be send
           await this.calendarRepository.create({
             user: user?._id,
             task: data._id,
             date: data.date,
           } as ICalendar);
+
           await this.notificationService.createAndSendNotification({
             senderId: payload.postedBy,
             receiverId: user?._id,
@@ -338,18 +345,18 @@ class TaskService {
           } as NotificationParams);
         });
       }
-      if (
-        payload.type !== TaskType.megablast &&
-        payload.goListServiceProviders.length
-      ) {
-        payload.goListServiceProviders.map(async (user) => {
-          await this.calendarRepository.create({
-            user: user,
-            task: data._id,
-            date: data.date,
-          } as ICalendar);
-        });
-      }
+      // if (
+      //   payload.type !== TaskType.megablast &&
+      //   payload.goListServiceProviders.length
+      // ) {
+      //   payload.goListServiceProviders.map(async (user) => {
+      //     await this.calendarRepository.create({
+      //       user: user,
+      //       task: data._id,
+      //       date: data.date,
+      //     } as ICalendar);
+      //   });
+      // }
       // in from data boolean value come in string format
       if (String(payload.commercial) == "true" && wallet) {
         if (wallet?.balance < SERVICE_INITIATION_FEE) {
@@ -367,11 +374,11 @@ class TaskService {
         });
       }
 
-      await this.calendarRepository.create({
-        user: payload.postedBy as string,
-        task: data._id,
-        date: data.date,
-      } as ICalendar);
+      // await this.calendarRepository.create({
+      //   user: payload.postedBy as string,
+      //   task: data._id,
+      //   date: data.date,
+      // } as ICalendar);
 
       if (payload.type === TaskType.megablast) {
         await this.userWalletRepository.updateById(wallet?._id as string, {
@@ -381,6 +388,7 @@ class TaskService {
       }
       return ResponseHelper.sendResponse(201, data);
     } catch (error) {
+      console.log(error);
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   };
@@ -430,10 +438,6 @@ class TaskService {
         dataset.goList = {
           goListId: dataset.goList as string,
           title: goList.title,
-          serviceProviders: dataset.goListServiceProviders?.map((user) => ({
-            user: user as mongoose.Types.ObjectId,
-            status: ETaskUserStatus.STANDBY,
-          })) as any,
           taskInterests: goList.taskInterests,
         };
       }
@@ -564,57 +568,49 @@ class TaskService {
     type: string
   ) => {
     try {
-      let isExist;
-      if (type === "goList") {
-        isExist = await this.taskRepository.exists({
-          _id: new mongoose.Types.ObjectId(_id),
-          "goList.serviceProviders": {
-            $elemMatch: { user: new mongoose.Types.ObjectId(user), status },
-          },
-        });
-      } else {
-        isExist = await this.taskRepository.exists({
-          _id: new mongoose.Types.ObjectId(_id),
-          users: {
-            $elemMatch: { user: new mongoose.Types.ObjectId(user), status },
-          },
-        });
-      }
+      const isExist = await this.taskRepository.exists({
+        _id: new mongoose.Types.ObjectId(_id),
+        serviceProviders: {
+          $elemMatch: { user: new mongoose.Types.ObjectId(user), status },
+        },
+      });
+
       if (isExist)
         return ResponseHelper.sendResponse(422, `Status is already ${status}`);
       const updateCount: any = { $inc: {} };
+
       if (status == ETaskUserStatus.REJECTED)
-        updateCount["$inc"].pendingCount = -1;
+        updateCount["$inc"].idleCount = -1;
+
       if (status == ETaskUserStatus.ACCEPTED) {
-        updateCount["$inc"].pendingCount = -1;
+        updateCount["$inc"].idleCount = -1;
         updateCount["$inc"].acceptedCount = 1;
       }
-      let response;
-      if (type === "goList") {
-        response = await this.taskRepository.updateByOne<ITask>(
-          { _id: new mongoose.Types.ObjectId(_id) },
-          {
-            $set: { "goList.serviceProviders.$[providers].status": status },
-            ...updateCount,
-          },
-          {
-            arrayFilters: [
-              { "providers.user": new mongoose.Types.ObjectId(user) },
-            ],
-          }
-        );
-      } else {
-        response = await this.taskRepository.updateByOne<ITask>(
-          { _id: new mongoose.Types.ObjectId(_id) },
-          {
-            $set: { "users.$[users].status": status },
-            ...updateCount,
-          },
-          {
-            arrayFilters: [{ "users.user": new mongoose.Types.ObjectId(user) }],
-          }
-        );
-      }
+      const task = await this.taskRepository.getById<ITask>(_id);
+
+      const noOfServiceProvider = task.noOfServiceProvider;
+      const acceptedProvidersCount = task.serviceProviders.filter(
+        (provider) => provider.status === 4
+      ).length;
+
+      let response = await this.taskRepository.updateByOne<ITask>(
+        { _id: new mongoose.Types.ObjectId(_id) },
+        {
+          $set: { "serviceProviders.$[providers].status": status },
+          ...updateCount,
+        },
+        {
+          arrayFilters: [
+            { "providers.user": new mongoose.Types.ObjectId(user) },
+          ],
+        }
+      );
+
+      console.log(
+        "🚀 ~ file: task.service.ts ~ line 366 ~ TaskService ~ toggleRequest ~ response",
+        response
+      );
+      // console.log("🚀 ~ file: task.service.ts ~ line 366 ~ TaskService ~ toggleRequest ~ status", status);
 
       let userData: IUser | null = await this.userRepository.getById(
         user,
@@ -623,12 +619,16 @@ class TaskService {
       );
       let chatId;
       if (response && status == ETaskUserStatus.ACCEPTED) {
-        await this.calendarRepository.create({
-          user,
-          task: response._id,
-          date: response.date ?? "2024-11-11",
-          type: ECALENDARTaskType.accepted,
-        } as ICalendar);
+        // for none commercial event will be created on after accepting
+        if (!response.commercial) {
+          await this.calendarRepository.create({
+            user,
+            task: response._id,
+            date: response.date ?? "2024-11-11",
+            type: ECALENDARTaskType.accepted,
+          } as ICalendar);
+        }
+
         this.notificationService.createAndSendNotification({
           senderId: user,
           receiverId: response.postedBy,
@@ -688,7 +688,7 @@ class TaskService {
 
       if (response.commercial) {
         const goList = response.goList as GoList;
-        const serviceProvider = goList.serviceProviders[0]?.user;
+        const serviceProvider = response.serviceProviders[0].user;
 
         const [wallet, serviceProviderWallet] = await Promise.all([
           this.userWalletRepository.getOne<IWallet>({
