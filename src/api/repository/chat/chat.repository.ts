@@ -728,7 +728,7 @@ export class ChatRepository
         case "7":
           msg.type = MessageType.tour;
           if (
-            (!dataset?.date || !dataset?.time) &&
+            (!dataset?.date || !dataset?.slot) &&
             dataset.status === RequestStatus.CLIENT_TOUR_REQUEST_ACCEPT
           )
             return ResponseHelper.sendResponse(

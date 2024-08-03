@@ -35,12 +35,21 @@ export interface IParticipant {
   isBlocked: boolean;
 }
 
+interface Slot {
+  startTime: {
+    type: string;
+  };
+  endTime: {
+    type: string;
+  };
+}
+
 export interface IRequest {
   title?: string;
   mediaUrl?: string;
   amount?: string;
   date?: Date;
-  time?: string;
+  slot?: Slot;
   type: Request;
   status: RequestStatus;
   createdBy?: string | Types.ObjectId;
