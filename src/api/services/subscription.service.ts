@@ -1,4 +1,4 @@
-import { FilterQuery } from "mongoose";
+import mongoose, { FilterQuery } from "mongoose";
 
 import {
   SUCCESS_DATA_LIST_PASSED,
@@ -13,180 +13,145 @@ import {
 } from "../../database/interfaces/subscription.interface";
 import { ResponseHelper } from "../helpers/reponseapi.helper";
 import { SubscriptionRepository } from "../repository/subscription/subscription.repository";
+import { stripeHelper } from "../helpers/stripe.helper";
+import { UserRepository } from "../repository/user/user.repository";
+import { IUser } from "../../database/interfaces/user.interface";
+import { WalletRepository } from "../repository/wallet/wallet.repository";
+import { IWallet } from "../../database/interfaces/wallet.interface";
 
 class SubscriptionService {
-  private subcriptionRepository: SubscriptionRepository;
+  private userRepository: UserRepository;
+  private walletRepository: WalletRepository;
 
   constructor() {
-    this.subcriptionRepository = new SubscriptionRepository();
+    this.userRepository = new UserRepository();
+    this.walletRepository = new WalletRepository();
   }
 
-  index = async (
-    page: number,
-    limit = 10,
-    filter: FilterQuery<ISubscription>
-  ): Promise<ApiResponse> => {
+  index = async (): Promise<ApiResponse> => {
     try {
-      const getDocCount = await this.subcriptionRepository.getCount(filter);
-      const response = await this.subcriptionRepository.getAll<ISubscription>(
-        filter,
-        "",
-        "",
-        {
-          createdAt: "desc",
-        },
-        undefined,
-        true,
-        page,
-        limit
-      );
+      const subscription = await stripeHelper.subscriptions();
       return ResponseHelper.sendSuccessResponse(
         SUCCESS_DATA_LIST_PASSED,
-        response,
-        getDocCount
+        subscription
       );
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   };
 
-  create = async (payload: ISubscription): Promise<ApiResponse> => {
+  create = async (
+    payload: ISubscription,
+    userId: string
+  ): Promise<ApiResponse> => {
+    const session = await mongoose.startSession();
     try {
-      const data = await this.subcriptionRepository.create<ISubscription>(
-        payload
-      );
-      return ResponseHelper.sendResponse(201, data);
-    } catch (error) {
-      return ResponseHelper.sendResponse(500, (error as Error).message);
-    }
-  };
+      session.startTransaction();
+      console.log("Received payload:", payload);
 
-  show = async (_id: string): Promise<ApiResponse> => {
-    try {
-      const filter = {
-        _id: _id,
-      };
-      const response = await this.subcriptionRepository.getOne<ISubscription>(
-        filter
-      );
-      if (response === null) {
-        return ResponseHelper.sendResponse(404);
+      const [user, wallet] = await Promise.all([
+        this.userRepository.getOne<IUser>({
+          _id: new mongoose.Types.ObjectId(userId),
+        }),
+        this.walletRepository.getOne<IWallet>({
+          user: new mongoose.Types.ObjectId(userId),
+        }),
+      ]);
+
+      if (!user) {
+        console.error(`User not found for ID: ${userId}`);
+        throw new Error("User not found");
       }
+
+      if (!wallet) {
+        console.error(`Wallet not found for user ID: ${userId}`);
+        throw new Error("Wallet not found");
+      }
+
+      if (wallet.balance < payload.price) {
+        console.warn(
+          `Insufficient balance for user ID: ${userId}. Balance: ${wallet.balance}, Required: ${payload.price}`
+        );
+        throw new Error("Insufficient balance");
+      }
+
+      const updatedWallet = await this.walletRepository.updateByOne(
+        { user: new mongoose.Types.ObjectId(userId) },
+        { $inc: { balance: -payload.price } },
+        { session }
+      );
+
+      if (!updatedWallet) {
+        console.error("Failed to update wallet balance");
+        throw new Error("Failed to update wallet balance");
+      }
+
+      const subscription = await stripeHelper.createSubscriptionItem(
+        user.stripeCustomerId as string,
+        payload.subscription
+      );
+
+      if (!subscription) {
+        console.error("Failed to create subscription with Stripe");
+        throw new Error("Failed to create subscription");
+      }
+
+      console.log("Created subscription:", subscription);
+
+      const updateData = {
+        subscription: {
+          subscription: payload.subscription,
+          plan: payload.plan,
+          price: payload.price,
+          subscribe: true,
+          subscriptionAuthId: subscription.id,
+        },
+      };
+
+      const updatedUser = await this.userRepository.updateById<IUser>(
+        userId,
+        { $set: updateData },
+        { session }
+      );
+
+      if (!updatedUser) {
+        console.error(
+          `Failed to update user subscription details for user ID: ${userId}`
+        );
+        throw new Error("Failed to update user subscription details");
+      }
+
+      await session.commitTransaction();
+      return ResponseHelper.sendResponse(
+        201,
+        "Subscription created successfully"
+      );
+    } catch (error) {
+      await session.abortTransaction();
+      // console.error('Error creating subscription:', error);
+      return ResponseHelper.sendResponse(500, (error as Error).message);
+    } finally {
+      session.endSession();
+    }
+  };
+
+  show = async (id: string): Promise<ApiResponse> => {
+    try {
+      const subscription = await stripeHelper.subscriptions(id);
+
+      console.log(subscription, "Subscription");
+
+      if (!subscription) {
+        return ResponseHelper.sendResponse(404, "Subscription not found");
+      }
+
       return ResponseHelper.sendSuccessResponse(
         SUCCESS_DATA_SHOW_PASSED,
-        response
+        subscription
       );
     } catch (error) {
-      return ResponseHelper.sendResponse(500, (error as Error).message);
-    }
-  };
+      console.log(error, "Error");
 
-  update = async (
-    _id: string,
-    dataset: Partial<ISubscription>
-  ): Promise<ApiResponse> => {
-    try {
-      const response =
-        await this.subcriptionRepository.updateById<ISubscription>(
-          _id,
-          dataset
-        );
-      if (response === null) {
-        return ResponseHelper.sendResponse(404);
-      }
-      return ResponseHelper.sendSuccessResponse(
-        SUCCESS_DATA_UPDATION_PASSED,
-        response
-      );
-    } catch (error) {
-      return ResponseHelper.sendResponse(500, (error as Error).message);
-    }
-  };
-
-  delete = async (_id: string): Promise<ApiResponse> => {
-    try {
-      const response =
-        await this.subcriptionRepository.updateById<ISubscription>(_id, {
-          isDeleted: true,
-        });
-      if (!response) {
-        return ResponseHelper.sendResponse(404);
-      }
-      return ResponseHelper.sendSuccessResponse(SUCCESS_DATA_DELETION_PASSED);
-    } catch (error) {
-      return ResponseHelper.sendResponse(500, (error as Error).message);
-    }
-  };
-
-  addPlan = async (
-    _id: string,
-    dataset: Partial<IPlans>
-  ): Promise<ApiResponse> => {
-    try {
-      const response =
-        await this.subcriptionRepository.subDocAction<ISubscription>(
-          { _id },
-          { $push: { plans: dataset } },
-          { new: true }
-        );
-      if (response === null) {
-        return ResponseHelper.sendResponse(404);
-      }
-      return ResponseHelper.sendSuccessResponse(
-        SUCCESS_DATA_INSERTION_PASSED,
-        response
-      );
-    } catch (error) {
-      return ResponseHelper.sendResponse(500, (error as Error).message);
-    }
-  };
-
-  updatePlan = async (
-    subscriptionId: string,
-    _id: string,
-    dataset: Partial<IPlans>
-  ): Promise<ApiResponse> => {
-    try {
-      const updateFields: Record<string, any> = {};
-      for (const [key, value] of Object.entries(dataset)) {
-        updateFields[`plans.$.${key}`] = value;
-      }
-      const response =
-        await this.subcriptionRepository.subDocAction<ISubscription>(
-          { _id: subscriptionId, "plans._id": _id },
-          { $set: updateFields }
-        );
-      if (response === null) {
-        return ResponseHelper.sendResponse(404);
-      }
-      return ResponseHelper.sendSuccessResponse(
-        SUCCESS_DATA_UPDATION_PASSED,
-        response
-      );
-    } catch (error) {
-      return ResponseHelper.sendResponse(500, (error as Error).message);
-    }
-  };
-
-  removePlan = async (
-    subscriptionId: string,
-    _id: string
-  ): Promise<ApiResponse> => {
-    try {
-      const response =
-        await this.subcriptionRepository.subDocAction<ISubscription>(
-          { _id: subscriptionId, "plans._id": _id },
-          { $pull: { plans: { _id } } }
-        );
-      if (!response) {
-        return ResponseHelper.sendResponse(404);
-      }
-
-      return ResponseHelper.sendSuccessResponse(
-        SUCCESS_DATA_DELETION_PASSED,
-        response
-      );
-    } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   };

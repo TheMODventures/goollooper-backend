@@ -4,6 +4,9 @@ import _ from "lodash";
 
 import { ResponseHelper } from "../helpers/reponseapi.helper";
 import {
+  MEGA_BLAST_FEE,
+  REQUEST_ADDED_FEE,
+  SERVICE_INITIATION_FEE,
   SUCCESS_DATA_DELETION_PASSED,
   SUCCESS_DATA_LIST_PASSED,
   SUCCESS_DATA_SHOW_PASSED,
@@ -14,11 +17,16 @@ import { GolistRepository } from "../repository/golist/golist.repository";
 import { CalendarRepository } from "../repository/calendar/calendar.repository";
 import { ChatRepository } from "../repository/chat/chat.repository";
 import { UserRepository } from "../repository/user/user.repository";
-import { ITask, ITaskPayload } from "../../database/interfaces/task.interface";
+import {
+  GoList,
+  ITask,
+  ITaskPayload,
+} from "../../database/interfaces/task.interface";
 import { IGolist } from "../../database/interfaces/golist.interface";
 import {
   ECALENDARTaskType,
   ENOTIFICATION_TYPES,
+  ETaskStatus,
   ETaskUserStatus,
   TaskType,
 } from "../../database/interfaces/enums";
@@ -228,9 +236,10 @@ class TaskService {
           if (!wallet) {
             return ResponseHelper.sendResponse(404, "Wallet not found");
           }
-          if (wallet.balance < 10) {
+          // added service initiation fee and + 10 for mega blast package creation
+          if (wallet.balance < MEGA_BLAST_FEE) {
             return ResponseHelper.sendResponse(
-              422,
+              400, // bad request
               "Insufficient balance, can't create Mega Blast task"
             );
           }
@@ -242,6 +251,7 @@ class TaskService {
       const walletError = handleWalletErrors(wallet, payload.type);
       if (walletError) return walletError;
 
+      // file uploading
       if (
         req &&
         _.isArray(req.files) &&
@@ -273,13 +283,16 @@ class TaskService {
         payload.goList = {
           goListId: payload.goList as string,
           title: goList.title,
-          serviceProviders: payload.goListServiceProviders?.map((user) => ({
-            user: user as mongoose.Types.ObjectId,
-            status: ETaskUserStatus.STANDBY,
-          })),
           taskInterests: goList.taskInterests,
         };
-        payload.pendingCount = payload.goListServiceProviders.length;
+
+        (payload.serviceProviders = payload.goListServiceProviders?.map(
+          (user) => ({
+            user: user as mongoose.Types.ObjectId,
+            status: ETaskUserStatus.IDLE,
+          })
+        )),
+          (payload.idleCount = payload.serviceProviders.length);
       }
 
       if (payload.subTasks?.length) {
@@ -305,6 +318,7 @@ class TaskService {
         }
       }
       const data = await this.taskRepository.create<ITask>(payload);
+      console.log("🚀 ~", data);
 
       if (
         payload.type === TaskType.megablast &&
@@ -314,11 +328,13 @@ class TaskService {
           volunteer: { $in: payload.taskInterests },
         });
         users?.map(async (user: any) => {
+          // when task created it wont add to users calender only notification will be send
           await this.calendarRepository.create({
             user: user?._id,
             task: data._id,
             date: data.date,
           } as ICalendar);
+
           await this.notificationService.createAndSendNotification({
             senderId: payload.postedBy,
             receiverId: user?._id,
@@ -329,33 +345,50 @@ class TaskService {
           } as NotificationParams);
         });
       }
-      if (
-        payload.type !== TaskType.megablast &&
-        payload.goListServiceProviders.length
-      ) {
-        payload.goListServiceProviders.map(async (user) => {
-          await this.calendarRepository.create({
-            user: user,
-            task: data._id,
-            date: data.date,
-          } as ICalendar);
+      // if (
+      //   payload.type !== TaskType.megablast &&
+      //   payload.goListServiceProviders.length
+      // ) {
+      //   payload.goListServiceProviders.map(async (user) => {
+      //     await this.calendarRepository.create({
+      //       user: user,
+      //       task: data._id,
+      //       date: data.date,
+      //     } as ICalendar);
+      //   });
+      // }
+      // in from data boolean value come in string format
+      if (String(payload.commercial) == "true" && wallet) {
+        if (wallet?.balance < SERVICE_INITIATION_FEE) {
+          return ResponseHelper.sendResponse(
+            400,
+            "Insufficient balance, can't create task "
+          );
+        }
+        await this.userWalletRepository.updateById(wallet?._id as string, {
+          $inc: {
+            balance: -SERVICE_INITIATION_FEE,
+            amountHeld: +SERVICE_INITIATION_FEE,
+          },
+          //  will be send to goollooper wallet later
         });
       }
+
+      // await this.calendarRepository.create({
+      //   user: payload.postedBy as string,
+      //   task: data._id,
+      //   date: data.date,
+      // } as ICalendar);
 
       if (payload.type === TaskType.megablast) {
         await this.userWalletRepository.updateById(wallet?._id as string, {
-          $inc: { balance: -10 },
+          $inc: { balance: -MEGA_BLAST_FEE },
+          // amount will be send to Goolloper wallet later
         });
       }
-
-      await this.calendarRepository.create({
-        user: payload.postedBy as string,
-        task: data._id,
-        date: data.date,
-      } as ICalendar);
-
       return ResponseHelper.sendResponse(201, data);
     } catch (error) {
+      console.log(error);
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   };
@@ -405,10 +438,6 @@ class TaskService {
         dataset.goList = {
           goListId: dataset.goList as string,
           title: goList.title,
-          serviceProviders: dataset.goListServiceProviders?.map((user) => ({
-            user: user as mongoose.Types.ObjectId,
-            status: ETaskUserStatus.STANDBY,
-          })) as any,
           taskInterests: goList.taskInterests,
         };
       }
@@ -497,6 +526,21 @@ class TaskService {
       });
       if (isExist)
         return ResponseHelper.sendResponse(422, "You are already in this task");
+
+      const wallet = await this.userWalletRepository.getOne<IWallet>({
+        user,
+      });
+      if (!wallet) {
+        return ResponseHelper.sendResponse(404, "Wallet not found");
+      }
+
+      if (wallet.balance < REQUEST_ADDED_FEE) {
+        return ResponseHelper.sendResponse(
+          400,
+          "Insufficient balance, can't request to be added in task"
+        );
+      }
+
       const response: ITask | null = await this.taskRepository.updateById(_id, {
         $addToSet: { users: { user } },
         $inc: { pendingCount: 1 },
@@ -536,57 +580,51 @@ class TaskService {
     type: string
   ) => {
     try {
-      let isExist;
-      if (type === "goList") {
-        isExist = await this.taskRepository.exists({
-          _id: new mongoose.Types.ObjectId(_id),
-          "goList.serviceProviders": {
-            $elemMatch: { user: new mongoose.Types.ObjectId(user), status },
-          },
-        });
-      } else {
-        isExist = await this.taskRepository.exists({
-          _id: new mongoose.Types.ObjectId(_id),
-          users: {
-            $elemMatch: { user: new mongoose.Types.ObjectId(user), status },
-          },
-        });
-      }
+      const isExist = await this.taskRepository.exists({
+        _id: new mongoose.Types.ObjectId(_id),
+        serviceProviders: {
+          $elemMatch: { user: new mongoose.Types.ObjectId(user), status },
+        },
+      });
+
       if (isExist)
         return ResponseHelper.sendResponse(422, `Status is already ${status}`);
       const updateCount: any = { $inc: {} };
+
       if (status == ETaskUserStatus.REJECTED)
-        updateCount["$inc"].pendingCount = -1;
+        updateCount["$inc"].idleCount = -1;
+
       if (status == ETaskUserStatus.ACCEPTED) {
-        updateCount["$inc"].pendingCount = -1;
+        updateCount["$inc"].idleCount = -1;
         updateCount["$inc"].acceptedCount = 1;
       }
-      let response;
-      if (type === "goList") {
-        response = await this.taskRepository.updateByOne<ITask>(
-          { _id: new mongoose.Types.ObjectId(_id) },
-          {
-            $set: { "goList.serviceProviders.$[providers].status": status },
-            ...updateCount,
-          },
-          {
-            arrayFilters: [
-              { "providers.user": new mongoose.Types.ObjectId(user) },
-            ],
-          }
-        );
-      } else {
-        response = await this.taskRepository.updateByOne<ITask>(
-          { _id: new mongoose.Types.ObjectId(_id) },
-          {
-            $set: { "users.$[users].status": status },
-            ...updateCount,
-          },
-          {
-            arrayFilters: [{ "users.user": new mongoose.Types.ObjectId(user) }],
-          }
-        );
+      const task = await this.taskRepository.getById<ITask>(_id);
+      if (!task) {
+        return ResponseHelper.sendResponse(404, "Task not found");
       }
+      const noOfServiceProvider = task?.noOfServiceProvider;
+      const acceptedProvidersCount = task?.serviceProviders.filter(
+        (provider) => provider.status === 4
+      ).length;
+
+      let response = await this.taskRepository.updateByOne<ITask>(
+        { _id: new mongoose.Types.ObjectId(_id) },
+        {
+          $set: { "serviceProviders.$[providers].status": status },
+          ...updateCount,
+        },
+        {
+          arrayFilters: [
+            { "providers.user": new mongoose.Types.ObjectId(user) },
+          ],
+        }
+      );
+
+      console.log(
+        "🚀 ~ file: task.service.ts ~ line 366 ~ TaskService ~ toggleRequest ~ response",
+        response
+      );
+      // console.log("🚀 ~ file: task.service.ts ~ line 366 ~ TaskService ~ toggleRequest ~ status", status);
 
       let userData: IUser | null = await this.userRepository.getById(
         user,
@@ -595,12 +633,16 @@ class TaskService {
       );
       let chatId;
       if (response && status == ETaskUserStatus.ACCEPTED) {
-        await this.calendarRepository.create({
-          user,
-          task: response._id,
-          date: response.date ?? "2024-11-11",
-          type: ECALENDARTaskType.accepted,
-        } as ICalendar);
+        // for none commercial event will be created on after accepting
+        if (!response.commercial) {
+          await this.calendarRepository.create({
+            user,
+            task: response._id,
+            date: response.date ?? "2024-11-11",
+            type: ECALENDARTaskType.accepted,
+          } as ICalendar);
+        }
+
         this.notificationService.createAndSendNotification({
           senderId: user,
           receiverId: response.postedBy,
@@ -639,6 +681,57 @@ class TaskService {
         chat: chatId,
       });
     } catch (error) {
+      return ResponseHelper.sendResponse(500, (error as Error).message);
+    }
+  };
+
+  cancelTask = async (id: string) => {
+    try {
+      const response = await this.taskRepository.updateById<ITask>(id, {
+        status: ETaskStatus.cancelled,
+        populate: ["goList.serviceProviders.user"],
+      });
+
+      if (response?.status == ETaskStatus.cancelled) {
+        return ResponseHelper.sendResponse(400, "Task already cancelled");
+      }
+
+      if (response === null) {
+        return ResponseHelper.sendResponse(404, "Task not found");
+      }
+
+      if (response.commercial) {
+        const goList = response.goList as GoList;
+        const serviceProvider = response.serviceProviders[0].user;
+
+        const [wallet, serviceProviderWallet] = await Promise.all([
+          this.userWalletRepository.getOne<IWallet>({
+            user: response.postedBy,
+          }),
+          this.userWalletRepository.getOne<IWallet>({ user: serviceProvider }),
+        ]);
+
+        if (!wallet || !serviceProviderWallet) {
+          return ResponseHelper.sendResponse(404, "Wallet not found");
+        }
+
+        await Promise.all([
+          this.userWalletRepository.updateById(wallet._id as string, {
+            $inc: { amountHeld: -SERVICE_INITIATION_FEE },
+          }),
+          this.userWalletRepository.updateById(
+            serviceProviderWallet._id as string,
+            { $inc: { balance: SERVICE_INITIATION_FEE } }
+          ),
+        ]);
+      }
+
+      return ResponseHelper.sendSuccessResponse(
+        "Task cancelled successfully",
+        response
+      );
+    } catch (error) {
+      console.error("Error cancelling task:", error);
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   };

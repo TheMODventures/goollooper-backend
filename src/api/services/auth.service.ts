@@ -66,15 +66,15 @@ class AuthService {
       const userId = new mongoose.Types.ObjectId(data._id!);
       const tokenResponse = await this.tokenService.create(userId, role);
       // await this.walletRepository.create({ user: data._id } as IWallet);
-      const CustomerCreate = await stripeHelper.createStripeCustomer(
-        user.email
-      );
+      // const CustomerCreate = await stripeHelper.createStripeCustomer(
+      //   user.email
+      // );
 
-      if (CustomerCreate) {
-        await this.userRepository.updateById(data._id?.toString() ?? "", {
-          stripeCustomerId: CustomerCreate.id,
-        });
-      }
+      // if (CustomerCreate) {
+      //   await this.userRepository.updateById(data._id?.toString() ?? "", {
+      //     stripeCustomerId: CustomerCreate.id,
+      //   });
+      // }
 
       Mailer.sendEmail({
         email: data.email,
@@ -130,10 +130,6 @@ class AuthService {
             model: "Service",
             select: "title type parent",
           },
-          {
-            path: "subscription.subscription",
-            model: "Subscription",
-          },
         ]
       );
       if (
@@ -150,26 +146,17 @@ class AuthService {
         isActive: true,
       });
 
-      if (!response.stripeCustomerId) {
-        const CustomerCreate = await stripeHelper.createStripeCustomer(
-          response.email
-        );
-        if (CustomerCreate) {
-          await this.userRepository.updateById(response._id?.toString() ?? "", {
-            stripeCustomerId: CustomerCreate.id,
-          });
-        }
-      }
-
       const res = {
         ...response,
         schedule: schedules,
-        stripeCustomerId: response.stripeCustomerId,
       };
+      console.log(userId);
       const tokenResponse = await this.tokenService.create(
         userId,
         response.role
       );
+      console.log(tokenResponse);
+
       if (fcmToken)
         this.userRepository.updateById(response._id?.toString() ?? "", {
           $addToSet: { fcmTokens: fcmToken },
@@ -182,6 +169,7 @@ class AuthService {
         tokenResponse
       );
     } catch (error) {
+      console.log(error);
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   };

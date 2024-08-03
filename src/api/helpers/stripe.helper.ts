@@ -133,7 +133,7 @@ class StripeHelper {
 
   addBankAccount(
     id: string,
-    params: Stripe.ExternalAccountCreateParams
+    params: Stripe.AccountCreateExternalAccountParams // previous interface was deprecated thats why change to AccountCreateExternalAccountParams
   ): Promise<Stripe.Response<Stripe.ExternalAccount>> {
     return stripe.accounts.createExternalAccount(id, params);
   }
@@ -141,7 +141,7 @@ class StripeHelper {
   updateBankAccount(
     sourceId: string,
     connectId: string,
-    params: Stripe.ExternalAccountUpdateParams
+    params: Stripe.AccountCreateExternalAccountParams
   ): Promise<Stripe.Response<Stripe.ExternalAccount>> {
     return stripe.accounts.updateExternalAccount(connectId, sourceId, params);
   }
@@ -193,30 +193,71 @@ class StripeHelper {
     return stripe.accounts.createPerson(stripeConnectId, payload);
   }
 
-  async payout(stripeConnectId: string, payload: Stripe.PayoutCreateParams) {
-    const balance = await stripe.balance.retrieve(
-      {},
-      { stripeAccount: stripeConnectId }
-    );
+  async payout(
+    stripeConnectId: string,
+    payload: Stripe.PayoutCreateParams
+  ): Promise<Stripe.Response<Stripe.Payout> | false> {
+    try {
+      const balance = await stripe.balance.retrieve(
+        {},
+        { stripeAccount: stripeConnectId }
+      );
 
-    if (balance?.instant_available && payload.method === "instant") {
-      return stripe.payouts.create(
-        {
-          ...payload,
-          amount: balance?.instant_available[0].amount,
-        },
-        { stripeAccount: stripeConnectId }
-      );
-    } else if (balance?.available && payload.method === "standard") {
-      return stripe.payouts.create(
-        {
-          ...payload,
-          amount: balance?.available[0].amount,
-        },
-        { stripeAccount: stripeConnectId }
-      );
+      const isInstant = payload.method === "instant";
+      const isStandard = payload.method === "standard";
+      const hasInstantBalance =
+        balance.instant_available && balance.instant_available?.length > 0;
+      const hasStandardBalance = balance.available?.length > 0;
+
+      if (
+        (isInstant && hasInstantBalance) ||
+        (isStandard && hasStandardBalance)
+      ) {
+        const action = await stripe.payouts.create(payload, {
+          stripeAccount: stripeConnectId,
+        });
+        return action;
+      } else {
+        throw new Error("Insufficient balance or invalid payout method.");
+      }
+    } catch (error) {
+      console.error("Error creating payout:", error);
+      throw error; // Re-throw the error to be handled by the calling code
     }
-    return false;
+  }
+
+  async transfer(payload: Stripe.TransferCreateParams) {
+    return stripe.transfers.create(payload);
+  }
+
+  async topup(payload: Stripe.TopupCreateParams) {
+    return stripe.topups.create(payload);
+  }
+
+  async retrieveBalance(stripeConnectId?: string) {
+    if (stripeConnectId) {
+      return stripe.balance.retrieve({}, { stripeAccount: stripeConnectId });
+    }
+    return stripe.balance.retrieve();
+  }
+
+  async subscriptions(id?: string) {
+    if (id) {
+      return stripe.products.retrieve(id);
+    }
+    return stripe.products.list();
+  }
+  async createSubscriptionItem(customerId: string, price: string) {
+    const obj = stripe.subscriptions.create({
+      customer: customerId,
+      items: [
+        {
+          price: price,
+        },
+      ],
+    });
+    console.log(obj, "Subscription Item");
+    return obj;
   }
 }
 

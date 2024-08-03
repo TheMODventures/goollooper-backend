@@ -29,32 +29,6 @@ class SubscriptionRoutes extends BaseRoutes {
       this.validateRequest,
       this.subscriptionController.show
     );
-    this.router.patch(
-      "/update/:id",
-      this.validateRequest,
-      this.subscriptionController.update
-    );
-    this.router.delete(
-      "/delete/:id",
-      this.validateRequest,
-      this.subscriptionController.delete
-    );
-    // plan routes
-    this.router.post(
-      "/subscription-plan/create/:subscriptionId",
-      this.validateRequest,
-      this.subscriptionController.addPlan
-    );
-    this.router.patch(
-      "/subscription-plan/update/:subscriptionId/:id",
-      this.validateRequest,
-      this.subscriptionController.updatePlan
-    );
-    this.router.delete(
-      "/subscription-plan/delete/:subscriptionId/:id",
-      this.validateRequest,
-      this.subscriptionController.deletePlan
-    );
   }
 }
 

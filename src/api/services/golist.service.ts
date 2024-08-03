@@ -253,7 +253,8 @@ class GolistService {
         match["location"] = {
           $elemMatch: { town: { $regex: town, $options: "i" } },
         };
-      } else {
+      }
+      if (city) {
         match["location"] = {
           $elemMatch: { city: { $regex: city, $options: "i" } },
         };
@@ -297,9 +298,9 @@ class GolistService {
       //   );
       // }
       if (subscription && subscription?.length > 0) {
-        const subscriptionIds = subscription.map(
-          (e: any) => new mongoose.Types.ObjectId(e)
-        );
+        const subscriptionIds = subscription.map((e: any) => e);
+
+        console.log(subscription);
         match["subscription.subscription"] = { $in: subscriptionIds };
       }
       if (serviceId && serviceId?.length > 0) {
@@ -376,6 +377,7 @@ class GolistService {
               ratingCount: 1,
               averageRating: 1,
               profileImage: 1,
+              role: 1,
               subscriptionName: {
                 $ifNull: ["$subscription.name", null],
               },

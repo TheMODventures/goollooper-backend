@@ -84,6 +84,14 @@ class TaskController {
     );
     return res.status(response.code).json(response);
   };
+
+  cancel = async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const response = await this.taskService.cancelTask(id as string);
+    console.log("response", response);
+
+    return res.status(response.code).json(response);
+  };
 }
 
 export default TaskController;

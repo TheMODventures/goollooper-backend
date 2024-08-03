@@ -169,10 +169,10 @@ class UserService {
           model: "Service",
           select: "title type parent",
         },
-        {
-          path: "subscription.subscription",
-          model: "Subscription",
-        },
+        // {
+        //   path: "subscription.subscription",
+        //   model: "Subscription",
+        // },
       ]);
 
       if (response === null) {
@@ -298,15 +298,12 @@ class UserService {
         }
       }
 
-      if (dataset.subscription?.subscription) {
-        let subscription =
-          await this.subscriptionRepository.getById<ISubscription>(
-            dataset.subscription.subscription
-          );
+      if (dataset?.subscription?.subscription) {
+        let subscription = dataset.subscription.name;
 
         if (subscription) {
           const isBSL =
-            subscription.name.toLocaleLowerCase() ===
+            subscription.toLocaleLowerCase() ===
             Subscription.bsl.toLocaleLowerCase();
 
           // service provider can add upto 3 location max
