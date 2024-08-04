@@ -69,7 +69,7 @@ class TaskController {
       id,
       req.locals.auth?.userId as string
     );
-    console.log(id);
+    // console.log(id);
     return res.status(response.code).json(response);
   };
 
@@ -88,7 +88,7 @@ class TaskController {
   cancel = async (req: Request, res: Response) => {
     const { id } = req.params;
     const response = await this.taskService.cancelTask(id as string);
-    console.log("response", response);
+    // console.log("response", response);
 
     return res.status(response.code).json(response);
   };

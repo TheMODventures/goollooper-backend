@@ -150,12 +150,10 @@ class AuthService {
         ...response,
         schedule: schedules,
       };
-      console.log(userId);
       const tokenResponse = await this.tokenService.create(
         userId,
         response.role
       );
-      console.log(tokenResponse);
 
       if (fcmToken)
         this.userRepository.updateById(response._id?.toString() ?? "", {
