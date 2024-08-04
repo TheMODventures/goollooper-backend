@@ -51,6 +51,7 @@
     "express-session": "^1.17.3",
     "firebase-admin": "^12.0.0",
     "fs-extra": "^11.1.0",
+    "goollooper-backend": "file:",
     "jsonwebtoken": "^9.0.0",
     "lint-staged": "^13.2.0",
     "lodash": "^4.17.21",

@@ -285,6 +285,7 @@ export class ChatService {
           status: EMessageStatus.SENT,
         })),
       };
+
       switch (dataset.type?.toString()) {
         case "1":
           msg.type = MessageType.request;
@@ -302,68 +303,50 @@ export class ChatService {
         case "3":
           msg.body = "Relieve";
           msg.type = MessageType.relieve;
-          // console.log("~ dataset ", dataset);
-          console.log(chat?.task);
 
           const tasks = await this.taskRepository.getById<ITask>(chat?.task);
+          if (!tasks) return ResponseHelper.sendResponse(404, "Task not found");
 
-          if (!tasks) {
-            return ResponseHelper.sendResponse(404, "Task not found");
-          }
-
-          const updatedServiceProviders = tasks.serviceProviders.map((sp) => {
-            if (sp.status === 4) {
-              sp.status = 5;
-            }
-            return sp;
-          });
+          const updatedServiceProviders = tasks.serviceProviders.map((sp) =>
+            sp.status === 4 ? { ...sp, status: 5 } : sp
+          );
 
           await this.taskRepository.updateById<ITask>(chat?.task, {
             serviceProviders: updatedServiceProviders,
           });
 
-          const chats = await this.chatRepository.getOne<IChat>({
-            _id: chat._id,
-          });
-          if (!chats) return ResponseHelper.sendResponse(404, "Chat not found");
+          const creatorId = chat.createdBy ? chat.createdBy.toString() : "";
+          console.log("~ chat", chat);
 
-          const creatorId = chats.createdBy;
-
-          // Ensure creatorId is defined and properly casted to a string
-          const creatorIdString = creatorId ? creatorId.toString() : "";
-
-          // Filter participants, keeping only the creator
           const updatedParticipants = chat.participants.filter(
             (participant: IParticipant) =>
-              participant.user.toString() === creatorIdString
+              participant.user.toString() === creatorId
           );
 
-          // Update the chat document with the filtered participants
           await this.chatRepository.updateById<IChat>(chat._id, {
             participants: updatedParticipants,
           });
-
           break;
 
         case "4":
           msg.body = "Proceed";
           msg.type = MessageType.proceed;
-          const response = await this.taskRepository.updateById<ITask>(
-            chat?.task,
-            {
+
+          const taskUpdateResponse =
+            await this.taskRepository.updateById<ITask>(chat?.task, {
               status: ETaskStatus.assigned,
-            }
-          );
-          if (response?.serviceProviders) {
-            await Promise.all(
-              response.serviceProviders.map(async (e: any) => {
-                await this.calendarRepository.create({
-                  user: e.user as string,
-                  task: chat.task,
-                  date: dataset.date ? dataset.date.toISOString() : undefined,
-                } as ICalendar);
+            });
+
+          if (taskUpdateResponse?.serviceProviders?.length) {
+            const calendarEntries = taskUpdateResponse.serviceProviders.map(
+              (provider: any) => ({
+                user: provider.user as string,
+                task: chat.task,
+                date: dataset.date ? dataset.date.toISOString() : "",
               })
             );
+
+            await this.calendarRepository.createMany(calendarEntries);
           }
           break;
 
