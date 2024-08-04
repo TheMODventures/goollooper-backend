@@ -46,9 +46,20 @@ class ScheduleService {
     }
   };
 
-  create = async (payload: ISchedule): Promise<ApiResponse> => {
+  create = async (payload: ISchedule, userId: string): Promise<ApiResponse> => {
     try {
-      const data = await this.scheduleRepository.create<ISchedule>(payload);
+      let schedule = await this.scheduleRepository.getOne<ISchedule>({
+        user: new mongoose.Types.ObjectId(userId),
+        day: payload.day,
+        isDeleted: false,
+      });
+      if (schedule) {
+        return ResponseHelper.sendResponse(409, "Already created");
+      }
+      const data = await this.scheduleRepository.create<ISchedule>({
+        ...payload,
+        user: new mongoose.Types.ObjectId(userId),
+      });
       return ResponseHelper.sendResponse(201, data);
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);
