@@ -285,6 +285,7 @@ export class ChatService {
           status: EMessageStatus.SENT,
         })),
       };
+
       switch (dataset.type?.toString()) {
         case "1":
           msg.type = MessageType.request;
@@ -302,14 +303,51 @@ export class ChatService {
         case "3":
           msg.body = "Relieve";
           msg.type = MessageType.relieve;
+
+          const tasks = await this.taskRepository.getById<ITask>(chat?.task);
+          if (!tasks) return ResponseHelper.sendResponse(404, "Task not found");
+
+          const updatedServiceProviders = tasks.serviceProviders.map((sp) =>
+            sp.status === 4 ? { ...sp, status: 5 } : sp
+          );
+
+          await this.taskRepository.updateById<ITask>(chat?.task, {
+            serviceProviders: updatedServiceProviders,
+          });
+
+          const creatorId = chat.createdBy ? chat.createdBy.toString() : "";
+          // console.log("~ chat", chat);
+
+          const updatedParticipants = chat.participants.filter(
+            (participant: IParticipant) =>
+              participant.user.toString() === creatorId
+          );
+
+          await this.chatRepository.updateById<IChat>(chat._id, {
+            participants: updatedParticipants,
+          });
           break;
 
         case "4":
           msg.body = "Proceed";
           msg.type = MessageType.proceed;
-          await this.taskRepository.updateById<ITask>(chat?.task, {
-            status: ETaskStatus.assigned,
-          });
+
+          const taskUpdateResponse =
+            await this.taskRepository.updateById<ITask>(chat?.task, {
+              status: ETaskStatus.assigned,
+            });
+
+          if (taskUpdateResponse?.serviceProviders?.length) {
+            const calendarEntries = taskUpdateResponse.serviceProviders.map(
+              (provider: any) => ({
+                user: provider.user as string,
+                task: chat.task,
+                date: dataset.date ? dataset.date.toISOString() : "",
+              })
+            );
+
+            await this.calendarRepository.createMany(calendarEntries);
+          }
           break;
 
         case "5":

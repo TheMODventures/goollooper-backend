@@ -502,7 +502,7 @@ export class ChatRepository
     const requests = result.length > 0 ? result[0].requests : 0;
     const task = result.length > 0 ? result[0].task : 0;
 
-    console.log("Messages:", messages);
+    // console.log("Messages:", messages);
     // console.log("Total Count:", totalCount);
     // console.log("Unread Count:", unReadCount);
     if (this.io)

@@ -27,7 +27,7 @@ class Mailer {
 
     try {
       const info = await transporter.sendMail(mailOptions);
-      console.log("Email sent: " + info.response);
+      // console.log("Email sent: " + info.response);
     } catch (error) {
       console.log(error);
     }
