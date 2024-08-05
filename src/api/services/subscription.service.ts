@@ -60,19 +60,32 @@ class SubscriptionService {
 
       if (!user) {
         console.error(`User not found for ID: ${userId}`);
-        throw new Error("User not found");
+        return ResponseHelper.sendResponse(404, "User not found");
       }
 
       if (!wallet) {
         console.error(`Wallet not found for user ID: ${userId}`);
-        throw new Error("Wallet not found");
+        return ResponseHelper.sendResponse(404, "Wallet not found");
       }
 
       if (wallet.balance < payload.price) {
         console.warn(
           `Insufficient balance for user ID: ${userId}. Balance: ${wallet.balance}, Required: ${payload.price}`
         );
-        throw new Error("Insufficient balance");
+        return ResponseHelper.sendResponse(
+          400,
+          "Insufficient balance in wallet"
+        );
+      }
+
+      const subscription = await stripeHelper.createSubscriptionItem(
+        user.stripeCustomerId as string,
+        payload.priceId
+      );
+
+      if (!subscription) {
+        console.error("Failed to create subscription with Stripe");
+        throw new Error("Failed to create subscription");
       }
 
       const updatedWallet = await this.walletRepository.updateByOne(
@@ -86,22 +99,11 @@ class SubscriptionService {
         throw new Error("Failed to update wallet balance");
       }
 
-      const subscription = await stripeHelper.createSubscriptionItem(
-        user.stripeCustomerId as string,
-        payload.subscription
-      );
-
-      if (!subscription) {
-        console.error("Failed to create subscription with Stripe");
-        throw new Error("Failed to create subscription");
-      }
-
-      console.log("Created subscription:", subscription);
-
       const updateData = {
         subscription: {
           subscription: payload.subscription,
           plan: payload.plan,
+          name: payload.name,
           price: payload.price,
           subscribe: true,
           subscriptionAuthId: subscription.id,

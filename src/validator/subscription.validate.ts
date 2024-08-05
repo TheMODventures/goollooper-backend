@@ -12,6 +12,7 @@ const createRule = yup.object().shape({
       name: yup.string().required(),
       plan: yup.string().required().oneOf(Object.values(SubscriptionType)), // Assuming SubscriptionType is an enum or similar object
       subscription: yup.string().required(),
+      priceId: yup.string().required(),
       price: yup.number().required(),
     })
     .strict()

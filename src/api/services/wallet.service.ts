@@ -120,7 +120,7 @@ class WalletService {
 
           email: user.email,
           gender: user.gender,
-          phone: `+${user.phoneCode}${user.phone}`,
+          phone: `${user.phoneCode}${user.phone}`,
           first_name: user.firstName,
           last_name: user.lastName,
         },
