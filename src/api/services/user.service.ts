@@ -22,6 +22,7 @@ import {
 import { ResponseHelper } from "../helpers/reponseapi.helper";
 import { UploadHelper } from "../helpers/upload.helper";
 import TokenService from "./token.service";
+import { stripeHelper } from "../helpers/stripe.helper";
 
 class UserService {
   private userRepository: UserRepository;
@@ -188,8 +189,8 @@ class UserService {
       let userResponse = await this.userRepository.getOne<IUser>({
         _id: _id,
       });
-      dataset.company = { ...userResponse?.company, ...dataset.company };
 
+      dataset.company = { ...userResponse?.company, ...dataset.company };
       if (req && _.isArray(req.files)) {
         if (
           req.files.length &&
@@ -284,14 +285,18 @@ class UserService {
           dataset.insurances = body.insuranceFiles || path;
         }
       }
-
+      let isBSL = false;
       if (dataset?.subscription?.subscription) {
+        // let response = await stripeHelper.subscriptions(dataset.subscription.subscription);
+        // console.log("response", response);
         let subscription = dataset.subscription.name;
-
+        console.log("dataset.subscription", dataset.subscription);
         if (subscription) {
-          const isBSL =
+          isBSL =
             subscription.toLocaleLowerCase() ===
             Subscription.bsl.toLocaleLowerCase();
+
+          console.log("isBSL", isBSL);
 
           // service provider can add upto 3 location max
           if (dataset.location && dataset.location.length > 3) {
@@ -302,64 +307,63 @@ class UserService {
           }
 
           // Validate location details
-          if (dataset.location && dataset.location.length) {
-            for (let i = 0; i < dataset.location.length; i++) {
-              const element = dataset.location[i];
-              if (isBSL) {
-                // BSL subscription: no country or zip code allowed
-                if (element.county || element.zipCode) {
-                  return ResponseHelper.sendResponse(
-                    422,
-                    "Country and zipcode are forbidden for BSL subscription"
-                  );
-                }
-
-                // Ensure coordinates, city, and town are present
-                // town is optional for all service providers
-                if ((element?.coordinates?.length ?? 0) < 2 || !element.city) {
-                  return ResponseHelper.sendResponse(
-                    422,
-                    "Provide coordinates, city, and town for BSL subscription"
-                  );
-                }
-              } else {
-                // Non-BSL subscription: no coordinates allowed
-                if (element?.coordinates?.length ?? 0 > 0) {
-                  return ResponseHelper.sendResponse(
-                    422,
-                    "Coordinates are forbidden for non-BSL subscription"
-                  );
-                }
-
-                // Ensure city, are present
-                if (!element.city) {
-                  return ResponseHelper.sendResponse(
-                    422,
-                    "Provide  city, town, for non-BSL subscription"
-                  );
-                }
-              }
-
-              // Convert coordinates to float if they exist
-              dataset.location[i].coordinates?.map((e) =>
-                parseFloat(e.toString())
+        }
+      }
+      if (dataset.location && dataset.location.length) {
+        for (let i = 0; i < dataset.location.length; i++) {
+          const element = dataset.location[i];
+          if (isBSL) {
+            // BSL subscription: no country or zip code allowed
+            if (element.county || element.zipCode) {
+              return ResponseHelper.sendResponse(
+                422,
+                "Country and zipcode are forbidden for BSL subscription"
               );
-              dataset.location[i].type ??= "Point";
-
-              // Ensure `type` is set to "Point"
-              element.type = "Point";
-
-              // Check if the element is selected
-              if (element.isSelected === "true") {
-                // Ensure that the element.coordinates follows the schema definition
-                if (!element.coordinates || element.coordinates.length !== 2) {
-                  // If coordinates are missing or not in the expected format, set default coordinates
-                  element.coordinates = [0, 0];
-                }
-                // Assign the element to selectedLocation
-                dataset.selectedLocation = element;
-              }
             }
+
+            // Ensure coordinates, city, and town are present
+            // town is optional for all service providers
+            if ((element?.coordinates?.length ?? 0) < 2 || !element.city) {
+              return ResponseHelper.sendResponse(
+                422,
+                "Provide coordinates, city, and town for BSL subscription"
+              );
+            }
+          } else {
+            // Non-BSL subscription: no coordinates allowed
+            if (element?.coordinates?.length ?? 0 > 0) {
+              return ResponseHelper.sendResponse(
+                422,
+                "Coordinates are forbidden for non-BSL subscription"
+              );
+            }
+
+            // Ensure city, are present
+            if (!element.city) {
+              return ResponseHelper.sendResponse(
+                422,
+                "Provide  city, town, for non-BSL subscription"
+              );
+            }
+          }
+
+          // Convert coordinates to float if they exist
+          dataset.location[i].coordinates?.map((e) => parseFloat(e.toString()));
+          dataset.location[i].type ??= "Point";
+
+          // Ensure `type` is set to "Point"
+          element.type = "Point";
+
+          // Check if the element is selected
+          console.log("element.isSelected", element.isSelected);
+          if (element.isSelected === "true") {
+            // Ensure that the element.coordinates follows the schema definition
+            if (!element.coordinates || element.coordinates.length !== 2) {
+              // If coordinates are missing or not in the expected format, set default coordinates
+              element.coordinates = [0, 0];
+            }
+            // Assign the element to selectedLocation
+            dataset.selectedLocation = element;
           }
         }
       }
@@ -554,10 +558,6 @@ class UserService {
             path: "services",
             model: "Service",
             select: "title type parent",
-          },
-          {
-            path: "subscription.subscription",
-            model: "Subscription",
           },
         ]
       );

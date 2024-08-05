@@ -78,7 +78,8 @@ const updateRule = yup.object().shape({
         .object()
         .shape({
           subscription: yup.string().required(),
-          plan: yup.string().required(),
+          name: yup.string().required(),
+          // plan: yup.string().required(),
         })
         .notRequired(),
       locationType: yup

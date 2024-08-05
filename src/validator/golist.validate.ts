@@ -180,21 +180,6 @@ const getNearestServiceProvidersRule = yup.object().shape({
       visualVideos: yup.boolean().notRequired(),
       search: yup.string(),
     })
-    .test(
-      "zipCodeOrCoordinates",
-      "Either zipCode or both latitude and longitude are required",
-      function (value) {
-        const { city, town } = value;
-
-        if (city && town) {
-          return this.createError({
-            message: "Either City or Town are required",
-            path: "city",
-          });
-        }
-        return true;
-      }
-    )
     .noUnknown(),
   query: yup
     .object()

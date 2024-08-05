@@ -7,6 +7,7 @@ export interface ISubscription extends JwtToken {
   subscription: string;
   name: string;
   plan: string;
+  priceId: string;
   price: number;
   subscribe?: boolean;
   subscriptionAuthId?: string;
