@@ -94,6 +94,15 @@ const userModel: Schema = new Schema(
         readableLocation: { type: String, default: null },
       },
     ],
+    taskLocation: [
+      {
+        type: { type: String, enum: ["Point"], default: "Point" },
+        coordinates: { type: [Number, Number], default: [0, 0] },
+        city: { type: String, default: null },
+        town: { type: String, default: null },
+        readableLocation: { type: String, default: null },
+      },
+    ],
     selectedLocation: {
       type: { type: String, enum: ["Point"], default: "Point" },
       coordinates: { type: [Number, Number], default: [0, 0] },

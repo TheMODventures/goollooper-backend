@@ -203,6 +203,8 @@ class StripeHelper {
         { stripeAccount: stripeConnectId }
       );
 
+      console.log(balance, "Balance");
+
       const isInstant = payload.method === "instant";
       const isStandard = payload.method === "standard";
       const hasInstantBalance =

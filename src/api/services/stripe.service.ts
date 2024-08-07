@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+
 import { UserRepository } from "../repository/user/user.repository";
 import { ResponseHelper } from "../helpers/reponseapi.helper";
 import { stripeHelper } from "../helpers/stripe.helper";
@@ -189,6 +190,7 @@ class StripeService {
         description,
         customer: user.stripeCustomerId,
         statement_descriptor: "Top-up",
+        capture: true,
       });
 
       const netAmount = amount - (amount * STRIPE_PERCENTAGE + STRIPE_FIXED);
@@ -217,27 +219,70 @@ class StripeService {
   }
 
   async createPaymentIntent(req: Request): Promise<ApiResponse> {
-    const body = req.body;
-    body.amount = body.amount * 100;
+    const { amount } = req.body;
+    const userId = req.locals.auth?.userId;
+
+    if (!userId) {
+      return ResponseHelper.sendResponse(400, "User not authenticated");
+    }
+
+    // Convert amount to cents
+    const amountInCents = amount * 100;
 
     try {
+      // Fetch user from repository
       const user: IUser | null = await this.userRepository.getById(
-        req.locals.auth?.userId ?? "",
+        userId,
         undefined,
         "stripeCustomerId"
       );
+
       if (!user?.stripeCustomerId) {
         return ResponseHelper.sendResponse(400, "Please add a card first");
       }
 
-      body.customer = user?.stripeCustomerId;
+      // Create payment intent
+      const paymentIntent = await stripeHelper.createPaymentIntent({
+        currency: "usd",
+        amount: amountInCents,
+        payment_method_types: ["card"],
+        capture_method: "automatic",
+        confirmation_method: "automatic",
+        expand: ["payment_method"],
+        customer: user.stripeCustomerId,
+        confirm: true,
+      });
 
-      const paymentIntent = await stripeHelper.createPaymentIntent(body);
+      // Check if payment intent succeeded
+      if (paymentIntent.status !== "succeeded") {
+        return ResponseHelper.sendResponse(400, "Payment intent not created");
+      }
+
+      // Update user's wallet balance
+      const wallet = await this.walletRepository.updateBalance(
+        userId,
+        amountInCents
+      );
+
+      if (!wallet) {
+        return ResponseHelper.sendResponse(500, "Wallet update failed");
+      }
+
+      // Create transaction record
+      await this.transactionRepository.create({
+        amount: amount,
+        user: userId,
+        type: TransactionType.topUp,
+        wallet: wallet._id,
+      } as ITransaction);
+
       return ResponseHelper.sendSuccessResponse(
         "Payment intent created successfully",
         paymentIntent
       );
     } catch (error) {
+      console.error("Error creating payment intent:", error);
+
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   }
@@ -256,34 +301,34 @@ class StripeService {
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   }
-
+  // nice-softer-dawn-praise
   async webhook(req: Request, res: Response) {
-    const sig = req.headers["stripe-signature"];
-
+    const sig = req.headers["stripe-signature"] as string;
     let event;
-
     try {
-      event = await stripeHelper.stripeWebHook(req.body, sig as string);
+      event = stripeHelper.stripeWebHook(req.body, sig as string);
     } catch (err) {
-      res.status(400).send(`Webhook Error: ${(err as Error).message}`);
-      return;
+      console.error("Webhook Error:", (err as Error).message);
+      return res.status(400).send(`Webhook Error: ${(err as Error).message}`);
     }
-
-    console.log("event >>>>>>>>>>", event);
 
     // Handle the event
     switch (event.type) {
-      case "customer.subscription.pending_update_expired":
-        const customerSubscriptionPendingUpdateExpired = event.data.object;
-        // Then define and call a function to handle the event customer.subscription.pending_update_expired
+      case "charge.succeeded":
+        console.log("Charge succeeded:", event.data.object);
+        // Handle the charge.succeeded event
         break;
-      // ... handle other event types
+      case "customer.subscription.pending_update_expired":
+        console.log("Subscription pending update expired:", event.data.object);
+        // Handle the customer.subscription.pending_update_expired event
+        break;
       default:
         console.log(`Unhandled event type ${event.type}`);
     }
 
-    // Return a 200 response to acknowledge receipt of the event
-    res.send();
+    // Respond to acknowledge receipt of the event
+    res.status(200).json({ received: true });
+    return;
   }
 
   async getStripeCustomer(req: Request): Promise<ApiResponse> {
@@ -461,9 +506,8 @@ class StripeService {
     try {
       const connect = await this.getConnect(req.locals.auth?.userId as string);
 
-      const balance = await stripeHelper.retrieveBalance(
-        connect.data.id as string
-      );
+      const balance = await stripeHelper.retrieveBalance();
+      console.log("~ balance", balance);
 
       const wallet = await this.walletRepository.getOne<IWallet>({
         user: req.locals.auth?.userId as string,
@@ -475,11 +519,13 @@ class StripeService {
         return ResponseHelper.sendResponse(400, "Balance is low");
       }
 
-      const transaction = await stripeHelper.transfer({
+      const transfer = await stripeHelper.transfer({
         amount: req.body.amount * 100,
         destination: connect.data.id,
         currency: "usd",
+        transfer_group: "ORDER_95",
       });
+      console.log("transaction", transfer);
 
       if (connect.status) {
         const withdraw = await stripeHelper.payout(connect.data.id, {
