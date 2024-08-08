@@ -1,23 +1,17 @@
-import mongoose, { FilterQuery } from "mongoose";
+import mongoose from "mongoose";
 
 import {
   SUCCESS_DATA_LIST_PASSED,
   SUCCESS_DATA_SHOW_PASSED,
-  SUCCESS_DATA_INSERTION_PASSED,
-  SUCCESS_DATA_UPDATION_PASSED,
-  SUCCESS_DATA_DELETION_PASSED,
 } from "../../constant";
-import {
-  ISubscription,
-  IPlans,
-} from "../../database/interfaces/subscription.interface";
+import { ISubscription } from "../../database/interfaces/subscription.interface";
 import { ResponseHelper } from "../helpers/reponseapi.helper";
-import { SubscriptionRepository } from "../repository/subscription/subscription.repository";
 import { stripeHelper } from "../helpers/stripe.helper";
 import { UserRepository } from "../repository/user/user.repository";
 import { IUser } from "../../database/interfaces/user.interface";
 import { WalletRepository } from "../repository/wallet/wallet.repository";
 import { IWallet } from "../../database/interfaces/wallet.interface";
+import Stripe from "stripe";
 
 class SubscriptionService {
   private userRepository: UserRepository;
@@ -28,13 +22,63 @@ class SubscriptionService {
     this.walletRepository = new WalletRepository();
   }
 
-  index = async (): Promise<ApiResponse> => {
+  index = async ({
+    unique,
+    name,
+  }: {
+    unique: boolean;
+    name?: string;
+  }): Promise<ApiResponse> => {
     try {
       const subscription = await stripeHelper.subscriptions();
-      return ResponseHelper.sendSuccessResponse(
-        SUCCESS_DATA_LIST_PASSED,
-        subscription
-      );
+
+      if (unique) {
+        const uniqueKeys = new Set<string>();
+        const descriptions: { [key: string]: string } = {};
+        if ("data" in subscription) {
+          subscription.data.forEach((item: Stripe.Product) => {
+            const metadataKeys = Object.keys(item.metadata);
+            metadataKeys.forEach((key) => {
+              if (
+                key === "BSL" ||
+                key === "IW" ||
+                key === "MBS" ||
+                key === "BSP"
+              ) {
+                uniqueKeys.add(key);
+                descriptions[key] = item.description as string;
+              }
+            });
+          });
+        }
+        const responseData = Array.from(uniqueKeys).map((key) => ({
+          key,
+          description: descriptions[key],
+        }));
+
+        return ResponseHelper.sendSuccessResponse(
+          "subscription plan found",
+          responseData
+        );
+      } else if (name) {
+        let filteredSubscriptions: Stripe.Product[] = [];
+
+        if ("data" in subscription) {
+          filteredSubscriptions = subscription.data.filter(
+            (item: Stripe.Product) => item.metadata.hasOwnProperty(name)
+          );
+        }
+
+        return ResponseHelper.sendSuccessResponse(
+          `Subscriptions filtered by metadata key ${name}`,
+          filteredSubscriptions
+        );
+      } else {
+        return ResponseHelper.sendResponse(
+          422,
+          'Invalid request: must provide "unique" or "name" Query Param'
+        );
+      }
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }

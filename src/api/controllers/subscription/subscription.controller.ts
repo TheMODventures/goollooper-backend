@@ -15,7 +15,11 @@ class SubscriptionController {
   }
 
   index = async (req: Request, res: Response) => {
-    const response = await this.subscriptionService.index();
+    const { unique, name } = req.query;
+    const response = await this.subscriptionService.index({
+      unique: Boolean(unique),
+      name: name as string,
+    });
     return res.status(response.code).json(response);
   };
 

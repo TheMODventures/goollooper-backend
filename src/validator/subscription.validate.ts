@@ -29,6 +29,7 @@ const indexRule = yup.object().shape({
       page: yup.string().required(),
       limit: yup.string().notRequired(),
       name: yup.string().notRequired(),
+      unique: yup.string().notRequired(),
     })
     .noUnknown(),
 });
