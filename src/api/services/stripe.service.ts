@@ -523,7 +523,6 @@ class StripeService {
         amount: req.body.amount * 100,
         destination: connect.data.id,
         currency: "usd",
-        transfer_group: "ORDER_95",
       });
       console.log("transaction", transfer);
 
@@ -567,6 +566,37 @@ class StripeService {
       );
     }
   };
+
+  async onboarding(req: Request): Promise<ApiResponse> {
+    try {
+      const user = await this.userRepository.getById<IUser>(
+        req.locals.auth?.userId as string
+      );
+      if (!user) return ResponseHelper.sendResponse(404, "User not found");
+
+      const createStripeConnect = await stripeHelper.stripeConnectAccount({
+        email: user.email,
+      });
+      if (!createStripeConnect)
+        return ResponseHelper.sendResponse(
+          400,
+          "Stripe connect account not created"
+        );
+      console.log("createStripeConnect", createStripeConnect);
+      const accountLink = await stripeHelper.connectAccountOnboardingLink(
+        createStripeConnect.id
+      );
+
+      if (!accountLink)
+        return ResponseHelper.sendResponse(400, "Account link not created");
+      return ResponseHelper.sendSuccessResponse(
+        "Account link created",
+        accountLink
+      );
+    } catch (error) {
+      return ResponseHelper.sendResponse(500, (error as Error).message);
+    }
+  }
 }
 
 export default StripeService;
