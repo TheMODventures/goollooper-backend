@@ -367,6 +367,18 @@ class UserService {
           }
         }
       }
+
+      if (dataset.taskLocation) {
+        if (dataset.taskLocation.length === 3) {
+          dataset.taskLocation.shift();
+        }
+        console.log("~ dataset.taskLocation", dataset.taskLocation);
+        dataset.taskLocation.push(
+          ...(userResponse?.taskLocation ?? []),
+          ...dataset?.taskLocation
+        );
+      }
+
       // Check if locationType is local and all location details are provided
       // if (
       //   dataset.locationType === EUserLocationType.local &&

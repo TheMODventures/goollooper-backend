@@ -203,6 +203,8 @@ class StripeHelper {
         { stripeAccount: stripeConnectId }
       );
 
+      console.log(balance, "Balance");
+
       const isInstant = payload.method === "instant";
       const isStandard = payload.method === "standard";
       const hasInstantBalance =
@@ -258,6 +260,26 @@ class StripeHelper {
     });
     console.log(obj, "Subscription Item");
     return obj;
+  }
+
+  async connectAccountOnboardingLink(
+    accountId: string
+  ): Promise<Stripe.Response<Stripe.AccountLink>> {
+    return stripe.accountLinks.create({
+      account: accountId,
+      type: "account_onboarding",
+      collection_options: {
+        future_requirements: "include",
+        fields: "currently_due",
+      },
+    });
+  }
+  async stripeConnectAccount(
+    payload: Stripe.AccountUpdateParams
+  ): Promise<Stripe.Account> {
+    return stripe.accounts.create({
+      email: payload.email,
+    });
   }
 }
 

@@ -101,6 +101,18 @@ const updateRule = yup.object().shape({
           })
         )
         .notRequired(),
+      taskLocation: yup
+        .array()
+        .of(
+          yup.object().shape({
+            type: yup.string().oneOf(["Point"]).default("Point"),
+            coordinates: yup.array().of(yup.string()).length(2),
+            state: yup.string().notRequired(),
+            city: yup.string().notRequired(),
+            readableLocation: yup.string(),
+          })
+        )
+        .notRequired(),
       schedule: yup
         .array()
         .of(

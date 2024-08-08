@@ -344,18 +344,21 @@ class TaskService {
           } as NotificationParams);
         });
       }
-      // if (
-      //   payload.type !== TaskType.megablast &&
-      //   payload.goListServiceProviders.length
-      // ) {
-      //   payload.goListServiceProviders.map(async (user) => {
-      //     await this.calendarRepository.create({
-      //       user: user,
-      //       task: data._id,
-      //       date: data.date,
-      //     } as ICalendar);
-      //   });
-      // }
+      if (
+        payload.type !== TaskType.megablast &&
+        payload.goListServiceProviders.length
+      ) {
+        payload.goListServiceProviders.map(async (user: any) => {
+          await this.notificationService.createAndSendNotification({
+            senderId: payload.postedBy,
+            receiverId: user,
+            type: ENOTIFICATION_TYPES.TASK_REQUEST,
+            data: { task: data?._id?.toString() },
+            ntitle: "Task Request",
+            nbody: payload.title,
+          } as NotificationParams);
+        });
+      }
       // in from data boolean value come in string format
       if (String(payload.commercial) == "true" && wallet) {
         if (wallet?.balance < SERVICE_INITIATION_FEE) {
@@ -373,11 +376,11 @@ class TaskService {
         });
       }
 
-      // await this.calendarRepository.create({
-      //   user: payload.postedBy as string,
-      //   task: data._id,
-      //   date: data.date,
-      // } as ICalendar);
+      await this.calendarRepository.create({
+        user: payload.postedBy as string,
+        task: data._id,
+        date: data.date,
+      } as ICalendar);
 
       if (payload.type === TaskType.megablast) {
         await this.userWalletRepository.updateById(wallet?._id as string, {

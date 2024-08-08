@@ -1,6 +1,7 @@
 import { Validation } from "../../middleware/validation.middleware";
 import StripeController from "../controllers/stripe/stripe.controller";
 import BaseRoutes from "./base.route";
+import express from "express"; // Import the 'express' module
 
 class StripeRoutes extends BaseRoutes {
   private stripeController: StripeController;
@@ -79,8 +80,6 @@ class StripeRoutes extends BaseRoutes {
     //   this.validateRequest,
     //   this.stripeController.applyForSubscription
     // );
-
-    this.router.post("/webhook", this.stripeController.webhook);
 
     this.router.get(
       "/banks",
