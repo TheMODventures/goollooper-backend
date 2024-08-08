@@ -194,7 +194,7 @@ class TaskService {
       };
       const response = await this.taskRepository.getOne<ITask>(filter, "", "", [
         ModelHelper.populateData(
-          "goList.serviceProviders.user",
+          "serviceProviders.user",
           ModelHelper.userSelect,
           "Users"
         ),
