@@ -8,7 +8,7 @@ export interface ISchedule {
   day: Days;
   startTime: string;
   endTime: string;
-  dayOff: boolean;
+  dayOff?: boolean;
   user: mongoose.Types.ObjectId;
   createdAt?: Date | Moment;
   updatedAt?: Date | Moment;
