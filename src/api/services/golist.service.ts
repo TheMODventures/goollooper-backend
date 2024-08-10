@@ -297,10 +297,13 @@ class GolistService {
       //   );
       // }
       if (subscription && subscription?.length > 0) {
-        const subscriptionIds = subscription.map((e: any) => e);
-
-        console.log(subscription);
-        match["subscription.subscription"] = { $in: subscriptionIds };
+        // const subscriptionIds = subscription.map((e: any) => e);
+        // match["subscription.subscription"] = { $in: subscriptionIds };
+        query.push({
+          $match: {
+            "subscription.name": { $in: subscription },
+          },
+        });
       }
       if (serviceId && serviceId?.length > 0) {
         const services = serviceId.map(
@@ -353,19 +356,6 @@ class GolistService {
       query.push(
         ...[
           {
-            $lookup: {
-              as: "subscription",
-              from: "subscriptions",
-              localField: "subscription.subscription",
-              foreignField: "_id",
-            },
-          },
-          {
-            $addFields: {
-              subscription: { $first: "$subscription" },
-            },
-          },
-          {
             $project: {
               _id: 1,
               username: 1,
@@ -377,9 +367,7 @@ class GolistService {
               averageRating: 1,
               profileImage: 1,
               role: 1,
-              subscriptionName: {
-                $ifNull: ["$subscription.name", null],
-              },
+              subscription: 1,
               distance: 1,
             },
           },
