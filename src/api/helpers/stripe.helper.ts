@@ -264,21 +264,61 @@ class StripeHelper {
 
   async connectAccountOnboardingLink(
     accountId: string
-  ): Promise<Stripe.Response<Stripe.AccountLink>> {
-    return stripe.accountLinks.create({
-      account: accountId,
-      type: "account_onboarding",
-      collection_options: {
-        future_requirements: "include",
-        fields: "currently_due",
+  ): Promise<Stripe.Response<Stripe.AccountSession>> {
+    return await stripe.accountSessions.create({
+      account: accountId, // Replace with your connected account ID
+      components: {
+        payment_details: {
+          enabled: true,
+        },
+        documents: {
+          enabled: true,
+        },
+        payments: {
+          enabled: true,
+          features: {
+            refund_management: true,
+            dispute_management: true,
+            capture_payments: true,
+          },
+        },
+        payouts: {
+          enabled: true,
+          features: {
+            instant_payouts: true,
+            standard_payouts: true,
+            edit_payout_schedule: true,
+          },
+        },
+        account_onboarding: {
+          enabled: true,
+        },
       },
     });
   }
+
   async stripeConnectAccount(
     payload: Stripe.AccountUpdateParams
   ): Promise<Stripe.Account> {
     return stripe.accounts.create({
       email: payload.email,
+      business_type: "individual",
+      capabilities: {
+        card_payments: { requested: true },
+        transfers: { requested: true },
+      },
+      business_profile: {
+        url: "goollooper.com",
+        mcc: "5734",
+      },
+      settings: {
+        payouts: {
+          schedule: {
+            interval: "manual",
+          },
+        },
+      },
+      type: "custom",
     });
   }
 }

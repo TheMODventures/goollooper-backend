@@ -66,15 +66,15 @@ class AuthService {
       const userId = new mongoose.Types.ObjectId(data._id!);
       const tokenResponse = await this.tokenService.create(userId, role);
       // await this.walletRepository.create({ user: data._id } as IWallet);
-      // const CustomerCreate = await stripeHelper.createStripeCustomer(
-      //   user.email
-      // );
+      const CustomerCreate = await stripeHelper.createStripeCustomer(
+        user.email
+      );
 
-      // if (CustomerCreate) {
-      //   await this.userRepository.updateById(data._id?.toString() ?? "", {
-      //     stripeCustomerId: CustomerCreate.id,
-      //   });
-      // }
+      if (CustomerCreate) {
+        await this.userRepository.updateById(data._id?.toString() ?? "", {
+          stripeCustomerId: CustomerCreate.id,
+        });
+      }
 
       Mailer.sendEmail({
         email: data.email,

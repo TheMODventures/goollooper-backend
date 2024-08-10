@@ -94,6 +94,13 @@ export interface IUser {
   callDeviceType?: string;
   stripeCustomerId?: string;
   stripeConnectId?: string;
+  accountAuthorized?: boolean;
+  stripeConnectAccountRequirementsDue: {
+    pastDue: string[];
+    currentlyDue: string[];
+    eventuallyDue: string[];
+    disabledReason: string;
+  };
   wallet?: string;
 }
 

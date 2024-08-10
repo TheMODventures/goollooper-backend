@@ -93,6 +93,10 @@ class StripeController {
     const response = await this.stripeService.payout(req);
     return res.status(response.code).json(response);
   };
+  onboarding = async (req: Request, res: Response) => {
+    const response = await this.stripeService.onboarding(req);
+    return res.status(response.code).json(response);
+  };
 }
 
 export default StripeController;

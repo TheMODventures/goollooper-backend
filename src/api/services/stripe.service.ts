@@ -322,6 +322,73 @@ class StripeService {
         console.log("Subscription pending update expired:", event.data.object);
         // Handle the customer.subscription.pending_update_expired event
         break;
+
+      case "account.application.authorized":
+        console.log("Account application authorized:", event.data.object);
+
+        break;
+      case "account.updated":
+        const account = event.data.object as Stripe.Account;
+        console.log("Account Updated:", account);
+        // Safely check if the account is fully activated
+        if (
+          account.details_submitted &&
+          account.charges_enabled &&
+          account.payouts_enabled
+        ) {
+          console.log(
+            `Account ${account.id} is fully activated and ready to use.`
+          );
+          this.userRepository.updateByOne(
+            { stripeConnectId: account.id },
+            { accountAuthorized: true }
+          );
+          // Handle successful account activation
+          // e.g., notify the user, update your database, etc.
+        } else if (
+          account.requirements &&
+          account.requirements.currently_due &&
+          account?.requirements?.currently_due.length > 0
+        ) {
+          console.log(
+            `Account ${account.id} has missing information:`,
+            account.requirements.currently_due
+          );
+          this.userRepository.updateByOne(
+            { stripeConnectId: account.id },
+            {
+              stripeConnectAccountRequirementsDue: {
+                currentlyDue: account.requirements.currently_due,
+              },
+              accountAuthorized: false,
+            }
+          );
+          // Handle incomplete account setup
+          // e.g., notify the user to provide the missing details
+        } else if (account.requirements?.disabled_reason) {
+          console.log(
+            `Account ${account.id} is disabled due to: ${account.requirements.disabled_reason}`
+          );
+          this.userRepository.updateByOne(
+            { stripeConnectId: account.id },
+            {
+              stripeConnectAccountRequirementsDue: {
+                disabledReason: account.requirements.disabled_reason,
+              },
+              accountAuthorized: false,
+            }
+          );
+          // Handle account failure due to unmet requirements
+          // e.g., notify the user about the issue, suggest corrective actions
+        } else {
+          console.log(`Account ${account.id} is not fully active yet.`);
+          this.userRepository.updateByOne(
+            { stripeConnectId: account.id },
+            { accountAuthorized: false }
+          );
+          // Handle other statuses
+        }
+        break;
       default:
         console.log(`Unhandled event type ${event.type}`);
     }
@@ -569,31 +636,54 @@ class StripeService {
 
   async onboarding(req: Request): Promise<ApiResponse> {
     try {
+      // Retrieve the user based on the provided user ID in the request
       const user = await this.userRepository.getById<IUser>(
         req.locals.auth?.userId as string
       );
-      if (!user) return ResponseHelper.sendResponse(404, "User not found");
 
-      const createStripeConnect = await stripeHelper.stripeConnectAccount({
-        email: user.email,
-      });
-      if (!createStripeConnect)
-        return ResponseHelper.sendResponse(
-          400,
-          "Stripe connect account not created"
-        );
-      console.log("createStripeConnect", createStripeConnect);
+      if (!user) {
+        return ResponseHelper.sendResponse(404, "User not found");
+      }
+
+      // Check if the user already has a Stripe Connect account
+      let stripeConnectId = user.stripeConnectId;
+
+      // If the user doesn't have a Stripe Connect account, create one
+      if (!stripeConnectId) {
+        const createStripeConnect = await stripeHelper.stripeConnectAccount({
+          email: user.email,
+        });
+
+        if (!createStripeConnect) {
+          return ResponseHelper.sendResponse(
+            400,
+            "Stripe connect account not created"
+          );
+        }
+
+        // Save the new Stripe Connect account ID to the user's record
+        stripeConnectId = createStripeConnect.id;
+        await this.userRepository.updateById(user._id as string, {
+          stripeConnectId,
+        });
+      }
+
+      // Generate the account onboarding link
       const accountLink = await stripeHelper.connectAccountOnboardingLink(
-        createStripeConnect.id
+        stripeConnectId
       );
 
-      if (!accountLink)
+      if (!accountLink) {
         return ResponseHelper.sendResponse(400, "Account link not created");
+      }
+
+      // Return the account link in the response
       return ResponseHelper.sendSuccessResponse(
         "Account link created",
         accountLink
       );
     } catch (error) {
+      // Handle any errors that occur during the process
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   }
