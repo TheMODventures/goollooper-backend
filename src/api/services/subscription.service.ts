@@ -35,6 +35,8 @@ class SubscriptionService {
       if (unique) {
         const uniqueKeys = new Set<string>();
         const descriptions: { [key: string]: string } = {};
+        const tagLine: { [key: string]: string } = {};
+
         if ("data" in subscription) {
           subscription.data.forEach((item: Stripe.Product) => {
             const metadataKeys = Object.keys(item.metadata);
@@ -47,6 +49,7 @@ class SubscriptionService {
               ) {
                 uniqueKeys.add(key);
                 descriptions[key] = item.description as string;
+                tagLine[key] = item.metadata["tagLine"];
               }
             });
           });
@@ -54,6 +57,7 @@ class SubscriptionService {
         const responseData = Array.from(uniqueKeys).map((key) => ({
           key,
           description: descriptions[key],
+          tagLine: tagLine[key],
         }));
 
         return ResponseHelper.sendSuccessResponse(

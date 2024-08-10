@@ -155,6 +155,13 @@ const userModel: Schema = new Schema(
     callDeviceType: { type: String, default: null },
     stripeCustomerId: { type: String, default: null },
     stripeConnectId: { type: String, default: null },
+    accountAuthorized: { type: Boolean, default: false },
+    stripeConnectAccountRequirementsDue: {
+      disabledReason: { type: String, default: null },
+      currentlyDue: { type: [String], default: [] },
+      eventuallyDue: { type: [String], default: [] },
+      pastDue: { type: [String], default: [] },
+    },
     wallet: { type: Schema.Types.ObjectId, ref: "Wallet", default: null },
   },
   schemaOptions

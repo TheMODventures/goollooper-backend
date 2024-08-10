@@ -116,6 +116,8 @@ class StripeRoutes extends BaseRoutes {
       this.validateRequest,
       this.stripeController.payout
     );
+
+    this.router.post("/onboarding", this.stripeController.onboarding);
   }
 }
 
