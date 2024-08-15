@@ -28,7 +28,9 @@ import {
   ENOTIFICATION_TYPES,
   ETaskStatus,
   ETaskUserStatus,
+  ETransactionStatus,
   TaskType,
+  TransactionType,
 } from "../../database/interfaces/enums";
 import { ICalendar } from "../../database/interfaces/calendar.interface";
 import { IUser } from "../../database/interfaces/user.interface";
@@ -41,6 +43,8 @@ import { WalletRepository } from "../repository/wallet/wallet.repository";
 import { IWallet } from "../../database/interfaces/wallet.interface";
 import { stripeHelper } from "../helpers/stripe.helper";
 import { log } from "console";
+import { TransactionRepository } from "../repository/transaction/transaction.repository";
+import { ITransaction } from "../../database/interfaces/transaction.interface";
 
 class TaskService {
   private taskRepository: TaskRepository;
@@ -50,6 +54,7 @@ class TaskService {
   private uploadHelper: UploadHelper;
   private chatRepository: ChatRepository;
   private userRepository: UserRepository;
+  private transactionRepository: TransactionRepository;
   private userWalletRepository: WalletRepository;
   constructor() {
     this.taskRepository = new TaskRepository();
@@ -59,6 +64,7 @@ class TaskService {
     this.userRepository = new UserRepository();
     this.notificationService = new NotificationService();
     this.userWalletRepository = new WalletRepository();
+    this.transactionRepository = new TransactionRepository();
     this.uploadHelper = new UploadHelper("task");
   }
 
@@ -389,14 +395,6 @@ class TaskService {
           $inc: { balance: -MEGA_BLAST_FEE },
           // amount will be send to Goolloper wallet later
         });
-        console.log(
-          "🚀 ~ file: task.service.ts ~ line 393 ~ TaskService ~ create ~ user",
-          user
-        );
-        console.log(
-          "🚀 ~ file: task.service.ts ~ line 394 ~ TaskService ~ create ~ GOOLLOOPER_ID",
-          process.env.STRIPE_GOOLLOOPER_ID
-        );
 
         const transfer = await stripeHelper.transfer(
           {
@@ -405,11 +403,6 @@ class TaskService {
             destination: process.env.STRIPE_GOOLLOOPER_ID as string,
           },
           user?.stripeConnectId as string
-        );
-
-        console.log(
-          "🚀 ~ file: task.service.ts ~ line 404 ~ TaskService ~ create ~ transfer",
-          transfer
         );
       }
       return ResponseHelper.sendResponse(201, data);
@@ -580,21 +573,9 @@ class TaskService {
       );
       if (!findUser) return ResponseHelper.sendResponse(404, "User not found");
 
-      // Execute the transfer and update wallet balance in parallel
-      const [transfer] = await Promise.all([
-        stripeHelper.transfer(
-          {
-            amount: REQUEST_ADDED_FEE * 100,
-            currency: "usd",
-            destination: process.env.STRIPE_GOOLLOOPER_ID as string,
-          },
-          findUser.stripeConnectId as string
-        ),
-
-        this.userWalletRepository.updateById(wallet._id as string, {
-          $inc: { balance: -REQUEST_ADDED_FEE },
-        }),
-      ]);
+      await this.userWalletRepository.updateById(wallet._id as string, {
+        $inc: { balance: -REQUEST_ADDED_FEE },
+      });
 
       const response: ITask | null = await this.taskRepository.updateById(_id, {
         $addToSet: { users: { user } },
@@ -603,14 +584,25 @@ class TaskService {
 
       if (!response) return ResponseHelper.sendResponse(404);
 
-      await this.notificationService.createAndSendNotification({
-        senderId: user,
-        receiverId: response.postedBy,
-        type: ENOTIFICATION_TYPES.TASK_REQUEST,
-        data: { task: _id },
-        ntitle: "Task Request",
-        nbody: `${findUser.firstName} has requested to be added to the task`,
-      } as NotificationParams);
+      const [transactionResult, notificationResult] = await Promise.all([
+        this.transactionRepository.create({
+          amount: REQUEST_ADDED_FEE,
+          user,
+          type: TransactionType.taskAddRequest,
+          status: ETransactionStatus.pending,
+          wallet: wallet._id as string,
+          task: _id,
+        } as ITransaction),
+
+        this.notificationService.createAndSendNotification({
+          senderId: user,
+          receiverId: response.postedBy,
+          type: ENOTIFICATION_TYPES.TASK_REQUEST,
+          data: { task: _id },
+          ntitle: "Task Request",
+          nbody: `${findUser.firstName} has requested to be added to the task`,
+        } as NotificationParams),
+      ]);
 
       return ResponseHelper.sendSuccessResponse(
         SUCCESS_DATA_UPDATION_PASSED,

@@ -331,7 +331,7 @@ class StripeService {
         return ResponseHelper.sendResponse(500, "Wallet update failed");
       }
 
-      const [transaction1, transaction2] = await Promise.all([
+      const [topUpTransaction, applicationFeeTransaction] = await Promise.all([
         this.transactionRepository.create(
           {
             amount: profitInDollars,
@@ -353,7 +353,7 @@ class StripeService {
         ),
       ]);
 
-      if (!transaction1 || !transaction2) {
+      if (!topUpTransaction || !applicationFeeTransaction) {
         await session.abortTransaction();
         session.endSession();
         return ResponseHelper.sendResponse(500, "Transaction creation failed");
