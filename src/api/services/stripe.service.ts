@@ -767,6 +767,41 @@ class StripeService {
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   };
+
+  withdrawRequest = async (req: Request): Promise<ApiResponse> => {
+    const session = await mongoose.startSession();
+    try {
+      session.startTransaction();
+      const wallet = await this.walletRepository.getOne<IWallet>({
+        user: req.locals.auth?.userId as string,
+      });
+
+      if (!wallet) return ResponseHelper.sendResponse(400, "Wallet not found");
+      if (wallet.balance < req.body.amount)
+        return ResponseHelper.sendResponse(400, "Insufficient balance");
+
+      this.transactionRepository.create(
+        {
+          amount: req.body.amount,
+          user: req.locals.auth?.userId as string,
+          type: TransactionType.withdraw,
+          status: ETransactionStatus.pending,
+        } as ITransaction,
+        { session }
+      );
+
+      await this.walletRepository.updateById(
+        wallet._id as string,
+        { balance: wallet.balance - req.body.amount },
+        { session }
+      );
+      session.commitTransaction();
+      return ResponseHelper.sendSuccessResponse("Withdrawal request sent", {});
+    } catch (error) {
+      session.abortTransaction();
+      return ResponseHelper.sendResponse(500, (error as Error).message);
+    }
+  };
 }
 
 export default StripeService;

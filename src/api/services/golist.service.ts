@@ -80,7 +80,6 @@ class GolistService {
 
   show = async (
     _id: string,
-    coordinates?: [number, number],
     populate?: PopulateOptions | (PopulateOptions | string)[]
   ): Promise<ApiResponse> => {
     try {

@@ -390,20 +390,19 @@ class TaskService {
       } as ICalendar);
 
       if (payload.type === TaskType.megablast) {
-        const user = await this.userRepository.getById<IUser>(payload.postedBy);
+        await this.userRepository.getById<IUser>(payload.postedBy);
         await this.userWalletRepository.updateById(wallet?._id as string, {
           $inc: { balance: -MEGA_BLAST_FEE },
-          // amount will be send to Goolloper wallet later
         });
 
-        const transfer = await stripeHelper.transfer(
-          {
-            amount: MEGA_BLAST_FEE * 100,
-            currency: "usd",
-            destination: process.env.STRIPE_GOOLLOOPER_ID as string,
-          },
-          user?.stripeConnectId as string
-        );
+        this.transactionRepository.create({
+          amount: MEGA_BLAST_FEE,
+          user: userId,
+          type: TransactionType.megablast,
+          status: ETransactionStatus.pending,
+          wallet: wallet?._id as string,
+          task: data._id,
+        } as ITransaction);
       }
       return ResponseHelper.sendResponse(201, data);
     } catch (error) {
