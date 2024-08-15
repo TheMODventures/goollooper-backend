@@ -17,25 +17,25 @@ class StripeHelper {
   ): Promise<Stripe.Account> {
     return stripe.accounts.create({
       email,
-      ...dataset,
-      type: "custom",
-      capabilities: {
-        card_payments: { requested: true },
-        transfers: { requested: true },
-      },
-      settings: {
-        payouts: {
-          schedule: {
-            interval: "manual",
-          },
-        },
-      },
-      business_type: "individual",
-      tos_acceptance: { ip: "8.8.8.8", date: Math.floor(Date.now() / 1000) },
-      business_profile: {
-        url: "goollooper.com",
-        mcc: "5734",
-      },
+      // ...dataset,
+      // type: "custom",
+      // capabilities: {
+      //   card_payments: { requested: true },
+      //   transfers: { requested: true },
+      // },
+      // settings: {
+      //   payouts: {
+      //     schedule: {
+      //       interval: "manual",
+      //     },
+      //   },
+      // },
+      // business_type: "individual",
+      // tos_acceptance: { ip: "8.8.8.8", date: Math.floor(Date.now() / 1000) },
+      // business_profile: {
+      //   url: "goollooper.com",
+      //   mcc: "5734",
+      // },
     });
   }
 
@@ -228,8 +228,20 @@ class StripeHelper {
     }
   }
 
-  async transfer(payload: Stripe.TransferCreateParams) {
-    return stripe.transfers.create(payload);
+  async transfer(
+    payload: Stripe.TransferCreateParams,
+    stripeConnectId: string
+  ) {
+    return stripe.transfers.create(
+      {
+        amount: payload.amount,
+        currency: payload.currency,
+        destination: payload.destination,
+      },
+      {
+        stripeAccount: stripeConnectId,
+      }
+    );
   }
 
   async topup(payload: Stripe.TopupCreateParams) {

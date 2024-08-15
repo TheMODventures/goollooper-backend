@@ -1,7 +1,7 @@
 import mongoose, { Document } from "mongoose";
 import { Moment } from "moment";
 
-import { TransactionType } from "./enums";
+import { ETransactionStatus, TransactionType } from "./enums";
 
 export interface ITransaction extends JwtToken {
   _id?: mongoose.Types.ObjectId | string;
@@ -10,6 +10,7 @@ export interface ITransaction extends JwtToken {
   amount: number;
   type: TransactionType;
   task?: mongoose.Types.ObjectId | string;
+  status: ETransactionStatus;
   subscription?: mongoose.Types.ObjectId | string;
   createdAt?: Date | Moment;
   updatedAt?: Date | Moment;

@@ -43,6 +43,8 @@ const createPaymentIntentRule = yup.object().shape({
     .object()
     .shape({
       amount: yup.number().required(),
+      paymentMethodId: yup.string().required(),
+      // type: yup.string().required().oneOf(["top-up", "subscription"]),
     })
     .noUnknown(),
 });

@@ -70,12 +70,12 @@ export abstract class BaseRepository<J, D> implements IBaseRepository<J, D> {
     return ((await query.exec()) as T) || null;
   }
 
-  async create<T>(entity: J | D): Promise<T> {
+  async create<T>(entity: J | D, options: QueryOptions<T> = {}): Promise<T> {
     const dataset = {
       ...entity,
       _id: new mongoose.Types.ObjectId(),
     };
-    const createdEntity = new this.model(dataset);
+    const createdEntity = new this.model(dataset, options);
     return (await createdEntity.save()) as T;
   }
   async createMany<T>(entity: J[] | D[]): Promise<T[]> {

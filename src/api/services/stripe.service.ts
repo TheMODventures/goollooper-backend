@@ -4,7 +4,9 @@ import { UserRepository } from "../repository/user/user.repository";
 import { ResponseHelper } from "../helpers/reponseapi.helper";
 import { stripeHelper } from "../helpers/stripe.helper";
 import { IUser } from "../../database/interfaces/user.interface";
+import { DateHelper } from "../helpers/date.helper";
 import {
+  APPLICATION_FEE,
   STRIPE_FIXED,
   STRIPE_PERCENTAGE,
   SUCCESS_DATA_DELETION_PASSED,
@@ -13,18 +15,27 @@ import Stripe from "stripe";
 import { WalletRepository } from "../repository/wallet/wallet.repository";
 import { TransactionRepository } from "../repository/transaction/transaction.repository";
 import { ITransaction } from "../../database/interfaces/transaction.interface";
-import { TransactionType } from "../../database/interfaces/enums";
-import { IWallet } from "../../database/interfaces/wallet.interface";
+import {
+  ETransactionStatus,
+  TransactionType,
+} from "../../database/interfaces/enums";
+import {
+  IWallet,
+  PaymentIntentType,
+} from "../../database/interfaces/wallet.interface";
+import mongoose from "mongoose";
 
 class StripeService {
   private userRepository: UserRepository;
   private walletRepository: WalletRepository;
   private transactionRepository: TransactionRepository;
+  private dateHelper: DateHelper;
 
   constructor() {
     this.userRepository = new UserRepository();
     this.walletRepository = new WalletRepository();
     this.transactionRepository = new TransactionRepository();
+    this.dateHelper = new DateHelper();
   }
 
   async createWallet(email: string, dataset: Stripe.AccountCreateParams) {
@@ -219,7 +230,7 @@ class StripeService {
   }
 
   async createPaymentIntent(req: Request): Promise<ApiResponse> {
-    const { amount } = req.body;
+    const { amount, paymentMethodId, type } = req.body;
     const userId = req.locals.auth?.userId;
 
     if (!userId) {
@@ -234,47 +245,28 @@ class StripeService {
       const user: IUser | null = await this.userRepository.getById(
         userId,
         undefined,
-        "stripeCustomerId"
+        "stripeCustomerId stripeConnectId"
       );
 
       if (!user?.stripeCustomerId) {
-        return ResponseHelper.sendResponse(400, "Please add a card first");
+        return ResponseHelper.sendResponse(
+          400,
+          "Stripe Connect Account not found"
+        );
       }
-
       // Create payment intent
       const paymentIntent = await stripeHelper.createPaymentIntent({
         currency: "usd",
         amount: amountInCents,
+        payment_method: paymentMethodId,
         payment_method_types: ["card"],
         capture_method: "automatic",
         confirmation_method: "automatic",
         expand: ["payment_method"],
+        receipt_email: user.email,
         customer: user.stripeCustomerId,
-        confirm: true,
+        use_stripe_sdk: true,
       });
-
-      // Check if payment intent succeeded
-      if (paymentIntent.status !== "succeeded") {
-        return ResponseHelper.sendResponse(400, "Payment intent not created");
-      }
-
-      // Update user's wallet balance
-      const wallet = await this.walletRepository.updateBalance(
-        userId,
-        amountInCents
-      );
-
-      if (!wallet) {
-        return ResponseHelper.sendResponse(500, "Wallet update failed");
-      }
-
-      // Create transaction record
-      await this.transactionRepository.create({
-        amount: amount,
-        user: userId,
-        type: TransactionType.topUp,
-        wallet: wallet._id,
-      } as ITransaction);
 
       return ResponseHelper.sendSuccessResponse(
         "Payment intent created successfully",
@@ -282,26 +274,106 @@ class StripeService {
       );
     } catch (error) {
       console.error("Error creating payment intent:", error);
-
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   }
 
   async confirmPayment(req: Request): Promise<ApiResponse> {
     const { paymentIntentId } = req.body;
+    const session = await mongoose.startSession();
+
     try {
+      // Start a transaction
+      session.startTransaction();
+
+      // Fetch payment intent
       const paymentIntent = await stripeHelper.confirmPaymentIntent(
         paymentIntentId
       );
+
+      if (paymentIntent.status !== "succeeded") {
+        await session.abortTransaction();
+        session.endSession();
+        return ResponseHelper.sendResponse(400, "Payment intent not confirmed");
+      }
+
+      const originalAmountInCents = paymentIntent.amount_received; // Get actual amount received from Stripe
+
+      // Calculate Stripe fees and net transfer amount
+      const stripeFeeInCents = this.dateHelper.calculateStripeFee(
+        originalAmountInCents
+      );
+      const applicationFeeInCents = Math.round(APPLICATION_FEE * 100);
+      const netTransferAmountInCents =
+        originalAmountInCents - stripeFeeInCents - applicationFeeInCents;
+
+      // Calculate profit
+      const profitInCents = this.dateHelper.calculateProfit(
+        originalAmountInCents,
+        netTransferAmountInCents
+      );
+
+      // Calculate the final amount to add to the wallet
+      const finalAmountToAddInCents = netTransferAmountInCents - profitInCents;
+      const finalAmountToAddInDollars = finalAmountToAddInCents / 100;
+      const profitInDollars = profitInCents / 100;
+
+      // Perform wallet update and transaction creation in parallel
+      const updatedWallet = await this.walletRepository.updateByOne<IWallet>(
+        { user: req.locals.auth?.userId as string },
+        { balance: finalAmountToAddInDollars },
+        { session }
+      );
+
+      if (!updatedWallet) {
+        await session.abortTransaction();
+        session.endSession();
+        return ResponseHelper.sendResponse(500, "Wallet update failed");
+      }
+
+      const [transaction1, transaction2] = await Promise.all([
+        this.transactionRepository.create(
+          {
+            amount: profitInDollars,
+            user: req.locals.auth?.userId as string,
+            type: TransactionType.applicationFee,
+            wallet: updatedWallet?._id as string,
+          } as ITransaction,
+          { session }
+        ),
+        this.transactionRepository.create(
+          {
+            amount: finalAmountToAddInDollars,
+            user: req.locals.auth?.userId as string,
+            type: TransactionType.topUp,
+            wallet: updatedWallet?._id as string,
+            status: ETransactionStatus.completed,
+          } as ITransaction,
+          { session }
+        ),
+      ]);
+
+      if (!transaction1 || !transaction2) {
+        await session.abortTransaction();
+        session.endSession();
+        return ResponseHelper.sendResponse(500, "Transaction creation failed");
+      }
+      // Commit the transaction
+      await session.commitTransaction();
+      session.endSession();
+
       return ResponseHelper.sendSuccessResponse(
         "Payment intent confirmed successfully",
         paymentIntent
       );
     } catch (error) {
+      // Abort transaction in case of error
+      await session.abortTransaction();
+      session.endSession();
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   }
-  // nice-softer-dawn-praise
+
   async webhook(req: Request, res: Response) {
     const sig = req.headers["stripe-signature"] as string;
     let event;
@@ -586,12 +658,12 @@ class StripeService {
         return ResponseHelper.sendResponse(400, "Balance is low");
       }
 
-      const transfer = await stripeHelper.transfer({
-        amount: req.body.amount * 100,
-        destination: connect.data.id,
-        currency: "usd",
-      });
-      console.log("transaction", transfer);
+      // const transfer = await stripeHelper.transfer({
+      //   amount: req.body.amount * 100,
+      //   destination: connect.data.id,
+      //   currency: "usd",
+      // });
+      // console.log("transaction", transfer);
 
       if (connect.status) {
         const withdraw = await stripeHelper.payout(connect.data.id, {
@@ -687,6 +759,14 @@ class StripeService {
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   }
+  stripeBalance = async (req: Request): Promise<ApiResponse> => {
+    try {
+      const balance = await stripeHelper.retrieveBalance();
+      return ResponseHelper.sendSuccessResponse("Balance retrieved", balance);
+    } catch (error) {
+      return ResponseHelper.sendResponse(500, (error as Error).message);
+    }
+  };
 }
 
 export default StripeService;

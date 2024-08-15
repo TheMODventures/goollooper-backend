@@ -1,3 +1,4 @@
+import { STRIPE_FIXED, STRIPE_PERCENTAGE } from "../../constant";
 import { Days } from "../../database/interfaces/enums";
 
 export class DateHelper {
@@ -106,4 +107,15 @@ export class DateHelper {
   isLeapYear = (year: number): boolean => {
     return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
   };
+
+  calculateStripeFee(amountInCents: number): number {
+    return Math.round(amountInCents * STRIPE_PERCENTAGE) + STRIPE_FIXED;
+  }
+
+  calculateProfit(
+    originalAmountInCents: number,
+    netTransferAmountInCents: number
+  ): number {
+    return originalAmountInCents - netTransferAmountInCents;
+  }
 }

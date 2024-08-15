@@ -165,6 +165,13 @@ export enum TransactionType {
   megablast = "Megablast",
   topUp = "Top Up",
   withdraw = "Withdraw",
+  applicationFee = "Application Fee",
+}
+
+export enum ETransactionStatus {
+  pending = "pending",
+  completed = "completed",
+  cancelled = "cancelled",
 }
 
 export enum ETICKET_STATUS {

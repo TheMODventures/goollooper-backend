@@ -9,6 +9,10 @@ export interface IWallet extends JwtToken {
   selectedTopupMethod: TOPUP_METHOD;
 }
 
+export enum PaymentIntentType {
+  topUp = "top-up",
+  subscription = "subscription",
+}
 export interface IWalletDoc extends IWallet, Document {
   _id?: mongoose.Types.ObjectId;
   createdAt?: Date | Moment;

@@ -118,6 +118,8 @@ class StripeRoutes extends BaseRoutes {
     );
 
     this.router.post("/onboarding", this.stripeController.onboarding);
+
+    this.router.get("/balance", this.stripeController.stripeBalance);
   }
 }
 
