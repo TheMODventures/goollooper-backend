@@ -321,7 +321,7 @@ class StripeService {
       // Perform wallet update and transaction creation in parallel
       const updatedWallet = await this.walletRepository.updateByOne<IWallet>(
         { user: req.locals.auth?.userId as string },
-        { balance: finalAmountToAddInDollars },
+        { balance: { $inc: finalAmountToAddInDollars } },
         { session }
       );
 
