@@ -72,11 +72,6 @@ class TransactionService {
             model: "Task",
             select: "title",
           },
-          {
-            path: "subscription",
-            model: "Subscription",
-            select: "name",
-          },
         ]
       );
       if (response === null) {
@@ -97,25 +92,6 @@ class TransactionService {
         payload
       );
       return ResponseHelper.sendResponse(201, data);
-    } catch (error) {
-      return ResponseHelper.sendResponse(500, (error as Error).message);
-    }
-  };
-
-  update = async (
-    _id: string,
-    dataset: Partial<ITransaction>
-  ): Promise<ApiResponse> => {
-    try {
-      const response =
-        await this.transactionRepository.updateById<ITransaction>(_id, dataset);
-      if (response === null) {
-        return ResponseHelper.sendResponse(404);
-      }
-      return ResponseHelper.sendSuccessResponse(
-        SUCCESS_DATA_UPDATION_PASSED,
-        response
-      );
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }

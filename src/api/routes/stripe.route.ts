@@ -118,6 +118,20 @@ class StripeRoutes extends BaseRoutes {
     );
 
     this.router.post("/onboarding", this.stripeController.onboarding);
+
+    this.router.post(
+      "/withdraw-request",
+      this.validateRequest,
+      this.stripeController.withdrawRequest
+    );
+
+    this.router.get("/balance", this.stripeController.stripeBalance);
+
+    this.router.put(
+      "/toggle-withdraw-request/:id",
+      this.validateRequest,
+      this.stripeController.toggleWithdrawRequest
+    );
   }
 }
 

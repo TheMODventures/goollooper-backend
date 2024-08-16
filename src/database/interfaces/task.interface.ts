@@ -38,6 +38,7 @@ export interface ITask {
   location: Location;
   requirement: string;
   date: string;
+  applicationEndDate?: string;
   slot: Slot;
   noOfServiceProvider: number;
   media: string;

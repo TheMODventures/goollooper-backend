@@ -63,18 +63,24 @@ class AuthService {
       };
       if (req.body.fcmToken) user.fcmTokens = [req.body.fcmToken];
       const data = await this.userRepository.create<IUser>(user);
+      if (!data) return ResponseHelper.sendResponse(500, "User not created");
+      const wallet = await this.walletRepository.create<IWallet>({
+        user: data._id,
+      } as IWallet);
       const userId = new mongoose.Types.ObjectId(data._id!);
       const tokenResponse = await this.tokenService.create(userId, role);
-      // await this.walletRepository.create({ user: data._id } as IWallet);
       const CustomerCreate = await stripeHelper.createStripeCustomer(
         user.email
       );
-
       if (CustomerCreate) {
-        await this.userRepository.updateById(data._id?.toString() ?? "", {
+        await this.userRepository.updateById(data._id as string, {
           stripeCustomerId: CustomerCreate.id,
         });
       }
+
+      await this.userRepository.updateById(data._id as string, {
+        wallet: wallet._id,
+      });
 
       Mailer.sendEmail({
         email: data.email,

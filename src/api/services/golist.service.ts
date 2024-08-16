@@ -80,7 +80,6 @@ class GolistService {
 
   show = async (
     _id: string,
-    coordinates?: [number, number],
     populate?: PopulateOptions | (PopulateOptions | string)[]
   ): Promise<ApiResponse> => {
     try {
@@ -97,20 +96,20 @@ class GolistService {
         return ResponseHelper.sendResponse(404);
       }
       const query: PipelineStage[] = [];
-      if (coordinates) {
-        query.push({
-          $geoNear: {
-            near: {
-              type: "Point",
-              coordinates: coordinates ?? ([67.0, 24.0] as [number, number]),
-            },
-            distanceField: "distance",
-            spherical: true,
-            // maxDistance: 10000,
-            query: { _id: { $in: response?.serviceProviders } },
-          },
-        });
-      }
+      // if (coordinates) {
+      //   query.push({
+      //     $geoNear: {
+      //       near: {
+      //         type: "Point",
+      //         coordinates: coordinates ?? ([67.0, 24.0] as [number, number]),
+      //       },
+      //       distanceField: "distance",
+      //       spherical: true,
+      //       // maxDistance: 10000,
+      //       query: { _id: { $in: response?.serviceProviders } },
+      //     },
+      //   });
+      // }
       query.push(
         ...[
           { $match: { _id: { $in: response?.serviceProviders } } },
@@ -122,6 +121,10 @@ class GolistService {
               email: 1,
               phone: 1,
               profileImage: 1,
+              location: {
+                city: 1,
+                town: 1,
+              },
               distance: 1,
             },
           },
@@ -130,6 +133,7 @@ class GolistService {
       const serviceProviders = await this.userRepository.getDataByAggregate(
         query
       );
+
       response.serviceProviders = serviceProviders;
       return ResponseHelper.sendSuccessResponse(
         SUCCESS_DATA_SHOW_PASSED,

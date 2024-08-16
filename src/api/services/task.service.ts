@@ -28,7 +28,9 @@ import {
   ENOTIFICATION_TYPES,
   ETaskStatus,
   ETaskUserStatus,
+  ETransactionStatus,
   TaskType,
+  TransactionType,
 } from "../../database/interfaces/enums";
 import { ICalendar } from "../../database/interfaces/calendar.interface";
 import { IUser } from "../../database/interfaces/user.interface";
@@ -39,6 +41,10 @@ import NotificationService, {
 } from "./notification.service";
 import { WalletRepository } from "../repository/wallet/wallet.repository";
 import { IWallet } from "../../database/interfaces/wallet.interface";
+import { stripeHelper } from "../helpers/stripe.helper";
+import { log } from "console";
+import { TransactionRepository } from "../repository/transaction/transaction.repository";
+import { ITransaction } from "../../database/interfaces/transaction.interface";
 
 class TaskService {
   private taskRepository: TaskRepository;
@@ -48,6 +54,7 @@ class TaskService {
   private uploadHelper: UploadHelper;
   private chatRepository: ChatRepository;
   private userRepository: UserRepository;
+  private transactionRepository: TransactionRepository;
   private userWalletRepository: WalletRepository;
   constructor() {
     this.taskRepository = new TaskRepository();
@@ -57,6 +64,7 @@ class TaskService {
     this.userRepository = new UserRepository();
     this.notificationService = new NotificationService();
     this.userWalletRepository = new WalletRepository();
+    this.transactionRepository = new TransactionRepository();
     this.uploadHelper = new UploadHelper("task");
   }
 
@@ -372,7 +380,6 @@ class TaskService {
             balance: -SERVICE_INITIATION_FEE,
             amountHeld: +SERVICE_INITIATION_FEE,
           },
-          //  will be send to goollooper wallet later
         });
       }
 
@@ -383,10 +390,19 @@ class TaskService {
       } as ICalendar);
 
       if (payload.type === TaskType.megablast) {
+        await this.userRepository.getById<IUser>(payload.postedBy);
         await this.userWalletRepository.updateById(wallet?._id as string, {
           $inc: { balance: -MEGA_BLAST_FEE },
-          // amount will be send to Goolloper wallet later
         });
+
+        this.transactionRepository.create({
+          amount: MEGA_BLAST_FEE,
+          user: userId,
+          type: TransactionType.megablast,
+          status: ETransactionStatus.pending,
+          wallet: wallet?._id as string,
+          task: data._id,
+        } as ITransaction);
       }
       return ResponseHelper.sendResponse(201, data);
     } catch (error) {
@@ -527,16 +543,17 @@ class TaskService {
 
   requestToAdded = async (_id: string, user: string) => {
     try {
-      const isExist = await this.taskRepository.exists({
-        _id: new mongoose.Types.ObjectId(_id),
-        "users.user": new mongoose.Types.ObjectId(user),
-      });
-      if (isExist)
+      const [isUserExistInTask, wallet] = await Promise.all([
+        this.taskRepository.exists({
+          _id: new mongoose.Types.ObjectId(_id),
+          "users.user": new mongoose.Types.ObjectId(user),
+        }),
+        this.userWalletRepository.getOne<IWallet>({ user }),
+      ]);
+
+      if (isUserExistInTask)
         return ResponseHelper.sendResponse(422, "You are already in this task");
 
-      const wallet = await this.userWalletRepository.getOne<IWallet>({
-        user,
-      });
       if (!wallet) {
         return ResponseHelper.sendResponse(404, "Wallet not found");
       }
@@ -548,27 +565,43 @@ class TaskService {
         );
       }
 
+      // Fetch user details
+      const findUser = await this.userRepository.getById<IUser>(
+        user,
+        "stripeConnectId firstName"
+      );
+      if (!findUser) return ResponseHelper.sendResponse(404, "User not found");
+
+      await this.userWalletRepository.updateById(wallet._id as string, {
+        $inc: { balance: -REQUEST_ADDED_FEE },
+      });
+
       const response: ITask | null = await this.taskRepository.updateById(_id, {
         $addToSet: { users: { user } },
         $inc: { pendingCount: 1 },
       });
 
-      if (response === null) {
-        return ResponseHelper.sendResponse(404);
-      }
-      let userData: IUser | null = await this.userRepository.getById(
-        user,
-        undefined,
-        "firstName"
-      );
-      this.notificationService.createAndSendNotification({
-        senderId: user,
-        receiverId: response.postedBy,
-        type: ENOTIFICATION_TYPES.TASK_REQUEST,
-        data: { task: response?._id?.toString() },
-        ntitle: "Task Request",
-        nbody: `${userData?.firstName} has requested to be added to the task`,
-      } as NotificationParams);
+      if (!response) return ResponseHelper.sendResponse(404);
+
+      const [transactionResult, notificationResult] = await Promise.all([
+        this.transactionRepository.create({
+          amount: REQUEST_ADDED_FEE,
+          user,
+          type: TransactionType.taskAddRequest,
+          status: ETransactionStatus.pending,
+          wallet: wallet._id as string,
+          task: _id,
+        } as ITransaction),
+
+        this.notificationService.createAndSendNotification({
+          senderId: user,
+          receiverId: response.postedBy,
+          type: ENOTIFICATION_TYPES.TASK_REQUEST,
+          data: { task: _id },
+          ntitle: "Task Request",
+          nbody: `${findUser.firstName} has requested to be added to the task`,
+        } as NotificationParams),
+      ]);
 
       return ResponseHelper.sendSuccessResponse(
         SUCCESS_DATA_UPDATION_PASSED,
@@ -640,8 +673,6 @@ class TaskService {
         }
       );
 
-      // console.log("🚀 ~ file: task.service.ts ~ line 366 ~ TaskService ~ toggleRequest ~ status", status);
-
       let userData: IUser | null = await this.userRepository.getById(
         user,
         undefined,
@@ -703,52 +734,68 @@ class TaskService {
 
   cancelTask = async (id: string) => {
     try {
+      // Update the task status to cancelled
       const response = await this.taskRepository.updateById<ITask>(id, {
         status: ETaskStatus.cancelled,
-        populate: ["goList.serviceProviders.user"],
+        populate: ["serviceProviders.user"],
       });
 
-      if (response?.status == ETaskStatus.cancelled) {
-        return ResponseHelper.sendResponse(400, "Task already cancelled");
+      // Handle cases where the task is already cancelled
+      if (!response) return ResponseHelper.sendResponse(404, "Task not found");
+
+      if (response.status === ETaskStatus.cancelled)
+        return ResponseHelper.sendResponse(400, "Task is already cancelled");
+
+      // Ensure the task is commercial
+      if (!response.commercial)
+        return ResponseHelper.sendResponse(400, "Task is not commercial");
+
+      // Retrieve the service provider and wallets
+      const serviceProvider = response.serviceProviders?.[0]?.user;
+
+      if (!serviceProvider) {
+        return ResponseHelper.sendResponse(404, "Service provider not found");
       }
 
-      if (response === null) {
-        return ResponseHelper.sendResponse(404, "Task not found");
-      }
+      const [userWallet, serviceProviderWallet] = await Promise.all([
+        this.userWalletRepository.getOne<IWallet>({ user: response.postedBy }),
+        this.userWalletRepository.getOne<IWallet>({ user: serviceProvider }),
+      ]);
 
-      if (response.commercial) {
-        const goList = response.goList as GoList;
-        const serviceProvider = response.serviceProviders[0].user;
+      if (!userWallet)
+        return ResponseHelper.sendResponse(404, "User wallet not found");
 
-        const [wallet, serviceProviderWallet] = await Promise.all([
-          this.userWalletRepository.getOne<IWallet>({
-            user: response.postedBy,
-          }),
-          this.userWalletRepository.getOne<IWallet>({ user: serviceProvider }),
-        ]);
+      if (!serviceProviderWallet)
+        return ResponseHelper.sendResponse(
+          404,
+          "Service provider wallet not found"
+        );
 
-        if (!wallet || !serviceProviderWallet) {
-          return ResponseHelper.sendResponse(404, "Wallet not found");
-        }
+      // Update the wallets' balances
+      await Promise.all([
+        this.userWalletRepository.updateById(userWallet._id as string, {
+          $inc: { amountHeld: -SERVICE_INITIATION_FEE },
+        }),
+        this.userWalletRepository.updateById(
+          serviceProviderWallet._id as string,
+          {
+            $inc: { balance: SERVICE_INITIATION_FEE },
+          }
+        ),
+      ]);
 
-        await Promise.all([
-          this.userWalletRepository.updateById(wallet._id as string, {
-            $inc: { amountHeld: -SERVICE_INITIATION_FEE },
-          }),
-          this.userWalletRepository.updateById(
-            serviceProviderWallet._id as string,
-            { $inc: { balance: SERVICE_INITIATION_FEE } }
-          ),
-        ]);
-      }
-
+      // Return a successful response
       return ResponseHelper.sendSuccessResponse(
         "Task cancelled successfully",
         response
       );
     } catch (error) {
+      // Handle and log any errors that occur
       console.error("Error cancelling task:", error);
-      return ResponseHelper.sendResponse(500, (error as Error).message);
+      return ResponseHelper.sendResponse(
+        500,
+        `Failed to cancel task: ${(error as Error).message}`
+      );
     }
   };
 }

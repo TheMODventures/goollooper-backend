@@ -29,16 +29,16 @@ class TransactionRoutes extends BaseRoutes {
       this.validateRequest,
       this.transactionController.create
     );
-    this.router.patch(
-      "/update/:id",
-      this.validateRequest,
-      this.transactionController.update
-    );
-    // this.router.delete(
-    //   "/delete/:id",
+    // this.router.patch(
+    //   "/update/:id",
     //   this.validateRequest,
-    //   this.transactionController.delete
+    //   this.transactionController.update
     // );
+    this.router.delete(
+      "/delete/:id",
+      this.validateRequest,
+      this.transactionController.delete
+    );
   }
 }
 

@@ -10,16 +10,23 @@ import { stripeHelper } from "../helpers/stripe.helper";
 import { UserRepository } from "../repository/user/user.repository";
 import { IUser } from "../../database/interfaces/user.interface";
 import { WalletRepository } from "../repository/wallet/wallet.repository";
+import { TransactionRepository } from "../repository/transaction/transaction.repository";
 import { IWallet } from "../../database/interfaces/wallet.interface";
 import Stripe from "stripe";
+import {
+  ETransactionStatus,
+  TransactionType,
+} from "../../database/interfaces/enums";
+import { ITransaction } from "../../database/interfaces/transaction.interface";
 
 class SubscriptionService {
   private userRepository: UserRepository;
   private walletRepository: WalletRepository;
-
+  private transactionRepository: TransactionRepository;
   constructor() {
     this.userRepository = new UserRepository();
     this.walletRepository = new WalletRepository();
+    this.transactionRepository = new TransactionRepository();
   }
 
   index = async ({
@@ -169,6 +176,23 @@ class SubscriptionService {
           `Failed to update user subscription details for user ID: ${userId}`
         );
         throw new Error("Failed to update user subscription details");
+      }
+
+      const transaction = await this.transactionRepository.create(
+        {
+          user: userId,
+          amount: payload.price,
+          type: TransactionType.subscription,
+          status: ETransactionStatus.completed,
+          subscription: subscription.id,
+          wallet: wallet._id as string,
+        } as ITransaction,
+        { session }
+      );
+
+      if (!transaction) {
+        console.error("Failed to create transaction");
+        throw new Error("Failed to create transaction");
       }
 
       await session.commitTransaction();
