@@ -338,6 +338,7 @@ class StripeService {
             user: req.locals.auth?.userId as string,
             type: TransactionType.applicationFee,
             wallet: updatedWallet?._id as string,
+            status: ETransactionStatus.pending,
           } as ITransaction,
           { session }
         ),
