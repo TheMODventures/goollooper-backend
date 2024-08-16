@@ -63,6 +63,7 @@ const createRule = yup.object().shape({
     .shape({
       title: yup.string().required(),
       description: yup.string().notRequired(),
+      applicationEndDate: yup.date().optional(),
       location: yup
         .object()
         .shape({

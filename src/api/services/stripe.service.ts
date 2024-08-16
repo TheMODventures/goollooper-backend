@@ -802,6 +802,84 @@ class StripeService {
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   };
+
+  toggleWithdrawRequest = async (req: Request): Promise<ApiResponse> => {
+    const session = await mongoose.startSession();
+    try {
+      session.startTransaction();
+      const status = req.body.status;
+      console.log("status", status);
+      console.log("req.params.id", req.params.id);
+
+      const transaction =
+        await this.transactionRepository.getById<ITransaction>(
+          req.params.id,
+          "",
+          "",
+          [],
+          true
+        );
+
+      if (!transaction)
+        return ResponseHelper.sendResponse(404, "transaction not found");
+
+      switch (status) {
+        case ETransactionStatus.cancelled:
+          {
+            const wallet = await this.walletRepository.updateByOne(
+              { user: transaction.user as string },
+              { $inc: { balance: +transaction.amount } },
+              { session }
+            );
+            if (!wallet) {
+              session.abortTransaction();
+              return ResponseHelper.sendResponse(400, "Wallet not found");
+            }
+          }
+          break;
+
+        case ETransactionStatus.completed: {
+          const user = await this.userRepository.getById<IUser>(
+            transaction.user as string
+          );
+          if (!user) {
+            session.abortTransaction();
+            return ResponseHelper.sendResponse(404, "User not found");
+          }
+
+          const payout = stripeHelper.payout(user.stripeConnectId as string, {
+            amount: transaction.amount * 100,
+            currency: "usd",
+            destination: user.stripeConnectId as string,
+          });
+          if (!payout) {
+            session.abortTransaction();
+            return ResponseHelper.sendResponse(400, "Payout failed");
+          }
+        }
+      }
+
+      const updatedTransaction = await this.transactionRepository.updateById(
+        transaction._id as string,
+        { status },
+        { session }
+      );
+
+      if (!updatedTransaction) {
+        session.abortTransaction();
+        return ResponseHelper.sendResponse(400, "Withdrawal not updated");
+      }
+
+      session.commitTransaction();
+      return ResponseHelper.sendSuccessResponse(
+        "Withdrawal updated successfully",
+        updatedTransaction
+      );
+    } catch (error) {
+      session.abortTransaction();
+      return ResponseHelper.sendResponse(500, (error as Error).message);
+    }
+  };
 }
 
 export default StripeService;

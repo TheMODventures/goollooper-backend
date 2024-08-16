@@ -126,6 +126,7 @@ const taskModel: Schema = new Schema(
       ],
       default: [],
     },
+    applicationEndDate: { type: Date },
     pendingCount: { type: Number, default: 0 },
     acceptedCount: { type: Number, default: 0 },
     idleCount: { type: Number, default: 0 },

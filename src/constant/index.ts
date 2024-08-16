@@ -35,4 +35,5 @@ export const MEGA_BLAST_FEE = 10; // this will be in USD
 export const REQUEST_ADDED_FEE = 3.99; // this will be in USD
 export const STRIPE_FIXED = 0.3; // this will be in USD
 export const STRIPE_PERCENTAGE = 0.0029; // this will be in percentage
+export const STRIPE_INTERNATIONAL_PERCENTAGE = 0.0039; // this will be in percentage
 export const APPLICATION_FEE = 0.5; // this will be in USD

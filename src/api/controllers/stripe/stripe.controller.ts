@@ -105,6 +105,10 @@ class StripeController {
     const response = await this.stripeService.withdrawRequest(req);
     return res.status(response.code).json(response);
   };
+  toggleWithdrawRequest = async (req: Request, res: Response) => {
+    const response = await this.stripeService.toggleWithdrawRequest(req);
+    return res.status(response.code).json(response);
+  };
 }
 
 export default StripeController;
