@@ -259,6 +259,44 @@ const verifyOtp = yup.object().shape({
     .noUnknown(),
   query: yup.object().noUnknown(),
 });
+const googleAuth = yup.object().shape({
+  params: yup.object().noUnknown(),
+  body: yup
+    .object()
+    .shape({
+      email: yup.string().email().required(),
+      socialAuthId: yup.string().required(),
+      fcmToken: yup.string().required(),
+    })
+    .noUnknown(),
+  query: yup.object().noUnknown(),
+});
+
+const facebookAuth = yup.object().shape({
+  params: yup.object().noUnknown(),
+  body: yup
+    .object()
+    .shape({
+      email: yup.string().email().required(),
+      socialAuthId: yup.string().required(),
+      fcmToken: yup.string().required(),
+    })
+    .noUnknown(),
+  query: yup.object().noUnknown(),
+});
+
+const appleAuth = yup.object().shape({
+  params: yup.object().noUnknown(),
+  body: yup
+    .object()
+    .shape({
+      email: yup.string().email().optional(),
+      socialAuthId: yup.string().required(),
+      fcmToken: yup.string().required(),
+    })
+    .noUnknown(),
+  query: yup.object().noUnknown(),
+});
 
 export = {
   "/register": registerRule,
@@ -272,4 +310,7 @@ export = {
   "/update": updateData,
   "/update-detail": updateData,
   "/update-password": updatePassword,
+  "/google-auth": googleAuth,
+  "/facebook-auth": facebookAuth,
+  "/apple-auth": appleAuth,
 };

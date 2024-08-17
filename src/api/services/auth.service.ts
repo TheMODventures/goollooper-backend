@@ -331,6 +331,230 @@ class AuthService {
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   };
+  googleAuth = async (req: Request): Promise<ApiResponse> => {
+    try {
+      // Extract social ID from request body
+      const { socialAuthId, fcmToken } = req.body;
+      console.log("socialAuthId", socialAuthId);
+
+      // Check if the user already exists using the social ID
+      const existingUser = await this.userRepository.getOne<IUser>({
+        socialAuthId,
+      });
+
+      let data: IUser;
+      if (existingUser) {
+        // If the user exists, log them in
+        data = existingUser;
+      } else {
+        // If the user doesn't exist, register them
+        const createCode = crypto.randomInt(100000, 999999);
+        const newUser: IUserDoc = {
+          ...req.body,
+          role: EUserRole.user,
+          otpCode: Number(createCode),
+          otpExpiredAt: moment().add(60, "seconds").valueOf(),
+        };
+        if (fcmToken) newUser.fcmTokens = [fcmToken];
+
+        data = await this.userRepository.create<IUser>(newUser);
+        console.log("~ new user created", data);
+
+        if (!data) return ResponseHelper.sendResponse(500, "User not created");
+
+        // Create a wallet for the new user
+        const wallet = await this.walletRepository.create<IWallet>({
+          user: data._id,
+        } as IWallet);
+
+        // Create a Stripe customer for the new user
+        const CustomerCreate = await stripeHelper.createStripeCustomer(
+          data.email
+        );
+        if (CustomerCreate) {
+          await this.userRepository.updateById(data._id as string, {
+            stripeCustomerId: CustomerCreate.id,
+          });
+        }
+
+        // Update the user with the wallet ID
+        await this.userRepository.updateById(data._id as string, {
+          wallet: wallet._id,
+        });
+
+        // Send verification email
+        Mailer.sendEmail({
+          email: data.email,
+          subject: "Verification Code",
+          message: `<h1>Your Verification Code is ${createCode}</h1>`,
+        });
+      }
+
+      // Generate authentication token
+      const userId = new mongoose.Types.ObjectId(data._id!);
+      const tokenResponse = await this.tokenService.create(
+        userId,
+        EUserRole.user
+      );
+      console.log(tokenResponse);
+      return ResponseHelper.sendSignTokenResponse(
+        200,
+        existingUser ? "Login Successful" : SUCCESS_REGISTRATION_PASSED,
+        data,
+        tokenResponse
+      );
+    } catch (error) {
+      return ResponseHelper.sendResponse(500, (error as Error).message);
+    }
+  };
+  facebookAuth = async (req: Request): Promise<ApiResponse> => {
+    try {
+      // Extract social ID from request body
+      const { socialAuthId, fcmToken } = req.body;
+
+      // Check if the user already exists using the social ID
+      const existingUser = await this.userRepository.getOne<IUser>({
+        socialAuthId,
+      });
+
+      let data: IUser;
+      if (existingUser) {
+        // If the user exists, log them in
+        data = existingUser;
+      } else {
+        // If the user doesn't exist, register them
+        const createCode = crypto.randomInt(100000, 999999);
+        const newUser: IUserDoc = {
+          ...req.body,
+          role: EUserRole.user,
+          otpCode: Number(createCode),
+          otpExpiredAt: moment().add(60, "seconds").valueOf(),
+        };
+        if (fcmToken) newUser.fcmTokens = [fcmToken];
+
+        data = await this.userRepository.create<IUser>(newUser);
+        if (!data) return ResponseHelper.sendResponse(500, "User not created");
+
+        // Create a wallet for the new user
+        const wallet = await this.walletRepository.create<IWallet>({
+          user: data._id,
+        } as IWallet);
+
+        // Create a Stripe customer for the new user
+        const CustomerCreate = await stripeHelper.createStripeCustomer(
+          data.email
+        );
+        if (CustomerCreate) {
+          await this.userRepository.updateById(data._id as string, {
+            stripeCustomerId: CustomerCreate.id,
+          });
+        }
+
+        // Update the user with the wallet ID
+        await this.userRepository.updateById(data._id as string, {
+          wallet: wallet._id,
+        });
+
+        // Send verification email
+        Mailer.sendEmail({
+          email: data.email,
+          subject: "Verification Code",
+          message: `<h1>Your Verification Code is ${createCode}</h1>`,
+        });
+      }
+
+      // Generate authentication token
+      const userId = new mongoose.Types.ObjectId(data._id!);
+      const tokenResponse = await this.tokenService.create(
+        userId,
+        EUserRole.user
+      );
+      console.log(tokenResponse);
+
+      return ResponseHelper.sendSignTokenResponse(
+        200,
+        existingUser ? "Login Successful" : SUCCESS_REGISTRATION_PASSED,
+        data,
+        tokenResponse
+      );
+    } catch (error) {
+      return ResponseHelper.sendResponse(500, (error as Error).message);
+    }
+  };
+
+  appleAuth = async (req: Request): Promise<ApiResponse> => {
+    try {
+      // Extract social ID from request body
+      const { socialAuthId, fcmToken } = req.body;
+
+      // Check if the user already exists using the social ID
+      const existingUser = await this.userRepository.getOne<IUser>({
+        socialAuthId,
+      });
+
+      let data: IUser;
+      if (existingUser) {
+        // If the user exists, log them in
+        data = existingUser;
+      } else {
+        // If the user doesn't exist, register them
+        const createCode = crypto.randomInt(100000, 999999);
+        const newUser: IUserDoc = {
+          ...req.body,
+          role: EUserRole.user,
+          otpCode: Number(createCode),
+          otpExpiredAt: moment().add(60, "seconds").valueOf(),
+        };
+        if (fcmToken) newUser.fcmTokens = [fcmToken];
+
+        data = await this.userRepository.create<IUser>(newUser);
+        if (!data) return ResponseHelper.sendResponse(500, "User not created");
+
+        // Create a wallet for the new user
+        const wallet = await this.walletRepository.create<IWallet>({
+          user: data._id,
+        } as IWallet);
+
+        // Create a Stripe customer for the new user
+        const CustomerCreate = await stripeHelper.createStripeCustomer(
+          data.email
+        );
+        if (CustomerCreate) {
+          await this.userRepository.updateById(data._id as string, {
+            stripeCustomerId: CustomerCreate.id,
+          });
+        }
+
+        // Update the user with the wallet ID
+        await this.userRepository.updateById(data._id as string, {
+          wallet: wallet._id,
+        });
+
+        // Send verification email
+        Mailer.sendEmail({
+          email: data.email,
+          subject: "Verification Code",
+          message: `<h1>Your Verification Code is ${createCode}</h1>`,
+        });
+      }
+
+      // Generate authentication token
+      const userId = new mongoose.Types.ObjectId(data._id!);
+      const tokenResponse = await this.tokenService.create(
+        userId,
+        EUserRole.user
+      );
+
+      return ResponseHelper.sendSignTokenResponse(
+        200,
+        existingUser ? "Login Successful" : SUCCESS_REGISTRATION_PASSED,
+        data,
+        tokenResponse
+      );
+    } catch (error) {
+      return ResponseHelper.sendResponse(500, (error as Error).message);
+    }
+  };
 }
 
 export default AuthService;

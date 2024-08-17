@@ -38,6 +38,21 @@ class AuthController extends AuthBaseController {
     const response = await this.authService.resendOtp(email);
     return res.status(response.code).json(response);
   };
+
+  googleAuth = async (req: Request, res: Response) => {
+    const response = await this.authService.googleAuth(req);
+    return res.status(response.code).json(response);
+  };
+
+  facebookAuth = async (req: Request, res: Response) => {
+    const response = await this.authService.facebookAuth(req);
+    return res.status(response.code).json(response);
+  };
+
+  appleAuth = async (req: Request, res: Response) => {
+    const response = await this.authService.appleAuth(req);
+    return res.status(response.code).json(response);
+  };
 }
 
 export default AuthController;

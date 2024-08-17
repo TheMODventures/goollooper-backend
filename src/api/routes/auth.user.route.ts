@@ -56,6 +56,24 @@ class AuthRoutes extends BaseRoutes {
       this.validateRequest,
       this.authController.logout
     );
+
+    this.router.post(
+      "/google-auth",
+      this.validateRequest,
+      this.authController.googleAuth
+    );
+
+    this.router.post(
+      "/facebook-auth",
+      this.validateRequest,
+      this.authController.facebookAuth
+    );
+
+    this.router.post(
+      "/apple-auth",
+      this.validateRequest,
+      this.authController.appleAuth
+    );
   }
 }
 

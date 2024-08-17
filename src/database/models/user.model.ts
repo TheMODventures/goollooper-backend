@@ -32,6 +32,17 @@ const userModel: Schema = new Schema(
         },
       },
     },
+    socialAuthId: {
+      type: String,
+      default: null,
+      index: {
+        unique: true,
+        partialFilterExpression: {
+          socialAuthId: { $type: "string" },
+          isDeleted: false,
+        },
+      },
+    },
     email: {
       type: String,
       // unique: true,
@@ -46,7 +57,7 @@ const userModel: Schema = new Schema(
       lowercase: true,
       trim: true,
     },
-    password: { type: String, required: true, select: false },
+    password: { type: String, select: false },
     gender: { type: String },
     age: { type: Number, default: null },
     countryCode: { type: String }, // like 'PK' alpha-2 format
