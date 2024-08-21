@@ -140,6 +140,33 @@ export class ChatRepository
           $unwind: { path: "$messages", preserveNullAndEmptyArrays: true },
         },
         {
+          $lookup: {
+            from: "tasks",
+            let: { taskId: "$task" },
+            as: "task",
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $eq: ["$_id", "$$taskId"],
+                  },
+                },
+              },
+              {
+                $project: {
+                  title: 1,
+                  description: 1,
+                  status: 1,
+                  date: 1,
+                },
+              },
+            ],
+          },
+        },
+        {
+          $unwind: { path: "$task", preserveNullAndEmptyArrays: true },
+        },
+        {
           $group: {
             _id: "$_id", // Unique identifier for the chat
             chatType: { $first: "$chatType" },
@@ -153,6 +180,7 @@ export class ChatRepository
             participants: { $first: "$participantsData" },
             totalCount: { $first: "$totalCount" },
             unReadCount: { $first: "$unReadCount" },
+            task: { $first: "$task" },
             createdBy: { $first: "$createdBy" },
           },
         },
@@ -307,6 +335,7 @@ export class ChatRepository
             participants: { $first: "$participants" },
             totalCount: { $first: "$totalCount" },
             unReadCount: { $first: "$unReadCount" },
+            task: { $first: "$task" },
             createdBy: { $first: "$createdBy" },
           },
         },
@@ -326,6 +355,7 @@ export class ChatRepository
             participants: 1,
             totalCount: 1,
             unReadCount: 1,
+            task: 1,
             createdBy: 1,
           },
         },

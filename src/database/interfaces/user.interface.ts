@@ -24,6 +24,7 @@ interface Schedule {
   day: Days;
   startTime: string;
   endTime: string;
+  dayOff?: boolean;
 }
 
 export interface IUser {

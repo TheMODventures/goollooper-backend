@@ -3,12 +3,15 @@ import { Request } from "express";
 import _ from "lodash";
 
 import { EUserRole, Subscription } from "../../database/interfaces/enums";
+
 import {
   IUser,
   IUserWithSchedule,
 } from "../../database/interfaces/user.interface";
+import { ISchedule } from "../../database/interfaces/schedule.interface";
 import { UserRepository } from "../repository/user/user.repository";
 import { ScheduleRepository } from "../repository/schedule/schedule.repository";
+import { SubscriptionRepository } from "../repository/subscription/subscription.repository";
 import {
   SUCCESS_DATA_DELETION_PASSED,
   SUCCESS_DATA_INSERTION_PASSED,
@@ -410,6 +413,28 @@ class UserService {
       //     }
       //   }
       // }
+
+      if (dataset.schedule?.length) {
+        for (let i = 0; i < dataset.schedule.length; i++) {
+          const element = dataset.schedule[i];
+          const schedule = await this.scheduleRepository.getOne<ISchedule>({
+            user: _id,
+            day: element.day,
+            isDeleted: false,
+          });
+          if (schedule) {
+            await this.scheduleRepository.updateById(
+              schedule._id as string,
+              element
+            );
+          } else {
+            await this.scheduleRepository.create<ISchedule>({
+              ...element,
+              user: new mongoose.Types.ObjectId(_id),
+            });
+          }
+        }
+      }
 
       if (dataset.phoneCode && dataset.phone) {
         dataset.completePhone = dataset.phoneCode + dataset.phone;
