@@ -277,7 +277,7 @@ const facebookAuth = yup.object().shape({
   body: yup
     .object()
     .shape({
-      email: yup.string().email().required(),
+      email: yup.string().email().optional(),
       socialAuthId: yup.string().required(),
       fcmToken: yup.string().required(),
     })
