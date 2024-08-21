@@ -24,7 +24,9 @@ class AuthRoutes extends BaseRoutes {
       this.validateRequest,
       this.authController.register
     );
+
     this.router.post("/login", this.validateRequest, this.authController.login);
+
     this.router.post(
       "/forget-password",
       this.validateRequest,
