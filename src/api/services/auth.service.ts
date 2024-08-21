@@ -473,7 +473,7 @@ class AuthService {
 
         // Create a Stripe customer for the new user
         const CustomerCreate = await stripeHelper.createStripeCustomer(
-          data.email || undefined
+          data.email || ""
         );
         if (CustomerCreate) {
           await this.userRepository.updateById(data._id as string, {

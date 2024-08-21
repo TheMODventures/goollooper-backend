@@ -59,7 +59,7 @@ const userModel: Schema = new Schema(
           isDeleted: false,
         },
       },
-      required: true,
+      required: false,
       lowercase: true,
       trim: true,
     },
