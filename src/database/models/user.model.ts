@@ -8,6 +8,7 @@ import {
   EUserLocationType,
   Subscription,
   SubscriptionType,
+  AUTH_PROVIDER,
 } from "../interfaces/enums";
 import { IUserDoc } from "../interfaces/user.interface";
 
@@ -42,6 +43,11 @@ const userModel: Schema = new Schema(
           isDeleted: false,
         },
       },
+    },
+    authProvider: {
+      type: String,
+      default: AUTH_PROVIDER.MANUAL,
+      enum: AUTH_PROVIDER,
     },
     email: {
       type: String,
