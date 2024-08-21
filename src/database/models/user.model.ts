@@ -24,7 +24,7 @@ const userModel: Schema = new Schema(
     username: {
       type: String,
       trim: true,
-      default: null,
+      // default: null,
       index: {
         unique: true,
         partialFilterExpression: {
@@ -35,7 +35,6 @@ const userModel: Schema = new Schema(
     },
     socialAuthId: {
       type: String,
-      default: null,
       index: {
         unique: true,
         partialFilterExpression: {
