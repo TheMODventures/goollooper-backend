@@ -19,24 +19,20 @@ const timeValidator = (value: string) => {
 
 const scheduleModel: Schema = new Schema(
   {
-    date: Date,
     day: { type: String, enum: Object.values(Days) },
-    slots: [
-      {
-        startTime: {
-          type: String,
-          required: true,
-          validate: [timeValidator, "Invalid start time"],
-        },
-        endTime: {
-          type: String,
-          required: true,
-          validate: [timeValidator, "Invalid end time"],
-        },
-      },
-    ],
-    isActive: { type: Boolean, default: true },
-    user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    startTime: {
+      type: String,
+      required: true,
+      validate: [timeValidator, "Invalid start time"],
+    },
+    endTime: {
+      type: String,
+      required: true,
+      validate: [timeValidator, "Invalid end time"],
+    },
+    dayOff: { type: Boolean, default: false },
+    user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    isDeleted: { type: Boolean, default: false },
   },
   schemaOptions
 );

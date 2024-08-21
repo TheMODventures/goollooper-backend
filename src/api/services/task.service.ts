@@ -4,6 +4,9 @@ import _ from "lodash";
 
 import { ResponseHelper } from "../helpers/reponseapi.helper";
 import {
+  MEGA_BLAST_FEE,
+  REQUEST_ADDED_FEE,
+  SERVICE_INITIATION_FEE,
   SUCCESS_DATA_DELETION_PASSED,
   SUCCESS_DATA_LIST_PASSED,
   SUCCESS_DATA_SHOW_PASSED,
@@ -14,13 +17,20 @@ import { GolistRepository } from "../repository/golist/golist.repository";
 import { CalendarRepository } from "../repository/calendar/calendar.repository";
 import { ChatRepository } from "../repository/chat/chat.repository";
 import { UserRepository } from "../repository/user/user.repository";
-import { ITask, ITaskPayload } from "../../database/interfaces/task.interface";
+import {
+  GoList,
+  ITask,
+  ITaskPayload,
+} from "../../database/interfaces/task.interface";
 import { IGolist } from "../../database/interfaces/golist.interface";
 import {
   ECALENDARTaskType,
   ENOTIFICATION_TYPES,
+  ETaskStatus,
   ETaskUserStatus,
+  ETransactionStatus,
   TaskType,
+  TransactionType,
 } from "../../database/interfaces/enums";
 import { ICalendar } from "../../database/interfaces/calendar.interface";
 import { IUser } from "../../database/interfaces/user.interface";
@@ -29,6 +39,12 @@ import { ModelHelper } from "../helpers/model.helper";
 import NotificationService, {
   NotificationParams,
 } from "./notification.service";
+import { WalletRepository } from "../repository/wallet/wallet.repository";
+import { IWallet } from "../../database/interfaces/wallet.interface";
+import { stripeHelper } from "../helpers/stripe.helper";
+import { log } from "console";
+import { TransactionRepository } from "../repository/transaction/transaction.repository";
+import { ITransaction } from "../../database/interfaces/transaction.interface";
 
 class TaskService {
   private taskRepository: TaskRepository;
@@ -38,7 +54,8 @@ class TaskService {
   private uploadHelper: UploadHelper;
   private chatRepository: ChatRepository;
   private userRepository: UserRepository;
-
+  private transactionRepository: TransactionRepository;
+  private userWalletRepository: WalletRepository;
   constructor() {
     this.taskRepository = new TaskRepository();
     this.golistRepository = new GolistRepository();
@@ -46,7 +63,8 @@ class TaskService {
     this.chatRepository = new ChatRepository();
     this.userRepository = new UserRepository();
     this.notificationService = new NotificationService();
-
+    this.userWalletRepository = new WalletRepository();
+    this.transactionRepository = new TransactionRepository();
     this.uploadHelper = new UploadHelper("task");
   }
 
@@ -184,7 +202,7 @@ class TaskService {
       };
       const response = await this.taskRepository.getOne<ITask>(filter, "", "", [
         ModelHelper.populateData(
-          "goList.serviceProviders.user",
+          "serviceProviders.user",
           ModelHelper.userSelect,
           "Users"
         ),
@@ -215,6 +233,33 @@ class TaskService {
     try {
       const userId = req?.locals?.auth?.userId!;
       payload.postedBy = userId;
+
+      const wallet = await this.userWalletRepository.getOne<IWallet>({
+        user: userId,
+      });
+
+      // Helper function to handle wallet errors
+      const handleWalletErrors = (wallet: IWallet | null, type: TaskType) => {
+        if (type === TaskType.megablast) {
+          if (!wallet) {
+            return ResponseHelper.sendResponse(404, "Wallet not found");
+          }
+          // added service initiation fee and + 10 for mega blast package creation
+          if (wallet.balance < MEGA_BLAST_FEE) {
+            return ResponseHelper.sendResponse(
+              400, // bad request
+              "Insufficient balance, can't create Mega Blast task"
+            );
+          }
+        }
+        return null;
+      };
+
+      // Check wallet errors
+      const walletError = handleWalletErrors(wallet, payload.type);
+      if (walletError) return walletError;
+
+      // file uploading
       if (
         req &&
         _.isArray(req.files) &&
@@ -246,13 +291,16 @@ class TaskService {
         payload.goList = {
           goListId: payload.goList as string,
           title: goList.title,
-          serviceProviders: payload.goListServiceProviders?.map((user) => ({
-            user: user as mongoose.Types.ObjectId,
-            status: ETaskUserStatus.STANDBY,
-          })),
           taskInterests: goList.taskInterests,
         };
-        payload.pendingCount = payload.goListServiceProviders.length;
+
+        (payload.serviceProviders = payload.goListServiceProviders?.map(
+          (user) => ({
+            user: user as mongoose.Types.ObjectId,
+            status: ETaskUserStatus.IDLE,
+          })
+        )),
+          (payload.idleCount = payload.serviceProviders.length);
       }
 
       if (payload.subTasks?.length) {
@@ -287,11 +335,13 @@ class TaskService {
           volunteer: { $in: payload.taskInterests },
         });
         users?.map(async (user: any) => {
+          // when task created it wont add to users calender only notification will be send
           await this.calendarRepository.create({
             user: user?._id,
             task: data._id,
             date: data.date,
           } as ICalendar);
+
           await this.notificationService.createAndSendNotification({
             senderId: payload.postedBy,
             receiverId: user?._id,
@@ -306,21 +356,57 @@ class TaskService {
         payload.type !== TaskType.megablast &&
         payload.goListServiceProviders.length
       ) {
-        payload.goListServiceProviders.map(async (user) => {
-          await this.calendarRepository.create({
-            user: user,
-            task: data._id,
-            date: data.date,
-          } as ICalendar);
+        payload.goListServiceProviders.map(async (user: any) => {
+          await this.notificationService.createAndSendNotification({
+            senderId: payload.postedBy,
+            receiverId: user,
+            type: ENOTIFICATION_TYPES.TASK_REQUEST,
+            data: { task: data?._id?.toString() },
+            ntitle: "Task Request",
+            nbody: payload.title,
+          } as NotificationParams);
         });
       }
+      // in from data boolean value come in string format
+      if (String(payload.commercial) == "true" && wallet) {
+        if (wallet?.balance < SERVICE_INITIATION_FEE) {
+          return ResponseHelper.sendResponse(
+            400,
+            "Insufficient balance, can't create task "
+          );
+        }
+        await this.userWalletRepository.updateById(wallet?._id as string, {
+          $inc: {
+            balance: -SERVICE_INITIATION_FEE,
+            amountHeld: +SERVICE_INITIATION_FEE,
+          },
+        });
+      }
+
       await this.calendarRepository.create({
         user: payload.postedBy as string,
         task: data._id,
         date: data.date,
       } as ICalendar);
+
+      if (payload.type === TaskType.megablast) {
+        await this.userRepository.getById<IUser>(payload.postedBy);
+        await this.userWalletRepository.updateById(wallet?._id as string, {
+          $inc: { balance: -MEGA_BLAST_FEE },
+        });
+
+        this.transactionRepository.create({
+          amount: MEGA_BLAST_FEE,
+          user: userId,
+          type: TransactionType.megablast,
+          status: ETransactionStatus.pending,
+          wallet: wallet?._id as string,
+          task: data._id,
+        } as ITransaction);
+      }
       return ResponseHelper.sendResponse(201, data);
     } catch (error) {
+      console.log(error);
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   };
@@ -370,10 +456,6 @@ class TaskService {
         dataset.goList = {
           goListId: dataset.goList as string,
           title: goList.title,
-          serviceProviders: dataset.goListServiceProviders?.map((user) => ({
-            user: user as mongoose.Types.ObjectId,
-            status: ETaskUserStatus.STANDBY,
-          })) as any,
           taskInterests: goList.taskInterests,
         };
       }
@@ -401,10 +483,7 @@ class TaskService {
         }
       }
 
-      const response = await this.taskRepository.updateById<ITask>(
-        _id,
-        dataset
-      );
+      let response = await this.taskRepository.updateById<ITask>(_id, dataset);
       if (response === null) {
         return ResponseHelper.sendResponse(404);
       }
@@ -416,61 +495,113 @@ class TaskService {
         await this.calendarRepository.updateMany({ task: response._id }, {
           date: response.date,
         } as ICalendar);
+
+      if (dataset?.date) {
+        await this.calendarRepository.updateMany({ task: response._id }, {
+          date: response.date,
+        } as ICalendar);
+      }
+
+      let chat = await this.chatRepository.getOne(
+        { task: _id as string },
+        "",
+        "groupName chatType participants createdBy"
+      );
+
+      let mergedResult = { response, chat };
+
       return ResponseHelper.sendSuccessResponse(
         SUCCESS_DATA_UPDATION_PASSED,
-        response
+        mergedResult
       );
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   };
 
-  delete = async (_id: string): Promise<ApiResponse> => {
+  delete = async (_id: string, chatId: string): Promise<ApiResponse> => {
     try {
-      const response = await this.taskRepository.updateById<ITask>(_id, {
-        isDeleted: true,
-      });
-      if (!response) {
-        return ResponseHelper.sendResponse(404);
+      // Start update operations concurrently
+      const [taskUpdate, chatUpdate] = await Promise.all([
+        this.taskRepository.updateById<ITask>(_id, { isDeleted: true }),
+        this.chatRepository.updateById(chatId, { deleted: true }),
+      ]);
+
+      if (!taskUpdate) {
+        return ResponseHelper.sendResponse(404, "Task not found");
       }
-      await this.calendarRepository.deleteMany({
-        task: response._id,
-      });
+
+      // Delete related calendar entries
+      await this.calendarRepository.deleteMany({ task: taskUpdate._id });
+
       return ResponseHelper.sendSuccessResponse(SUCCESS_DATA_DELETION_PASSED);
     } catch (error) {
+      console.error("Error deleting task and chat:", error);
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   };
 
   requestToAdded = async (_id: string, user: string) => {
     try {
-      const isExist = await this.taskRepository.exists({
-        _id: new mongoose.Types.ObjectId(_id),
-        "users.user": new mongoose.Types.ObjectId(user),
-      });
-      if (isExist)
+      const [isUserExistInTask, wallet] = await Promise.all([
+        this.taskRepository.exists({
+          _id: new mongoose.Types.ObjectId(_id),
+          "users.user": new mongoose.Types.ObjectId(user),
+        }),
+        this.userWalletRepository.getOne<IWallet>({ user }),
+      ]);
+
+      if (isUserExistInTask)
         return ResponseHelper.sendResponse(422, "You are already in this task");
+
+      if (!wallet) {
+        return ResponseHelper.sendResponse(404, "Wallet not found");
+      }
+
+      if (wallet.balance < REQUEST_ADDED_FEE) {
+        return ResponseHelper.sendResponse(
+          400,
+          "Insufficient balance, can't request to be added in task"
+        );
+      }
+
+      // Fetch user details
+      const findUser = await this.userRepository.getById<IUser>(
+        user,
+        "stripeConnectId firstName"
+      );
+      if (!findUser) return ResponseHelper.sendResponse(404, "User not found");
+
+      await this.userWalletRepository.updateById(wallet._id as string, {
+        $inc: { balance: -REQUEST_ADDED_FEE },
+      });
+
       const response: ITask | null = await this.taskRepository.updateById(_id, {
         $addToSet: { users: { user } },
         $inc: { pendingCount: 1 },
       });
 
-      if (response === null) {
-        return ResponseHelper.sendResponse(404);
-      }
-      let userData: IUser | null = await this.userRepository.getById(
-        user,
-        undefined,
-        "firstName"
-      );
-      this.notificationService.createAndSendNotification({
-        senderId: user,
-        receiverId: response.postedBy,
-        type: ENOTIFICATION_TYPES.TASK_REQUEST,
-        data: { task: response?._id?.toString() },
-        ntitle: "Task Request",
-        nbody: `${userData?.firstName} has requested to be added to the task`,
-      } as NotificationParams);
+      if (!response) return ResponseHelper.sendResponse(404);
+
+      const [transactionResult, notificationResult] = await Promise.all([
+        this.transactionRepository.create({
+          amount: REQUEST_ADDED_FEE,
+          user,
+          type: TransactionType.taskAddRequest,
+          status: ETransactionStatus.pending,
+          wallet: wallet._id as string,
+          task: _id,
+        } as ITransaction),
+
+        this.notificationService.createAndSendNotification({
+          senderId: user,
+          receiverId: response.postedBy,
+          type: ENOTIFICATION_TYPES.TASK_REQUEST,
+          data: { task: _id },
+          ntitle: "Task Request",
+          nbody: `${findUser.firstName} has requested to be added to the task`,
+        } as NotificationParams),
+      ]);
 
       return ResponseHelper.sendSuccessResponse(
         SUCCESS_DATA_UPDATION_PASSED,
@@ -485,61 +616,62 @@ class TaskService {
     _id: string,
     loggedInUser: string,
     user: string,
-    status: number,
-    type: string
+    status: number
   ) => {
     try {
-      let isExist;
-      if (type === "goList") {
-        isExist = await this.taskRepository.exists({
-          _id: new mongoose.Types.ObjectId(_id),
-          "goList.serviceProviders": {
-            $elemMatch: { user: new mongoose.Types.ObjectId(user), status },
-          },
-        });
-      } else {
-        isExist = await this.taskRepository.exists({
-          _id: new mongoose.Types.ObjectId(_id),
-          users: {
-            $elemMatch: { user: new mongoose.Types.ObjectId(user), status },
-          },
-        });
-      }
+      const isExist = await this.taskRepository.exists({
+        _id: new mongoose.Types.ObjectId(_id),
+        serviceProviders: {
+          $elemMatch: { user: new mongoose.Types.ObjectId(user), status },
+        },
+      });
+
       if (isExist)
         return ResponseHelper.sendResponse(422, `Status is already ${status}`);
+
+      const task = await this.taskRepository.getById<ITask>(_id);
+
+      if (!task) {
+        return ResponseHelper.sendResponse(404, "Task not found");
+      }
       const updateCount: any = { $inc: {} };
-      if (status == ETaskUserStatus.REJECTED)
-        updateCount["$inc"].pendingCount = -1;
-      if (status == ETaskUserStatus.ACCEPTED) {
-        updateCount["$inc"].pendingCount = -1;
+
+      const noOfServiceProvider = task?.noOfServiceProvider;
+      const acceptedProvidersCount = task?.serviceProviders.filter(
+        (provider) => provider.status === 4
+      ).length;
+
+      if (
+        status === ETaskUserStatus.ACCEPTED &&
+        acceptedProvidersCount >= noOfServiceProvider
+      ) {
+        // If the number of needed service providers is full, put the new service provider on standby
+        status = 3; // Set status to standby
+        // Do not increase the accepted count, handle only standby count
+      } else if (status === ETaskUserStatus.ACCEPTED) {
+        // If the service provider can be accepted, increase the accepted count
         updateCount["$inc"].acceptedCount = 1;
       }
-      let response;
-      if (type === "goList") {
-        response = await this.taskRepository.updateByOne<ITask>(
-          { _id: new mongoose.Types.ObjectId(_id) },
-          {
-            $set: { "goList.serviceProviders.$[providers].status": status },
-            ...updateCount,
-          },
-          {
-            arrayFilters: [
-              { "providers.user": new mongoose.Types.ObjectId(user) },
-            ],
-          }
-        );
-      } else {
-        response = await this.taskRepository.updateByOne<ITask>(
-          { _id: new mongoose.Types.ObjectId(_id) },
-          {
-            $set: { "users.$[users].status": status },
-            ...updateCount,
-          },
-          {
-            arrayFilters: [{ "users.user": new mongoose.Types.ObjectId(user) }],
-          }
-        );
+
+      if (status === ETaskUserStatus.REJECTED) {
+        updateCount["$inc"].idleCount = -1;
+      } else if (status === ETaskUserStatus.ACCEPTED || status === 3) {
+        // Status 3 is for standby
+        updateCount["$inc"].idleCount = -1;
       }
+
+      let response = await this.taskRepository.updateByOne<ITask>(
+        { _id: new mongoose.Types.ObjectId(_id) },
+        {
+          $set: { "serviceProviders.$[providers].status": status },
+          ...updateCount,
+        },
+        {
+          arrayFilters: [
+            { "providers.user": new mongoose.Types.ObjectId(user) },
+          ],
+        }
+      );
 
       let userData: IUser | null = await this.userRepository.getById(
         user,
@@ -548,12 +680,16 @@ class TaskService {
       );
       let chatId;
       if (response && status == ETaskUserStatus.ACCEPTED) {
-        await this.calendarRepository.create({
-          user,
-          task: response._id,
-          date: response.date ?? "2024-11-11",
-          type: ECALENDARTaskType.accepted,
-        } as ICalendar);
+        // for none commercial event will be created on after accepting
+        if (!response.commercial) {
+          await this.calendarRepository.create({
+            user,
+            task: response._id,
+            date: response.date ?? "2024-11-11",
+            type: ECALENDARTaskType.accepted,
+          } as ICalendar);
+        }
+
         this.notificationService.createAndSendNotification({
           senderId: user,
           receiverId: response.postedBy,
@@ -593,6 +729,73 @@ class TaskService {
       });
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);
+    }
+  };
+
+  cancelTask = async (id: string) => {
+    try {
+      // Update the task status to cancelled
+      const response = await this.taskRepository.updateById<ITask>(id, {
+        status: ETaskStatus.cancelled,
+        populate: ["serviceProviders.user"],
+      });
+
+      // Handle cases where the task is already cancelled
+      if (!response) return ResponseHelper.sendResponse(404, "Task not found");
+
+      if (response.status === ETaskStatus.cancelled)
+        return ResponseHelper.sendResponse(400, "Task is already cancelled");
+
+      // Ensure the task is commercial
+      if (!response.commercial)
+        return ResponseHelper.sendResponse(400, "Task is not commercial");
+
+      // Retrieve the service provider and wallets
+      const serviceProvider = response.serviceProviders?.[0]?.user;
+
+      if (!serviceProvider) {
+        return ResponseHelper.sendResponse(404, "Service provider not found");
+      }
+
+      const [userWallet, serviceProviderWallet] = await Promise.all([
+        this.userWalletRepository.getOne<IWallet>({ user: response.postedBy }),
+        this.userWalletRepository.getOne<IWallet>({ user: serviceProvider }),
+      ]);
+
+      if (!userWallet)
+        return ResponseHelper.sendResponse(404, "User wallet not found");
+
+      if (!serviceProviderWallet)
+        return ResponseHelper.sendResponse(
+          404,
+          "Service provider wallet not found"
+        );
+
+      // Update the wallets' balances
+      await Promise.all([
+        this.userWalletRepository.updateById(userWallet._id as string, {
+          $inc: { amountHeld: -SERVICE_INITIATION_FEE },
+        }),
+        this.userWalletRepository.updateById(
+          serviceProviderWallet._id as string,
+          {
+            $inc: { balance: SERVICE_INITIATION_FEE },
+          }
+        ),
+      ]);
+
+      // Return a successful response
+      return ResponseHelper.sendSuccessResponse(
+        "Task cancelled successfully",
+        response
+      );
+    } catch (error) {
+      // Handle and log any errors that occur
+      console.error("Error cancelling task:", error);
+      return ResponseHelper.sendResponse(
+        500,
+        `Failed to cancel task: ${(error as Error).message}`
+      );
     }
   };
 }

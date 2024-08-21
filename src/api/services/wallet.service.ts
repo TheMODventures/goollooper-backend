@@ -58,7 +58,18 @@ class WalletService {
   };
 
   create = async (payload: IWallet, req: Request): Promise<ApiResponse> => {
-    const { idNumber, ssnLast4, dob } = req.body;
+    const {
+      idNumber,
+      ssnLast4,
+      dob,
+      countryCode,
+      city,
+      line1,
+      line2,
+      country,
+      state,
+      postal_code,
+    } = req.body;
     payload.user = req.locals.auth?.userId as string;
     try {
       const user: IUser | null = await this.userRepository.getById(
@@ -76,42 +87,53 @@ class WalletService {
           "Complete your profile to create wallet"
         );
       }
-
       if (
         !user.stripeConnectId &&
-        user.countryCode == "US" &&
-        (!idNumber || !ssnLast4)
+        countryCode == "US" &&
+        !idNumber &&
+        !ssnLast4
       ) {
         return ResponseHelper.sendResponse(
           400,
-          "idNumber and ssnLast4 is required for US country"
+          "idNumber or ssnLast4 is required for US country"
         );
       }
-      let stripeDataset: Stripe.AccountCreateParams = { individual: {} };
+
+      let stripeDataset: Stripe.AccountCreateParams = {
+        default_currency: "usd",
+      };
+
       stripeDataset = {
         email: user.email,
-        country: user.countryCode,
+        country: countryCode,
         individual: {
+          ssn_last_4: countryCode == "US" ? ssnLast4 : undefined,
+          id_number: country == "US" ? idNumber : undefined,
           address: {
-            line1: user.selectedLocation?.readableLocation,
-            line2: user.selectedLocation?.readableLocation,
-            country: user.selectedLocation?.county,
-            state: user.selectedLocation?.state,
-            city: user.selectedLocation?.city,
-            postal_code: user.selectedLocation?.zipCode,
+            line1,
+            line2,
+            country,
+            state,
+            city,
+            postal_code,
           },
+
           email: user.email,
           gender: user.gender,
-          phone: `+${user.phoneCode}${user.phone}`,
+          phone: `${user.phoneCode}${user.phone}`,
           first_name: user.firstName,
           last_name: user.lastName,
         },
+        external_account: {
+          account_number: req.body.account_number,
+          routing_number: req.body.routing_number,
+          currency: "usd",
+          account_holder_name: req.body.account_holder_name,
+          country: countryCode,
+          account_holder_type: "individual",
+          object: "bank_account",
+        },
       };
-
-      if (user.countryCode == "US" && stripeDataset.individual) {
-        stripeDataset.individual.id_number = idNumber;
-        stripeDataset.individual.ssn_last_4 = ssnLast4;
-      }
 
       if (dob && stripeDataset.individual) {
         const a = (dob as string).split("-").map((e) => parseInt(e));

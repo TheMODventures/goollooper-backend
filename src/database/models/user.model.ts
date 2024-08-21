@@ -3,7 +3,12 @@ import bcrypt from "bcrypt";
 import mongoosePaginate from "mongoose-paginate-v2";
 import aggregatePaginate from "mongoose-aggregate-paginate-v2";
 
-import { EUserRole, EUserLocationType } from "../interfaces/enums";
+import {
+  EUserRole,
+  EUserLocationType,
+  Subscription,
+  SubscriptionType,
+} from "../interfaces/enums";
 import { IUserDoc } from "../interfaces/user.interface";
 
 const schemaOptions = {
@@ -70,18 +75,31 @@ const userModel: Schema = new Schema(
     volunteer: [{ type: Schema.Types.ObjectId, ref: "Service" }],
     services: [{ type: Schema.Types.ObjectId, ref: "Service" }],
     subscription: {
-      subscription: { type: Schema.Types.ObjectId, ref: "Subscription" },
-      plan: { type: Schema.Types.ObjectId, ref: "Plan" },
+      subscription: { type: String }, // it will be stripe product id starting with prod
+      plan: { type: String, enum: Object.values(SubscriptionType) },
+      name: { type: String, enum: Object.values(Subscription) },
+      subscribe: { type: Boolean, default: false },
+      subscriptionAuthId: { type: String, default: null },
     },
     locationType: { type: String, enum: Object.values(EUserLocationType) },
     location: [
       {
         type: { type: String, enum: ["Point"], default: "Point" },
-        coordinates: { type: [Number, Number] },
+        coordinates: { type: [Number, Number], default: [0, 0] },
         state: { type: String, default: null },
         city: { type: String, default: null },
         county: { type: String, default: null },
+        town: { type: String, default: null },
         isSelected: { type: Boolean, default: false },
+        readableLocation: { type: String, default: null },
+      },
+    ],
+    taskLocation: [
+      {
+        type: { type: String, enum: ["Point"], default: "Point" },
+        coordinates: { type: [Number, Number], default: [0, 0] },
+        city: { type: String, default: null },
+        town: { type: String, default: null },
         readableLocation: { type: String, default: null },
       },
     ],
@@ -137,6 +155,13 @@ const userModel: Schema = new Schema(
     callDeviceType: { type: String, default: null },
     stripeCustomerId: { type: String, default: null },
     stripeConnectId: { type: String, default: null },
+    accountAuthorized: { type: Boolean, default: false },
+    stripeConnectAccountRequirementsDue: {
+      disabledReason: { type: String, default: null },
+      currentlyDue: { type: [String], default: [] },
+      eventuallyDue: { type: [String], default: [] },
+      pastDue: { type: [String], default: [] },
+    },
     wallet: { type: Schema.Types.ObjectId, ref: "Wallet", default: null },
   },
   schemaOptions

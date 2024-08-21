@@ -26,6 +26,7 @@ const indexRule = yup.object().shape({
         .notRequired(),
       page: yup.string().required(),
       limit: yup.string().notRequired(),
+      user: yup.string().notRequired(),
     })
     .noUnknown(),
 });

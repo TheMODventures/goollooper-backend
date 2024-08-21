@@ -1,24 +1,41 @@
 import { Request, Response } from "express";
+
 import { UserRepository } from "../repository/user/user.repository";
 import { ResponseHelper } from "../helpers/reponseapi.helper";
 import { stripeHelper } from "../helpers/stripe.helper";
 import { IUser } from "../../database/interfaces/user.interface";
-import { SUCCESS_DATA_DELETION_PASSED } from "../../constant";
+import { DateHelper } from "../helpers/date.helper";
+import {
+  APPLICATION_FEE,
+  STRIPE_FIXED,
+  STRIPE_PERCENTAGE,
+  SUCCESS_DATA_DELETION_PASSED,
+} from "../../constant";
 import Stripe from "stripe";
 import { WalletRepository } from "../repository/wallet/wallet.repository";
 import { TransactionRepository } from "../repository/transaction/transaction.repository";
 import { ITransaction } from "../../database/interfaces/transaction.interface";
-import { TransactionType } from "../../database/interfaces/enums";
+import {
+  ETransactionStatus,
+  TransactionType,
+} from "../../database/interfaces/enums";
+import {
+  IWallet,
+  PaymentIntentType,
+} from "../../database/interfaces/wallet.interface";
+import mongoose from "mongoose";
 
 class StripeService {
   private userRepository: UserRepository;
   private walletRepository: WalletRepository;
   private transactionRepository: TransactionRepository;
+  private dateHelper: DateHelper;
 
   constructor() {
     this.userRepository = new UserRepository();
     this.walletRepository = new WalletRepository();
     this.transactionRepository = new TransactionRepository();
+    this.dateHelper = new DateHelper();
   }
 
   async createWallet(email: string, dataset: Stripe.AccountCreateParams) {
@@ -63,6 +80,7 @@ class StripeService {
       if (!user) return ResponseHelper.sendResponse(404, "User not found");
 
       const cardObj = {
+        name: user.firstName + " " + user.lastName,
         number: cardNumber,
         exp_month: expMonth,
         exp_year: expYear,
@@ -70,6 +88,7 @@ class StripeService {
       };
 
       const token = await stripeHelper.createToken({ card: cardObj });
+
       const card = await stripeHelper.addCard(
         user?.stripeCustomerId as string,
         token.id
@@ -124,11 +143,14 @@ class StripeService {
         "stripeCustomerId"
       );
       if (!user) return ResponseHelper.sendResponse(404, "User not found");
-      const banks = await stripeHelper.getCustomerCards(
+      const cards = await stripeHelper.getCustomerCards(
         user.stripeCustomerId as string,
         parseInt(req.body.page)
       );
-      return ResponseHelper.sendSuccessResponse("Card list found", banks);
+
+      if (cards.data.length == 0)
+        return ResponseHelper.sendResponse(404, "Card list not found");
+      return ResponseHelper.sendSuccessResponse("Card list found", cards);
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
@@ -159,7 +181,7 @@ class StripeService {
       const user: IUser | null = await this.userRepository.getById(
         req.locals.auth?.userId ?? "",
         undefined,
-        "stripeCustomerId"
+        "stripeConnectId stripeCustomerId"
       );
       if (!user?.stripeCustomerId) {
         return ResponseHelper.sendResponse(400, "Please add a card first");
@@ -175,16 +197,21 @@ class StripeService {
 
       const charge = await stripeHelper.stripeCharge({
         amount: amount * 100,
-        currency,
-        customer: user.stripeCustomerId,
+        currency: currency || "usd",
         description,
+        customer: user.stripeCustomerId,
+        statement_descriptor: "Top-up",
+        capture: true,
       });
+
+      const netAmount = amount - (amount * STRIPE_PERCENTAGE + STRIPE_FIXED);
 
       if (charge.status == "succeeded") {
         const wallet = await this.walletRepository.updateBalance(
           req.locals.auth?.userId as string,
-          amount
+          netAmount
         );
+
         this.transactionRepository.create({
           amount,
           user: req.locals.auth?.userId as string,
@@ -203,73 +230,245 @@ class StripeService {
   }
 
   async createPaymentIntent(req: Request): Promise<ApiResponse> {
-    const body = req.body;
-    body.amount = body.amount * 100;
+    const { amount, paymentMethodId, type } = req.body;
+    const userId = req.locals.auth?.userId;
+
+    if (!userId) {
+      return ResponseHelper.sendResponse(400, "User not authenticated");
+    }
+
+    // Convert amount to cents
+    const amountInCents = amount * 100;
 
     try {
+      // Fetch user from repository
       const user: IUser | null = await this.userRepository.getById(
-        req.locals.auth?.userId ?? "",
+        userId,
         undefined,
-        "stripeCustomerId"
+        "stripeCustomerId stripeConnectId"
       );
+
       if (!user?.stripeCustomerId) {
-        return ResponseHelper.sendResponse(400, "Please add a card first");
+        return ResponseHelper.sendResponse(
+          400,
+          "Stripe Connect Account not found"
+        );
       }
+      // Create payment intent
+      const paymentIntent = await stripeHelper.createPaymentIntent({
+        currency: "usd",
+        amount: amountInCents,
+        payment_method: paymentMethodId,
+        payment_method_types: ["card"],
+        capture_method: "automatic",
+        confirmation_method: "automatic",
+        expand: ["payment_method"],
+        receipt_email: user.email,
+        customer: user.stripeCustomerId,
+        use_stripe_sdk: true,
+      });
 
-      body.customer = user?.stripeCustomerId;
-
-      const paymentIntent = await stripeHelper.createPaymentIntent(body);
       return ResponseHelper.sendSuccessResponse(
         "Payment intent created successfully",
         paymentIntent
       );
     } catch (error) {
+      console.error("Error creating payment intent:", error);
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   }
 
   async confirmPayment(req: Request): Promise<ApiResponse> {
     const { paymentIntentId } = req.body;
+    const session = await mongoose.startSession();
+
     try {
+      // Start a transaction
+      session.startTransaction();
+
+      // Fetch payment intent
       const paymentIntent = await stripeHelper.confirmPaymentIntent(
         paymentIntentId
       );
+
+      if (paymentIntent.status !== "succeeded") {
+        await session.abortTransaction();
+        session.endSession();
+        return ResponseHelper.sendResponse(400, "Payment intent not confirmed");
+      }
+
+      const originalAmountInCents = paymentIntent.amount_received; // Get actual amount received from Stripe
+
+      // Calculate Stripe fees and net transfer amount
+      const stripeFeeInCents = this.dateHelper.calculateStripeFee(
+        originalAmountInCents
+      );
+      const applicationFeeInCents = Math.round(APPLICATION_FEE * 100);
+      const netTransferAmountInCents =
+        originalAmountInCents - stripeFeeInCents - applicationFeeInCents;
+
+      // Calculate profit
+      const profitInCents = this.dateHelper.calculateProfit(
+        originalAmountInCents,
+        netTransferAmountInCents
+      );
+
+      // Calculate the final amount to add to the wallet
+      const finalAmountToAddInCents = netTransferAmountInCents - profitInCents;
+      const finalAmountToAddInDollars = finalAmountToAddInCents / 100;
+      const profitInDollars = profitInCents / 100;
+
+      // Perform wallet update and transaction creation in parallel
+      const updatedWallet = await this.walletRepository.updateByOne<IWallet>(
+        { user: req.locals.auth?.userId as string },
+        { $inc: { balance: finalAmountToAddInDollars } }, // $inc should be at the top level
+        { session }
+      );
+
+      if (!updatedWallet) {
+        await session.abortTransaction();
+        session.endSession();
+        return ResponseHelper.sendResponse(500, "Wallet update failed");
+      }
+
+      const [topUpTransaction, applicationFeeTransaction] = await Promise.all([
+        this.transactionRepository.create(
+          {
+            amount: profitInDollars,
+            user: req.locals.auth?.userId as string,
+            type: TransactionType.applicationFee,
+            wallet: updatedWallet?._id as string,
+            status: ETransactionStatus.pending,
+          } as ITransaction,
+          { session }
+        ),
+        this.transactionRepository.create(
+          {
+            amount: finalAmountToAddInDollars,
+            user: req.locals.auth?.userId as string,
+            type: TransactionType.topUp,
+            wallet: updatedWallet?._id as string,
+            status: ETransactionStatus.completed,
+          } as ITransaction,
+          { session }
+        ),
+      ]);
+
+      if (!topUpTransaction || !applicationFeeTransaction) {
+        await session.abortTransaction();
+        session.endSession();
+        return ResponseHelper.sendResponse(500, "Transaction creation failed");
+      }
+      // Commit the transaction
+      await session.commitTransaction();
+      session.endSession();
+
       return ResponseHelper.sendSuccessResponse(
         "Payment intent confirmed successfully",
         paymentIntent
       );
     } catch (error) {
+      // Abort transaction in case of error
+      await session.abortTransaction();
+      session.endSession();
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   }
 
   async webhook(req: Request, res: Response) {
-    const sig = req.headers["stripe-signature"];
-
+    const sig = req.headers["stripe-signature"] as string;
     let event;
-
     try {
-      event = await stripeHelper.stripeWebHook(req.body, sig as string);
+      event = stripeHelper.stripeWebHook(req.body, sig as string);
     } catch (err) {
-      res.status(400).send(`Webhook Error: ${(err as Error).message}`);
-      return;
+      console.error("Webhook Error:", (err as Error).message);
+      return res.status(400).send(`Webhook Error: ${(err as Error).message}`);
     }
-
-    console.log("event >>>>>>>>>>", event);
 
     // Handle the event
     switch (event.type) {
-      case "customer.subscription.pending_update_expired":
-        const customerSubscriptionPendingUpdateExpired = event.data.object;
-        // Then define and call a function to handle the event customer.subscription.pending_update_expired
+      case "charge.succeeded":
+        console.log("Charge succeeded:", event.data.object);
+        // Handle the charge.succeeded event
         break;
-      // ... handle other event types
+      case "customer.subscription.pending_update_expired":
+        console.log("Subscription pending update expired:", event.data.object);
+        // Handle the customer.subscription.pending_update_expired event
+        break;
+
+      case "account.application.authorized":
+        console.log("Account application authorized:", event.data.object);
+
+        break;
+      case "account.updated":
+        const account = event.data.object as Stripe.Account;
+        console.log("Account Updated:", account);
+        // Safely check if the account is fully activated
+        if (
+          account.details_submitted &&
+          account.charges_enabled &&
+          account.payouts_enabled
+        ) {
+          console.log(
+            `Account ${account.id} is fully activated and ready to use.`
+          );
+          this.userRepository.updateByOne(
+            { stripeConnectId: account.id },
+            { accountAuthorized: true }
+          );
+          // Handle successful account activation
+          // e.g., notify the user, update your database, etc.
+        } else if (
+          account.requirements &&
+          account.requirements.currently_due &&
+          account?.requirements?.currently_due.length > 0
+        ) {
+          console.log(
+            `Account ${account.id} has missing information:`,
+            account.requirements.currently_due
+          );
+          this.userRepository.updateByOne(
+            { stripeConnectId: account.id },
+            {
+              stripeConnectAccountRequirementsDue: {
+                currentlyDue: account.requirements.currently_due,
+              },
+              accountAuthorized: false,
+            }
+          );
+          // Handle incomplete account setup
+          // e.g., notify the user to provide the missing details
+        } else if (account.requirements?.disabled_reason) {
+          console.log(
+            `Account ${account.id} is disabled due to: ${account.requirements.disabled_reason}`
+          );
+          this.userRepository.updateByOne(
+            { stripeConnectId: account.id },
+            {
+              stripeConnectAccountRequirementsDue: {
+                disabledReason: account.requirements.disabled_reason,
+              },
+              accountAuthorized: false,
+            }
+          );
+          // Handle account failure due to unmet requirements
+          // e.g., notify the user about the issue, suggest corrective actions
+        } else {
+          console.log(`Account ${account.id} is not fully active yet.`);
+          this.userRepository.updateByOne(
+            { stripeConnectId: account.id },
+            { accountAuthorized: false }
+          );
+          // Handle other statuses
+        }
+        break;
       default:
         console.log(`Unhandled event type ${event.type}`);
     }
 
-    // Return a 200 response to acknowledge receipt of the event
-    res.send();
+    // Respond to acknowledge receipt of the event
+    res.status(200).json({ received: true });
+    return;
   }
 
   async getStripeCustomer(req: Request): Promise<ApiResponse> {
@@ -446,11 +645,33 @@ class StripeService {
   payout = async (req: Request): Promise<ApiResponse> => {
     try {
       const connect = await this.getConnect(req.locals.auth?.userId as string);
+
+      const balance = await stripeHelper.retrieveBalance();
+      console.log("~ balance", balance);
+
+      const wallet = await this.walletRepository.getOne<IWallet>({
+        user: req.locals.auth?.userId as string,
+      });
+
+      if (!wallet) return ResponseHelper.sendResponse(400, "Wallet not found");
+
+      if (wallet?.balance < req.body.amount) {
+        return ResponseHelper.sendResponse(400, "Balance is low");
+      }
+
+      // const transfer = await stripeHelper.transfer({
+      //   amount: req.body.amount * 100,
+      //   destination: connect.data.id,
+      //   currency: "usd",
+      // });
+      // console.log("transaction", transfer);
+
       if (connect.status) {
         const withdraw = await stripeHelper.payout(connect.data.id, {
           method: "standard", //req.params.source.includes("card") ? "instant" : "standard"
-          destination: req.params.source,
           currency: (connect.data as Stripe.Account).default_currency,
+          amount: req.body.amount * 100,
+          destination: req.params.source,
         } as Stripe.PayoutCreateParams);
 
         if (withdraw === false)
@@ -458,7 +679,7 @@ class StripeService {
         else if (withdraw.id) {
           const wallet = await this.walletRepository.updateBalance(
             req.locals.auth?.userId as string,
-            -(withdraw.amount / 100)
+            -req.body.amount
           );
           this.transactionRepository.create({
             amount: withdraw.amount / 100,
@@ -467,7 +688,7 @@ class StripeService {
             wallet: wallet?._id,
           } as ITransaction);
           return ResponseHelper.sendSuccessResponse(
-            "Withdrawal successfull",
+            "Withdrawal successful",
             withdraw
           );
         }
@@ -475,12 +696,189 @@ class StripeService {
       }
       throw connect;
     } catch (error) {
+      // console.log(error);
+      // console.log(error);
       return ResponseHelper.sendResponse(
         400,
         (error as any)?.code === "parameter_invalid_integer"
           ? "Balance is low"
           : (error as Error).message
       );
+    }
+  };
+
+  async onboarding(req: Request): Promise<ApiResponse> {
+    try {
+      // Retrieve the user based on the provided user ID in the request
+      const user = await this.userRepository.getById<IUser>(
+        req.locals.auth?.userId as string
+      );
+
+      if (!user) {
+        return ResponseHelper.sendResponse(404, "User not found");
+      }
+
+      // Check if the user already has a Stripe Connect account
+      let stripeConnectId = user.stripeConnectId;
+
+      // If the user doesn't have a Stripe Connect account, create one
+      if (!stripeConnectId) {
+        const createStripeConnect = await stripeHelper.stripeConnectAccount({
+          email: user.email,
+        });
+
+        if (!createStripeConnect) {
+          return ResponseHelper.sendResponse(
+            400,
+            "Stripe connect account not created"
+          );
+        }
+
+        // Save the new Stripe Connect account ID to the user's record
+        stripeConnectId = createStripeConnect.id;
+        await this.userRepository.updateById(user._id as string, {
+          stripeConnectId,
+        });
+      }
+
+      // Generate the account onboarding link
+      const accountLink = await stripeHelper.connectAccountOnboardingLink(
+        stripeConnectId
+      );
+
+      if (!accountLink) {
+        return ResponseHelper.sendResponse(400, "Account link not created");
+      }
+
+      // Return the account link in the response
+      return ResponseHelper.sendSuccessResponse(
+        "Account link created",
+        accountLink
+      );
+    } catch (error) {
+      // Handle any errors that occur during the process
+      return ResponseHelper.sendResponse(500, (error as Error).message);
+    }
+  }
+  stripeBalance = async (req: Request): Promise<ApiResponse> => {
+    try {
+      const balance = await stripeHelper.retrieveBalance();
+      return ResponseHelper.sendSuccessResponse("Balance retrieved", balance);
+    } catch (error) {
+      return ResponseHelper.sendResponse(500, (error as Error).message);
+    }
+  };
+
+  withdrawRequest = async (req: Request): Promise<ApiResponse> => {
+    const session = await mongoose.startSession();
+    try {
+      session.startTransaction();
+      const wallet = await this.walletRepository.getOne<IWallet>({
+        user: req.locals.auth?.userId as string,
+      });
+
+      if (!wallet) return ResponseHelper.sendResponse(400, "Wallet not found");
+      if (wallet.balance < req.body.amount)
+        return ResponseHelper.sendResponse(400, "Insufficient balance");
+
+      this.transactionRepository.create(
+        {
+          amount: req.body.amount,
+          user: req.locals.auth?.userId as string,
+          type: TransactionType.withdraw,
+          status: ETransactionStatus.pending,
+        } as ITransaction,
+        { session }
+      );
+
+      await this.walletRepository.updateById(
+        wallet._id as string,
+        { balance: wallet.balance - req.body.amount },
+        { session }
+      );
+      session.commitTransaction();
+      return ResponseHelper.sendSuccessResponse("Withdrawal request sent", {});
+    } catch (error) {
+      session.abortTransaction();
+      return ResponseHelper.sendResponse(500, (error as Error).message);
+    }
+  };
+
+  toggleWithdrawRequest = async (req: Request): Promise<ApiResponse> => {
+    const session = await mongoose.startSession();
+    try {
+      session.startTransaction();
+      const status = req.body.status;
+      console.log("status", status);
+      console.log("req.params.id", req.params.id);
+
+      const transaction =
+        await this.transactionRepository.getById<ITransaction>(
+          req.params.id,
+          "",
+          "",
+          [],
+          true
+        );
+
+      if (!transaction)
+        return ResponseHelper.sendResponse(404, "transaction not found");
+
+      switch (status) {
+        case ETransactionStatus.cancelled:
+          {
+            const wallet = await this.walletRepository.updateByOne(
+              { user: transaction.user as string },
+              { $inc: { balance: +transaction.amount } },
+              { session }
+            );
+            if (!wallet) {
+              session.abortTransaction();
+              return ResponseHelper.sendResponse(400, "Wallet not found");
+            }
+          }
+          break;
+
+        case ETransactionStatus.completed: {
+          const user = await this.userRepository.getById<IUser>(
+            transaction.user as string
+          );
+          if (!user) {
+            session.abortTransaction();
+            return ResponseHelper.sendResponse(404, "User not found");
+          }
+
+          const payout = stripeHelper.payout(user.stripeConnectId as string, {
+            amount: transaction.amount * 100,
+            currency: "usd",
+            destination: user.stripeConnectId as string,
+          });
+          if (!payout) {
+            session.abortTransaction();
+            return ResponseHelper.sendResponse(400, "Payout failed");
+          }
+        }
+      }
+
+      const updatedTransaction = await this.transactionRepository.updateById(
+        transaction._id as string,
+        { status },
+        { session }
+      );
+
+      if (!updatedTransaction) {
+        session.abortTransaction();
+        return ResponseHelper.sendResponse(400, "Withdrawal not updated");
+      }
+
+      session.commitTransaction();
+      return ResponseHelper.sendSuccessResponse(
+        "Withdrawal updated successfully",
+        updatedTransaction
+      );
+    } catch (error) {
+      session.abortTransaction();
+      return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   };
 }

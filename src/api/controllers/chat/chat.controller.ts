@@ -48,6 +48,15 @@ class ChatController {
     const response = await this.chatRepository.updateCallToken(req);
     return res.status(response.code).json(response);
   };
+  chatDetails = async (req: Request, res: Response) => {
+    const { chatId, chatSupport, userId } = req.query;
+    const response = await this.chatService.chatDetails(
+      chatId as string,
+      userId as string,
+      Boolean(chatSupport)
+    );
+    return res.status(response.code).json(response);
+  };
 }
 
 export default ChatController;

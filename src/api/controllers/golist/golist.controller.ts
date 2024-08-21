@@ -71,23 +71,14 @@ class GolistController {
 
   show = async (req: Request, res: Response) => {
     const { id } = req.params;
-    const response = await this.golistService.show(
-      id,
-      !req.query.longitude || !req.query.latitude
-        ? undefined
-        : ([
-            parseFloat(req.query.longitude as string),
-            parseFloat(req.query.latitude as string),
-          ] as [number, number]),
-      [
-        ModelHelper.populateData(
-          "serviceProviders",
-          ModelHelper.userSelect,
-          "Users"
-        ),
-        ModelHelper.populateData("taskInterests"),
-      ]
-    );
+    const response = await this.golistService.show(id, [
+      ModelHelper.populateData(
+        "serviceProviders",
+        ModelHelper.userSelect,
+        "Users"
+      ),
+      ModelHelper.populateData("taskInterests"),
+    ]);
     return res.status(response.code).json(response);
   };
 
@@ -102,12 +93,6 @@ class GolistController {
         .json({ data: null, status: false, msg: "Not found" });
     const response = await this.golistService.show(
       list.data.result[0]._id.toString(),
-      !req.query.longitude || !req.query.latitude
-        ? undefined
-        : ([
-            parseFloat(req.query.longitude as string),
-            parseFloat(req.query.latitude as string),
-          ] as [number, number]),
       [
         ModelHelper.populateData(
           "serviceProviders",
@@ -162,6 +147,8 @@ class GolistController {
       license,
       reference,
       insurance,
+      city,
+      town,
       search,
       visualPhotos,
       visualVideos,
@@ -172,6 +159,8 @@ class GolistController {
       Number(page),
       Number(limitNow),
       req.locals.auth?.userId,
+      city,
+      town,
       coordinates,
       taskInterests as string[],
       volunteers as undefined | string[],

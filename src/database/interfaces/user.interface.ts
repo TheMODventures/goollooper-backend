@@ -1,20 +1,15 @@
 import { Moment } from "moment";
 import mongoose, { Document } from "mongoose";
 
-import {
-  Days,
-  EUserLocationType,
-  EUserRole,
-  Repetition,
-  RepetitionEvery,
-} from "./enums";
+import { Days, EUserLocationType, EUserRole } from "./enums";
 
 interface Location {
   type: string;
-  coordinates: [number, number];
+  coordinates?: [number, number];
   state?: string;
   zipCode?: string;
   city?: string;
+  town?: string;
   county?: string;
   isSelected: string;
   readableLocation?: string;
@@ -26,19 +21,10 @@ interface ZipCode {
 }
 
 interface Schedule {
-  startDate: string;
-  endDate: string;
-  slots: [
-    {
-      startTime: string;
-      endTime: string;
-    }
-  ];
-  repetition: Repetition;
-  repeatsAfter: string;
-  repeatsEvery: RepetitionEvery;
-  repeatsOn: Days;
-  occurrence: string;
+  day: Days;
+  startTime: string;
+  endTime: string;
+  dayOff?: boolean;
 }
 
 export interface IUser {
@@ -64,9 +50,11 @@ export interface IUser {
   subscription?: {
     subscription: string;
     plan: string;
+    name: string;
   };
   locationType?: EUserLocationType;
   location?: Location[];
+  taskLocation?: Location[];
   selectedLocation?: Location;
   zipCode?: ZipCode[];
   visuals?: string[];
@@ -107,11 +95,18 @@ export interface IUser {
   callDeviceType?: string;
   stripeCustomerId?: string;
   stripeConnectId?: string;
+  accountAuthorized?: boolean;
+  stripeConnectAccountRequirementsDue: {
+    pastDue: string[];
+    currentlyDue: string[];
+    eventuallyDue: string[];
+    disabledReason: string;
+  };
   wallet?: string;
 }
 
 export interface IUserWithSchedule extends IUser {
-  schedule?: Schedule;
+  schedule?: Schedule[];
 }
 
 export interface IUserDoc extends IUser, Document {

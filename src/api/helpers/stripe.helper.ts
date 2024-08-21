@@ -5,7 +5,7 @@ import {
 } from "../../config/environment.config";
 
 const stripe = new Stripe(STRIPE_SECRET_KEY as string, {});
-
+const stripePk = new Stripe(process.env.STRIPE_PUBLISHABLE_KEY as string, {});
 class StripeHelper {
   createStripeCustomer(email: string): Promise<Stripe.Customer> {
     return stripe.customers.create({ email });
@@ -17,25 +17,25 @@ class StripeHelper {
   ): Promise<Stripe.Account> {
     return stripe.accounts.create({
       email,
-      ...dataset,
-      type: "custom",
-      capabilities: {
-        card_payments: { requested: true },
-        transfers: { requested: true },
-      },
-      settings: {
-        payouts: {
-          schedule: {
-            interval: "manual",
-          },
-        },
-      },
-      business_type: "individual",
-      tos_acceptance: { ip: "8.8.8.8", date: Math.floor(Date.now() / 1000) },
-      business_profile: {
-        url: "goollooper.com",
-        mcc: "5734",
-      },
+      // ...dataset,
+      // type: "custom",
+      // capabilities: {
+      //   card_payments: { requested: true },
+      //   transfers: { requested: true },
+      // },
+      // settings: {
+      //   payouts: {
+      //     schedule: {
+      //       interval: "manual",
+      //     },
+      //   },
+      // },
+      // business_type: "individual",
+      // tos_acceptance: { ip: "8.8.8.8", date: Math.floor(Date.now() / 1000) },
+      // business_profile: {
+      //   url: "goollooper.com",
+      //   mcc: "5734",
+      // },
     });
   }
 
@@ -70,7 +70,7 @@ class StripeHelper {
   }
 
   createToken(obj: Stripe.TokenCreateParams): Promise<Stripe.Token> {
-    return stripe.tokens.create(obj);
+    return stripePk.tokens.create(obj);
   }
 
   createPaymentIntent(
@@ -133,7 +133,7 @@ class StripeHelper {
 
   addBankAccount(
     id: string,
-    params: Stripe.ExternalAccountCreateParams
+    params: Stripe.AccountCreateExternalAccountParams // previous interface was deprecated thats why change to AccountCreateExternalAccountParams
   ): Promise<Stripe.Response<Stripe.ExternalAccount>> {
     return stripe.accounts.createExternalAccount(id, params);
   }
@@ -141,7 +141,7 @@ class StripeHelper {
   updateBankAccount(
     sourceId: string,
     connectId: string,
-    params: Stripe.ExternalAccountUpdateParams
+    params: Stripe.AccountCreateExternalAccountParams
   ): Promise<Stripe.Response<Stripe.ExternalAccount>> {
     return stripe.accounts.updateExternalAccount(connectId, sourceId, params);
   }
@@ -193,30 +193,145 @@ class StripeHelper {
     return stripe.accounts.createPerson(stripeConnectId, payload);
   }
 
-  async payout(stripeConnectId: string, payload: Stripe.PayoutCreateParams) {
-    const balance = await stripe.balance.retrieve(
-      {},
-      { stripeAccount: stripeConnectId }
-    );
+  async payout(
+    stripeConnectId: string,
+    payload: Stripe.PayoutCreateParams
+  ): Promise<Stripe.Response<Stripe.Payout> | false> {
+    try {
+      const balance = await stripe.balance.retrieve(
+        {},
+        { stripeAccount: stripeConnectId }
+      );
 
-    if (balance?.instant_available && payload.method === "instant") {
-      return stripe.payouts.create(
-        {
-          ...payload,
-          amount: balance?.instant_available[0].amount,
-        },
-        { stripeAccount: stripeConnectId }
-      );
-    } else if (balance?.available && payload.method === "standard") {
-      return stripe.payouts.create(
-        {
-          ...payload,
-          amount: balance?.available[0].amount,
-        },
-        { stripeAccount: stripeConnectId }
-      );
+      console.log(balance, "Balance");
+
+      const isInstant = payload.method === "instant";
+      const isStandard = payload.method === "standard";
+      const hasInstantBalance =
+        balance.instant_available && balance.instant_available?.length > 0;
+      const hasStandardBalance = balance.available?.length > 0;
+
+      if (
+        (isInstant && hasInstantBalance) ||
+        (isStandard && hasStandardBalance)
+      ) {
+        const action = await stripe.payouts.create(payload, {
+          stripeAccount: stripeConnectId,
+        });
+        return action;
+      } else {
+        throw new Error("Insufficient balance or invalid payout method.");
+      }
+    } catch (error) {
+      console.error("Error creating payout:", error);
+      throw error; // Re-throw the error to be handled by the calling code
     }
-    return false;
+  }
+
+  async transfer(
+    payload: Stripe.TransferCreateParams,
+    stripeConnectId: string
+  ) {
+    return stripe.transfers.create(
+      {
+        amount: payload.amount,
+        currency: payload.currency,
+        destination: payload.destination,
+      },
+      {
+        stripeAccount: stripeConnectId,
+      }
+    );
+  }
+
+  async topup(payload: Stripe.TopupCreateParams) {
+    return stripe.topups.create(payload);
+  }
+
+  async retrieveBalance(stripeConnectId?: string) {
+    if (stripeConnectId) {
+      return stripe.balance.retrieve({}, { stripeAccount: stripeConnectId });
+    }
+    return stripe.balance.retrieve();
+  }
+
+  async subscriptions(id?: string) {
+    if (id) {
+      return stripe.products.retrieve(id);
+    }
+    return stripe.products.list();
+  }
+  async createSubscriptionItem(customerId: string, price: string) {
+    const obj = stripe.subscriptions.create({
+      customer: customerId,
+      items: [
+        {
+          price: price,
+        },
+      ],
+    });
+    console.log(obj, "Subscription Item");
+    return obj;
+  }
+
+  async connectAccountOnboardingLink(
+    accountId: string
+  ): Promise<Stripe.Response<Stripe.AccountSession>> {
+    return await stripe.accountSessions.create({
+      account: accountId, // Replace with your connected account ID
+      components: {
+        payment_details: {
+          enabled: true,
+        },
+        documents: {
+          enabled: true,
+        },
+        payments: {
+          enabled: true,
+          features: {
+            refund_management: true,
+            dispute_management: true,
+            capture_payments: true,
+          },
+        },
+        payouts: {
+          enabled: true,
+          features: {
+            instant_payouts: true,
+            standard_payouts: true,
+            edit_payout_schedule: true,
+          },
+        },
+        account_onboarding: {
+          enabled: true,
+        },
+      },
+    });
+  }
+
+  async stripeConnectAccount(
+    payload: Stripe.AccountUpdateParams
+  ): Promise<Stripe.Account> {
+    return stripe.accounts.create({
+      email: payload.email,
+      business_type: "individual",
+      capabilities: {
+        card_payments: { requested: true },
+        transfers: { requested: true },
+      },
+      business_profile: {
+        url: "goollooper.com",
+        mcc: "5734",
+      },
+      settings: {
+        payouts: {
+          schedule: {
+            interval: "manual",
+          },
+        },
+      },
+      type: "custom",
+    });
   }
 }
 

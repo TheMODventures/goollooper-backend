@@ -93,6 +93,22 @@ class StripeController {
     const response = await this.stripeService.payout(req);
     return res.status(response.code).json(response);
   };
+  onboarding = async (req: Request, res: Response) => {
+    const response = await this.stripeService.onboarding(req);
+    return res.status(response.code).json(response);
+  };
+  stripeBalance = async (req: Request, res: Response) => {
+    const response = await this.stripeService.stripeBalance(req);
+    return res.status(response.code).json(response);
+  };
+  withdrawRequest = async (req: Request, res: Response) => {
+    const response = await this.stripeService.withdrawRequest(req);
+    return res.status(response.code).json(response);
+  };
+  toggleWithdrawRequest = async (req: Request, res: Response) => {
+    const response = await this.stripeService.toggleWithdrawRequest(req);
+    return res.status(response.code).json(response);
+  };
 }
 
 export default StripeController;

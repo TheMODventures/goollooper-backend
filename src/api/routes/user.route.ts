@@ -16,6 +16,7 @@ import GuidelineRoutes from "./guideline.route";
 import TransactionRoutes from "./transaction.route";
 import StripeRoutes from "./stripe.route";
 import WalletRoutes from "./wallet.route";
+import ScheduleRoutes from "./schedule.route";
 
 class UserRoutes extends BaseRoutes {
   private authRoutes: AuthRoutes;
@@ -35,6 +36,7 @@ class UserRoutes extends BaseRoutes {
   private transactionRoutes: TransactionRoutes;
   private stripeRoutes: StripeRoutes;
   private walletRoutes: WalletRoutes;
+  private scheduleRoutes: ScheduleRoutes;
 
   constructor() {
     super();
@@ -55,6 +57,7 @@ class UserRoutes extends BaseRoutes {
     this.transactionRoutes = new TransactionRoutes();
     this.stripeRoutes = new StripeRoutes();
     this.walletRoutes = new WalletRoutes();
+    this.scheduleRoutes = new ScheduleRoutes();
     this.initializeRoutes();
   }
 
@@ -76,6 +79,7 @@ class UserRoutes extends BaseRoutes {
     this.router.use("/transaction", this.transactionRoutes.router);
     this.router.use("/stripe", this.stripeRoutes.router);
     this.router.use("/wallet", this.walletRoutes.router);
+    this.router.use("/schedule", this.scheduleRoutes.router);
   }
 }
 

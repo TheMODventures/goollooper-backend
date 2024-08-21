@@ -80,7 +80,6 @@ class GolistService {
 
   show = async (
     _id: string,
-    coordinates?: [number, number],
     populate?: PopulateOptions | (PopulateOptions | string)[]
   ): Promise<ApiResponse> => {
     try {
@@ -97,20 +96,20 @@ class GolistService {
         return ResponseHelper.sendResponse(404);
       }
       const query: PipelineStage[] = [];
-      if (coordinates) {
-        query.push({
-          $geoNear: {
-            near: {
-              type: "Point",
-              coordinates: coordinates ?? ([67.0, 24.0] as [number, number]),
-            },
-            distanceField: "distance",
-            spherical: true,
-            // maxDistance: 10000,
-            query: { _id: { $in: response?.serviceProviders } },
-          },
-        });
-      }
+      // if (coordinates) {
+      //   query.push({
+      //     $geoNear: {
+      //       near: {
+      //         type: "Point",
+      //         coordinates: coordinates ?? ([67.0, 24.0] as [number, number]),
+      //       },
+      //       distanceField: "distance",
+      //       spherical: true,
+      //       // maxDistance: 10000,
+      //       query: { _id: { $in: response?.serviceProviders } },
+      //     },
+      //   });
+      // }
       query.push(
         ...[
           { $match: { _id: { $in: response?.serviceProviders } } },
@@ -134,6 +133,7 @@ class GolistService {
       const serviceProviders = await this.userRepository.getDataByAggregate(
         query
       );
+
       response.serviceProviders = serviceProviders;
       return ResponseHelper.sendSuccessResponse(
         SUCCESS_DATA_SHOW_PASSED,
@@ -196,6 +196,8 @@ class GolistService {
     page: number,
     limit = 10,
     userId: string | undefined,
+    city: string,
+    town: string,
     coordinates: Number[],
     serviceId?: string[],
     volunteerIds?: string[],
@@ -218,29 +220,29 @@ class GolistService {
   ) => {
     try {
       const query: PipelineStage[] = [];
-      if (zipCode) {
-        // coordinates = []
-        const googleCoordinates = (await GoogleMapHelper.searchLocation(
-          zipCode,
-          ""
-        )) as Number[] | null;
-        if (!googleCoordinates)
-          return ResponseHelper.sendResponse(404, "postal code is invalid");
-        coordinates = googleCoordinates;
-      }
-      if (coordinates?.length !== 0 && !isNaN(coordinates[0] as number)) {
-        query.push({
-          $geoNear: {
-            near: {
-              type: "Point",
-              coordinates: coordinates as [number, number],
-            },
-            distanceField: "distance",
-            spherical: true,
-            maxDistance: 10000,
-          },
-        });
-      }
+      // if (zipCode) {
+      //   // coordinates = []
+      //   const googleCoordinates = (await GoogleMapHelper.searchLocation(
+      //     zipCode,
+      //     ""
+      //   )) as Number[] | null;
+      //   if (!googleCoordinates)
+      //     return ResponseHelper.sendResponse(404, "postal code is invalid");
+      //   coordinates = googleCoordinates;
+      // }
+      // if (coordinates?.length !== 0 && !isNaN(coordinates[0] as number)) {
+      //   query.push({
+      //     $geoNear: {
+      //       near: {
+      //         type: "Point",
+      //         coordinates: coordinates as [number, number],
+      //       },
+      //       distanceField: "distance",
+      //       spherical: true,
+      //       maxDistance: 2000,
+      //     },
+      //   });
+      // }
       const match = {
         _id: { $ne: new mongoose.Types.ObjectId(userId) },
         isDeleted: false,
@@ -250,7 +252,16 @@ class GolistService {
         // isVerified: true,
         isProfileCompleted: true,
       } as any;
-
+      if (town) {
+        match["location"] = {
+          $elemMatch: { town: { $regex: town, $options: "i" } },
+        };
+      }
+      if (city) {
+        match["location"] = {
+          $elemMatch: { city: { $regex: city, $options: "i" } },
+        };
+      }
       if (companyLogo) match["company.logo"] = { $ne: null };
       if (companyRegistration) match["company.name"] = { $ne: null };
       if (companyWebsite) match["company.website"] = { $ne: null };
@@ -290,10 +301,13 @@ class GolistService {
       //   );
       // }
       if (subscription && subscription?.length > 0) {
-        const subscriptionIds = subscription.map(
-          (e: any) => new mongoose.Types.ObjectId(e)
-        );
-        match["subscription.subscription"] = { $in: subscriptionIds };
+        // const subscriptionIds = subscription.map((e: any) => e);
+        // match["subscription.subscription"] = { $in: subscriptionIds };
+        query.push({
+          $match: {
+            "subscription.name": { $in: subscription },
+          },
+        });
       }
       if (serviceId && serviceId?.length > 0) {
         const services = serviceId.map(
@@ -346,19 +360,6 @@ class GolistService {
       query.push(
         ...[
           {
-            $lookup: {
-              as: "subscription",
-              from: "subscriptions",
-              localField: "subscription.subscription",
-              foreignField: "_id",
-            },
-          },
-          {
-            $addFields: {
-              subscription: { $first: "$subscription" },
-            },
-          },
-          {
             $project: {
               _id: 1,
               username: 1,
@@ -369,9 +370,8 @@ class GolistService {
               ratingCount: 1,
               averageRating: 1,
               profileImage: 1,
-              subscriptionName: {
-                $ifNull: ["$subscription.name", null],
-              },
+              role: 1,
+              subscription: 1,
               distance: 1,
             },
           },

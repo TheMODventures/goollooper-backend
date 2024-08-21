@@ -25,12 +25,14 @@ import TokenService from "./token.service";
 import { stripeHelper } from "../helpers/stripe.helper";
 import { WalletRepository } from "../repository/wallet/wallet.repository";
 import { IWallet } from "../../database/interfaces/wallet.interface";
+import Mailer from "../helpers/mailer.helper";
 
 class AuthService {
   private tokenService: TokenService;
   private userRepository: UserRepository;
   private scheduleRepository: ScheduleRepository;
   private walletRepository: WalletRepository;
+
   constructor() {
     this.userRepository = new UserRepository();
     this.tokenService = new TokenService();
@@ -61,18 +63,30 @@ class AuthService {
       };
       if (req.body.fcmToken) user.fcmTokens = [req.body.fcmToken];
       const data = await this.userRepository.create<IUser>(user);
+      if (!data) return ResponseHelper.sendResponse(500, "User not created");
+      const wallet = await this.walletRepository.create<IWallet>({
+        user: data._id,
+      } as IWallet);
       const userId = new mongoose.Types.ObjectId(data._id!);
       const tokenResponse = await this.tokenService.create(userId, role);
-      // await this.walletRepository.create({ user: data._id } as IWallet);
       const CustomerCreate = await stripeHelper.createStripeCustomer(
         user.email
       );
-
       if (CustomerCreate) {
-        await this.userRepository.updateById(data._id?.toString() ?? "", {
+        await this.userRepository.updateById(data._id as string, {
           stripeCustomerId: CustomerCreate.id,
         });
       }
+
+      await this.userRepository.updateById(data._id as string, {
+        wallet: wallet._id,
+      });
+
+      Mailer.sendEmail({
+        email: data.email,
+        subject: "Verification Code",
+        message: `<h1>Your Verification Code is ${createCode}</h1>`,
+      });
 
       return ResponseHelper.sendSignTokenResponse(
         201,
@@ -122,10 +136,6 @@ class AuthService {
             model: "Service",
             select: "title type parent",
           },
-          {
-            path: "subscription.subscription",
-            model: "Subscription",
-          },
         ]
       );
       if (
@@ -139,29 +149,18 @@ class AuthService {
 
       const schedules = await this.scheduleRepository.getAll({
         user: userId,
-        isActive: true,
+        isDeleted: false,
       });
-
-      if (!response.stripeCustomerId) {
-        const CustomerCreate = await stripeHelper.createStripeCustomer(
-          response.email
-        );
-        if (CustomerCreate) {
-          await this.userRepository.updateById(response._id?.toString() ?? "", {
-            stripeCustomerId: CustomerCreate.id,
-          });
-        }
-      }
 
       const res = {
         ...response,
         schedule: schedules,
-        stripeCustomerId: response.stripeCustomerId,
       };
       const tokenResponse = await this.tokenService.create(
         userId,
         response.role
       );
+
       if (fcmToken)
         this.userRepository.updateById(response._id?.toString() ?? "", {
           $addToSet: { fcmTokens: fcmToken },
@@ -174,6 +173,7 @@ class AuthService {
         tokenResponse
       );
     } catch (error) {
+      console.log(error);
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   };
@@ -187,6 +187,13 @@ class AuthService {
         return ResponseHelper.sendResponse(404);
       }
       const response = await this.resendOtp(email as string);
+
+      Mailer.sendEmail({
+        email: responseData.email,
+        subject: "OTP",
+        message: `<h1>Your OTP is ${response.data.otpCode}</h1>`,
+      });
+
       const userId = new mongoose.Types.ObjectId(responseData._id!);
       const tokenResponse = await this.tokenService.create(
         userId,
@@ -264,6 +271,7 @@ class AuthService {
       if (response === null) {
         return ResponseHelper.sendResponse(404);
       }
+
       return ResponseHelper.sendSuccessResponse(
         SUCCESS_OTP_SEND_PASSED,
         updateObj

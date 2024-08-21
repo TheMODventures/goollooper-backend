@@ -1,6 +1,7 @@
 import { Validation } from "../../middleware/validation.middleware";
 import StripeController from "../controllers/stripe/stripe.controller";
 import BaseRoutes from "./base.route";
+import express from "express"; // Import the 'express' module
 
 class StripeRoutes extends BaseRoutes {
   private stripeController: StripeController;
@@ -80,8 +81,6 @@ class StripeRoutes extends BaseRoutes {
     //   this.stripeController.applyForSubscription
     // );
 
-    this.router.post("/webhook", this.stripeController.webhook);
-
     this.router.get(
       "/banks",
       this.validateRequest,
@@ -116,6 +115,22 @@ class StripeRoutes extends BaseRoutes {
       "/payout/:source",
       this.validateRequest,
       this.stripeController.payout
+    );
+
+    this.router.post("/onboarding", this.stripeController.onboarding);
+
+    this.router.post(
+      "/withdraw-request",
+      this.validateRequest,
+      this.stripeController.withdrawRequest
+    );
+
+    this.router.get("/balance", this.stripeController.stripeBalance);
+
+    this.router.put(
+      "/toggle-withdraw-request/:id",
+      this.validateRequest,
+      this.stripeController.toggleWithdrawRequest
     );
   }
 }

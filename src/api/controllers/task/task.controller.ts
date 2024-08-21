@@ -58,7 +58,8 @@ class TaskController {
 
   delete = async (req: Request, res: Response) => {
     const { id } = req.params;
-    const response = await this.taskService.delete(id);
+    const { chatId } = req.query;
+    const response = await this.taskService.delete(id, chatId as string);
     return res.status(response.code).json(response);
   };
 
@@ -68,20 +69,27 @@ class TaskController {
       id,
       req.locals.auth?.userId as string
     );
-    console.log(id);
+    // console.log(id);
     return res.status(response.code).json(response);
   };
 
   toggleRequest = async (req: Request, res: Response) => {
     const { id } = req.params;
-    const { user, status, type } = req.body;
+    const { user, status } = req.body;
     const response = await this.taskService.toggleRequest(
       id,
       req.locals.auth?.userId as string,
       user as string,
-      status,
-      type
+      status
     );
+    return res.status(response.code).json(response);
+  };
+
+  cancel = async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const response = await this.taskService.cancelTask(id as string);
+    // console.log("response", response);
+
     return res.status(response.code).json(response);
   };
 }
