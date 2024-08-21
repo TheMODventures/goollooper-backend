@@ -348,17 +348,13 @@ class AuthService {
         data = existingUser;
       } else {
         // If the user doesn't exist, register them
-        const createCode = crypto.randomInt(100000, 999999);
         const newUser: IUserDoc = {
           ...req.body,
           role: EUserRole.user,
-          otpCode: Number(createCode),
-          otpExpiredAt: moment().add(60, "seconds").valueOf(),
         };
         if (fcmToken) newUser.fcmTokens = [fcmToken];
 
         data = await this.userRepository.create<IUser>(newUser);
-        console.log("~ new user created", data);
 
         if (!data) return ResponseHelper.sendResponse(500, "User not created");
 
@@ -381,13 +377,6 @@ class AuthService {
         await this.userRepository.updateById(data._id as string, {
           wallet: wallet._id,
         });
-
-        // Send verification email
-        Mailer.sendEmail({
-          email: data.email,
-          subject: "Verification Code",
-          message: `<h1>Your Verification Code is ${createCode}</h1>`,
-        });
       }
 
       // Generate authentication token
@@ -396,7 +385,6 @@ class AuthService {
         userId,
         EUserRole.user
       );
-      console.log(tokenResponse);
       return ResponseHelper.sendSignTokenResponse(
         200,
         existingUser ? "Login Successful" : SUCCESS_REGISTRATION_PASSED,
@@ -423,12 +411,9 @@ class AuthService {
         data = existingUser;
       } else {
         // If the user doesn't exist, register them
-        const createCode = crypto.randomInt(100000, 999999);
         const newUser: IUserDoc = {
           ...req.body,
           role: EUserRole.user,
-          otpCode: Number(createCode),
-          otpExpiredAt: moment().add(60, "seconds").valueOf(),
         };
         if (fcmToken) newUser.fcmTokens = [fcmToken];
 
@@ -441,9 +426,7 @@ class AuthService {
         } as IWallet);
 
         // Create a Stripe customer for the new user
-        const CustomerCreate = await stripeHelper.createStripeCustomer(
-          data.email
-        );
+        const CustomerCreate = await stripeHelper.createStripeCustomer();
         if (CustomerCreate) {
           await this.userRepository.updateById(data._id as string, {
             stripeCustomerId: CustomerCreate.id,
@@ -453,13 +436,6 @@ class AuthService {
         // Update the user with the wallet ID
         await this.userRepository.updateById(data._id as string, {
           wallet: wallet._id,
-        });
-
-        // Send verification email
-        Mailer.sendEmail({
-          email: data.email,
-          subject: "Verification Code",
-          message: `<h1>Your Verification Code is ${createCode}</h1>`,
         });
       }
 
@@ -498,12 +474,9 @@ class AuthService {
         data = existingUser;
       } else {
         // If the user doesn't exist, register them
-        const createCode = crypto.randomInt(100000, 999999);
         const newUser: IUserDoc = {
           ...req.body,
           role: EUserRole.user,
-          otpCode: Number(createCode),
-          otpExpiredAt: moment().add(60, "seconds").valueOf(),
         };
         if (fcmToken) newUser.fcmTokens = [fcmToken];
 
@@ -516,9 +489,7 @@ class AuthService {
         } as IWallet);
 
         // Create a Stripe customer for the new user
-        const CustomerCreate = await stripeHelper.createStripeCustomer(
-          data.email
-        );
+        const CustomerCreate = await stripeHelper.createStripeCustomer();
         if (CustomerCreate) {
           await this.userRepository.updateById(data._id as string, {
             stripeCustomerId: CustomerCreate.id,
@@ -528,13 +499,6 @@ class AuthService {
         // Update the user with the wallet ID
         await this.userRepository.updateById(data._id as string, {
           wallet: wallet._id,
-        });
-
-        // Send verification email
-        Mailer.sendEmail({
-          email: data.email,
-          subject: "Verification Code",
-          message: `<h1>Your Verification Code is ${createCode}</h1>`,
         });
       }
 

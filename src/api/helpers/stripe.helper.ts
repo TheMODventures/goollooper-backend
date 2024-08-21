@@ -7,7 +7,7 @@ import {
 const stripe = new Stripe(STRIPE_SECRET_KEY as string, {});
 const stripePk = new Stripe(process.env.STRIPE_PUBLISHABLE_KEY as string, {});
 class StripeHelper {
-  createStripeCustomer(email: string): Promise<Stripe.Customer> {
+  createStripeCustomer(email?: string): Promise<Stripe.Customer> {
     return stripe.customers.create({ email });
   }
 

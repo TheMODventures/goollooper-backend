@@ -212,7 +212,7 @@ userModel.pre("save", async function (next) {
     this.password = hashedPassword;
     next();
   } catch (err) {
-    console.log("Something went wrong whil hashing passowrd", err);
+    console.log("Something went wrong while hashing password", err);
     next(err as Error);
   }
 });
