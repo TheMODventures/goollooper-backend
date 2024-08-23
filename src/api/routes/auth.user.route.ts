@@ -24,7 +24,9 @@ class AuthRoutes extends BaseRoutes {
       this.validateRequest,
       this.authController.register
     );
+
     this.router.post("/login", this.validateRequest, this.authController.login);
+
     this.router.post(
       "/forget-password",
       this.validateRequest,
@@ -35,6 +37,25 @@ class AuthRoutes extends BaseRoutes {
       this.validateRequest,
       this.authController.getAccessToken
     );
+
+    this.router.post(
+      "/google-auth",
+      this.validateRequest,
+      this.authController.googleAuth
+    );
+
+    this.router.post(
+      "/facebook-auth",
+      this.validateRequest,
+      this.authController.facebookAuth
+    );
+
+    this.router.post(
+      "/apple-auth",
+      this.validateRequest,
+      this.authController.appleAuth
+    );
+
     this.router.use(this.authorize.validateAuth);
     this.router.post(
       "/reset-password",

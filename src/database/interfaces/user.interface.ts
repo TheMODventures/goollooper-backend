@@ -30,6 +30,7 @@ interface Schedule {
 export interface IUser {
   _id?: string | mongoose.Types.ObjectId;
   firstName?: string;
+  socialAuthId?: string;
   lastName?: string;
   username?: string;
   email: string;

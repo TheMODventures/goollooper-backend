@@ -355,7 +355,6 @@ class UserService {
           element.type = "Point";
 
           // Check if the element is selected
-          console.log("element.isSelected", element.isSelected);
           if (element.isSelected === "true") {
             // Ensure that the element.coordinates follows the schema definition
             if (!element.coordinates || element.coordinates.length !== 2) {

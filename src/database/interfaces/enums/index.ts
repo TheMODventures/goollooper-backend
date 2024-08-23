@@ -187,3 +187,10 @@ export enum TOPUP_METHOD {
   GOOGLE_PAY = "google-pay",
   APPLE_PAY = "apple-pay",
 }
+
+export enum AUTH_PROVIDER {
+  GOOGLE = "google",
+  FACEBOOK = "facebook",
+  APPLE = "apple",
+  MANUAL = "manual",
+}

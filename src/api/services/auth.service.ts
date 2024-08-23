@@ -4,7 +4,7 @@ import moment from "moment";
 import crypto from "crypto";
 import { compare } from "bcrypt";
 
-import { EUserRole } from "../../database/interfaces/enums";
+import { AUTH_PROVIDER, EUserRole } from "../../database/interfaces/enums";
 import { IUser, IUserDoc } from "../../database/interfaces/user.interface";
 import { UserRepository } from "../repository/user/user.repository";
 import { ScheduleRepository } from "../repository/schedule/schedule.repository";
@@ -326,6 +326,270 @@ class AuthService {
       return ResponseHelper.sendSuccessResponse(
         SUCCESS_DATA_UPDATION_PASSED,
         resp
+      );
+    } catch (error) {
+      return ResponseHelper.sendResponse(500, (error as Error).message);
+    }
+  };
+  googleAuth = async (req: Request): Promise<ApiResponse> => {
+    try {
+      // Extract social ID and email from request body
+      const { socialAuthId, fcmToken, email } = req.body;
+
+      // Check if the user already exists using the social ID
+      let existingUser = await this.userRepository.getOne<IUser>({
+        socialAuthId,
+      });
+
+      // If the user doesn't exist by social ID, check for an existing email
+      if (!existingUser && email) {
+        existingUser = await this.userRepository.getOne<IUser>({ email });
+        // If the email is found but no socialAuthId is linked, update the user to link it
+        if (existingUser && !existingUser.socialAuthId) {
+          await this.userRepository.updateById(existingUser._id as string, {
+            socialAuthId,
+            authProvider: AUTH_PROVIDER.GOOGLE,
+          });
+        }
+      }
+
+      let data: IUser;
+      if (existingUser) {
+        // If the user exists, log them in
+        data = existingUser;
+
+        // Update FCM token if provided
+        if (fcmToken && !(existingUser?.fcmTokens ?? []).includes(fcmToken)) {
+          await this.userRepository.updateById(existingUser._id as string, {
+            $addToSet: { fcmTokens: fcmToken }, // Add FCM token if not already present
+          });
+        }
+      } else {
+        // If the user doesn't exist, register them
+        const newUser: IUser = {
+          ...req.body,
+          role: EUserRole.user,
+          authProvider: AUTH_PROVIDER.GOOGLE,
+          socialAuthId,
+        };
+
+        if (fcmToken) newUser.fcmTokens = [fcmToken];
+
+        data = await this.userRepository.create<IUser>(newUser);
+
+        if (!data) return ResponseHelper.sendResponse(500, "User not created");
+
+        // Create a wallet for the new user
+        const wallet = await this.walletRepository.create<IWallet>({
+          user: data._id,
+        } as IWallet);
+
+        // Create a Stripe customer for the new user
+        const CustomerCreate = await stripeHelper.createStripeCustomer(
+          data.email || undefined
+        );
+        if (CustomerCreate) {
+          await this.userRepository.updateById(data._id as string, {
+            stripeCustomerId: CustomerCreate.id,
+          });
+        }
+
+        // Update the user with the wallet ID
+        await this.userRepository.updateById(data._id as string, {
+          wallet: wallet._id,
+        });
+      }
+
+      // Generate authentication token
+      const userId = new mongoose.Types.ObjectId(data._id!);
+      const tokenResponse = await this.tokenService.create(
+        userId,
+        EUserRole.user
+      );
+
+      return ResponseHelper.sendSignTokenResponse(
+        200,
+        existingUser ? "Login Successful" : SUCCESS_REGISTRATION_PASSED,
+        data,
+        tokenResponse
+      );
+    } catch (error) {
+      return ResponseHelper.sendResponse(500, (error as Error).message);
+    }
+  };
+
+  facebookAuth = async (req: Request): Promise<ApiResponse> => {
+    try {
+      // Extract social ID and email from request body
+      const { socialAuthId, fcmToken, email } = req.body;
+
+      // Check if the user already exists using the social ID
+      let existingUser = await this.userRepository.getOne<IUser>({
+        socialAuthId,
+      });
+
+      // If the user doesn't exist by social ID, check for an existing email
+      if (!existingUser && email) {
+        existingUser = await this.userRepository.getOne<IUser>({ email });
+
+        // If the email is found but no socialAuthId is linked, update the user to link it
+        if (existingUser && !existingUser.socialAuthId) {
+          await this.userRepository.updateById(existingUser._id as string, {
+            socialAuthId,
+            authProvider: AUTH_PROVIDER.FACEBOOK,
+          });
+        }
+      }
+
+      let data: IUser;
+      if (existingUser) {
+        // If the user exists, log them in
+        data = existingUser;
+
+        // Update FCM token if provided
+        if (fcmToken && !(existingUser?.fcmTokens ?? []).includes(fcmToken)) {
+          await this.userRepository.updateById(existingUser._id as string, {
+            $addToSet: { fcmTokens: fcmToken }, // Add FCM token if not already present
+          });
+        }
+      } else {
+        // If the user doesn't exist, register them
+        const newUser: IUserDoc = {
+          ...req.body,
+          role: EUserRole.user,
+          authProvider: AUTH_PROVIDER.FACEBOOK,
+          socialAuthId,
+        };
+
+        if (fcmToken) newUser.fcmTokens = [fcmToken];
+
+        data = await this.userRepository.create<IUser>(newUser);
+        if (!data) return ResponseHelper.sendResponse(500, "User not created");
+
+        // Create a wallet for the new user
+        const wallet = await this.walletRepository.create<IWallet>({
+          user: data._id,
+        } as IWallet);
+
+        // Create a Stripe customer for the new user
+        const CustomerCreate = await stripeHelper.createStripeCustomer(
+          data.email || ""
+        );
+        if (CustomerCreate) {
+          await this.userRepository.updateById(data._id as string, {
+            stripeCustomerId: CustomerCreate.id,
+          });
+        }
+
+        // Update the user with the wallet ID
+        await this.userRepository.updateById(data._id as string, {
+          wallet: wallet._id,
+        });
+      }
+
+      // Generate authentication token
+      const userId = new mongoose.Types.ObjectId(data._id!);
+      const tokenResponse = await this.tokenService.create(
+        userId,
+        EUserRole.user
+      );
+
+      return ResponseHelper.sendSignTokenResponse(
+        200,
+        existingUser ? "Login Successful" : SUCCESS_REGISTRATION_PASSED,
+        data,
+        tokenResponse
+      );
+    } catch (error) {
+      return ResponseHelper.sendResponse(500, (error as Error).message);
+    }
+  };
+
+  appleAuth = async (req: Request): Promise<ApiResponse> => {
+    try {
+      // Extract social ID, email, and fcmToken from request body
+      const { socialAuthId, fcmToken, email } = req.body;
+
+      // Initialize a variable to hold the existing user
+      let existingUser: IUser | null = null;
+
+      // First, try to find the user by socialAuthId
+      if (socialAuthId) {
+        existingUser = await this.userRepository.getOne<IUser>({
+          socialAuthId,
+        });
+      }
+
+      // If no user is found and email is provided, check by email
+      if (!existingUser && email) {
+        existingUser = await this.userRepository.getOne<IUser>({ email });
+
+        // If a user is found by email but has no socialAuthId, update the record
+        if (existingUser && !existingUser.socialAuthId) {
+          await this.userRepository.updateById(existingUser._id as string, {
+            socialAuthId,
+            authProvider: AUTH_PROVIDER.APPLE,
+          });
+        }
+      }
+
+      let data: IUser;
+      if (existingUser) {
+        // If the user exists, log them in
+        data = existingUser;
+
+        // Update FCM token if provided
+        if (fcmToken && !(existingUser.fcmTokens ?? []).includes(fcmToken)) {
+          await this.userRepository.updateById(existingUser._id as string, {
+            $addToSet: { fcmTokens: fcmToken }, // Add FCM token if not already present
+          });
+        }
+      } else {
+        // If the user doesn't exist, register them
+        const newUser: IUserDoc = {
+          socialAuthId,
+          authProvider: AUTH_PROVIDER.APPLE,
+          role: EUserRole.user,
+          ...(email && { email }), // Only include email if it exists
+          fcmTokens: fcmToken ? [fcmToken] : [],
+        };
+
+        data = await this.userRepository.create<IUser>(newUser);
+        if (!data) return ResponseHelper.sendResponse(500, "User not created");
+
+        // Create a wallet for the new user
+        const wallet = await this.walletRepository.create<IWallet>({
+          user: data._id,
+        } as IWallet);
+
+        // Create a Stripe customer for the new user
+        const CustomerCreate = await stripeHelper.createStripeCustomer(
+          email || undefined
+        );
+        if (CustomerCreate) {
+          await this.userRepository.updateById(data._id as string, {
+            stripeCustomerId: CustomerCreate.id,
+          });
+        }
+
+        // Update the user with the wallet ID
+        await this.userRepository.updateById(data._id as string, {
+          wallet: wallet._id,
+        });
+      }
+
+      // Generate authentication token
+      const userId = new mongoose.Types.ObjectId(data._id!);
+      const tokenResponse = await this.tokenService.create(
+        userId,
+        EUserRole.user
+      );
+
+      return ResponseHelper.sendSignTokenResponse(
+        200,
+        existingUser ? "Login Successful" : SUCCESS_REGISTRATION_PASSED,
+        data,
+        tokenResponse
       );
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);

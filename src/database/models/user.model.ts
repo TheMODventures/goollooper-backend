@@ -8,6 +8,7 @@ import {
   EUserLocationType,
   Subscription,
   SubscriptionType,
+  AUTH_PROVIDER,
 } from "../interfaces/enums";
 import { IUserDoc } from "../interfaces/user.interface";
 
@@ -23,7 +24,7 @@ const userModel: Schema = new Schema(
     username: {
       type: String,
       trim: true,
-      default: null,
+      // default: null,
       index: {
         unique: true,
         partialFilterExpression: {
@@ -31,6 +32,21 @@ const userModel: Schema = new Schema(
           isDeleted: false,
         },
       },
+    },
+    socialAuthId: {
+      type: String,
+      index: {
+        unique: true,
+        partialFilterExpression: {
+          socialAuthId: { $type: "string" },
+          isDeleted: false,
+        },
+      },
+    },
+    authProvider: {
+      type: String,
+      default: AUTH_PROVIDER.MANUAL,
+      enum: AUTH_PROVIDER,
     },
     email: {
       type: String,
@@ -42,11 +58,11 @@ const userModel: Schema = new Schema(
           isDeleted: false,
         },
       },
-      required: true,
+      required: false,
       lowercase: true,
       trim: true,
     },
-    password: { type: String, required: true, select: false },
+    password: { type: String, select: false },
     gender: { type: String },
     age: { type: Number, default: null },
     countryCode: { type: String }, // like 'PK' alpha-2 format
@@ -201,7 +217,7 @@ userModel.pre("save", async function (next) {
     this.password = hashedPassword;
     next();
   } catch (err) {
-    console.log("Something went wrong whil hashing passowrd", err);
+    console.log("Something went wrong while hashing password", err);
     next(err as Error);
   }
 });
