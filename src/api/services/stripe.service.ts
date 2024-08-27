@@ -273,7 +273,7 @@ class StripeService {
   }
 
   async confirmPayment(req: Request): Promise<ApiResponse> {
-    const { paymentIntentId } = req.body;
+    const { paymentIntentId, paymentMethod } = req.body;
     const session = await mongoose.startSession();
 
     try {
@@ -282,7 +282,10 @@ class StripeService {
 
       // Fetch payment intent
       const paymentIntent = await stripeHelper.confirmPaymentIntent(
-        paymentIntentId
+        paymentIntentId, // Pass the payment intent ID separately
+        {
+          payment_method: paymentMethod,
+        }
       );
 
       if (paymentIntent.status !== "succeeded") {
