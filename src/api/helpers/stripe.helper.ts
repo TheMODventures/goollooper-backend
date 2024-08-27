@@ -79,8 +79,11 @@ class StripeHelper {
     return stripe.paymentIntents.create(obj);
   }
 
-  confirmPaymentIntent(paymentIntentId: string): Promise<Stripe.PaymentIntent> {
-    return stripe.paymentIntents.confirm(paymentIntentId);
+  confirmPaymentIntent(
+    paymentIntentId: string,
+    paymentDetails: Stripe.PaymentIntentConfirmParams
+  ): Promise<Stripe.PaymentIntent> {
+    return stripe.paymentIntents.confirm(paymentIntentId, paymentDetails);
   }
 
   stripeCharge(obj: Stripe.ChargeCreateParams): Promise<Stripe.Charge> {

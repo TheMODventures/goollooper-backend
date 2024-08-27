@@ -53,7 +53,8 @@ const confirmPaymentRule = yup.object().shape({
   body: yup
     .object()
     .shape({
-      paymentIntentId: yup.string().required(),
+      paymentIntentId: yup.string().required("Payment intent id is required"),
+      paymentMethod: yup.string().required("Payment method is required"),
     })
     .noUnknown(),
 });
