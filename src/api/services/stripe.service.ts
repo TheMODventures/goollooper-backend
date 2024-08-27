@@ -258,14 +258,8 @@ class StripeService {
       const paymentIntent = await stripeHelper.createPaymentIntent({
         currency: "usd",
         amount: amountInCents,
-        payment_method: paymentMethodId,
         payment_method_types: ["card"],
-        capture_method: "automatic",
-        confirmation_method: "automatic",
-        expand: ["payment_method"],
-        receipt_email: user.email,
         customer: user.stripeCustomerId,
-        use_stripe_sdk: true,
       });
 
       return ResponseHelper.sendSuccessResponse(
