@@ -165,6 +165,7 @@ export enum TransactionType {
   megablast = "Megablast",
   topUp = "Top Up",
   withdraw = "Withdraw",
+  task = "Task Completed",
   applicationFee = "Application Fee",
 }
 
