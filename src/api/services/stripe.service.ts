@@ -5,12 +5,7 @@ import { ResponseHelper } from "../helpers/reponseapi.helper";
 import { stripeHelper } from "../helpers/stripe.helper";
 import { IUser } from "../../database/interfaces/user.interface";
 import { DateHelper } from "../helpers/date.helper";
-import {
-  APPLICATION_FEE,
-  STRIPE_FIXED,
-  STRIPE_PERCENTAGE,
-  SUCCESS_DATA_DELETION_PASSED,
-} from "../../constant";
+import { APPLICATION_FEE } from "../../constant";
 import Stripe from "stripe";
 import { WalletRepository } from "../repository/wallet/wallet.repository";
 import { TransactionRepository } from "../repository/transaction/transaction.repository";
@@ -66,167 +61,6 @@ class StripeService {
     if (!connect)
       return ResponseHelper.sendResponse(404, "Connect account not found");
     return ResponseHelper.sendSuccessResponse("Connect account found", connect);
-  }
-
-  async addCardToCustomer(req: Request): Promise<ApiResponse> {
-    const { cardNumber, expMonth, expYear, cvc }: any = req.body;
-
-    try {
-      const user: IUser | null = await this.userRepository.getById(
-        req.locals.auth?.userId ?? "",
-        undefined,
-        "stripeCustomerId"
-      );
-      if (!user) return ResponseHelper.sendResponse(404, "User not found");
-
-      const cardObj = {
-        name: user.firstName + " " + user.lastName,
-        number: cardNumber,
-        exp_month: expMonth,
-        exp_year: expYear,
-        cvc: cvc,
-      };
-
-      const token = await stripeHelper.createToken({ card: cardObj });
-
-      const card = await stripeHelper.addCard(
-        user?.stripeCustomerId as string,
-        token.id
-      );
-      if (!card) return ResponseHelper.sendResponse(404, "Card not added");
-      return ResponseHelper.sendSuccessResponse(
-        "Card added successfully",
-        card
-      );
-    } catch (error) {
-      return ResponseHelper.sendResponse(500, (error as Error).message);
-    }
-  }
-
-  async updateCardToCustomer(req: Request): Promise<ApiResponse> {
-    const { expMonth, expYear, name }: any = req.body;
-
-    try {
-      const user: IUser | null = await this.userRepository.getById(
-        req.locals.auth?.userId ?? "",
-        undefined,
-        "stripeCustomerId"
-      );
-      if (!user) return ResponseHelper.sendResponse(404, "User not found");
-
-      const cardObj: Stripe.CustomerSourceUpdateParams = {
-        exp_month: expMonth,
-        exp_year: expYear,
-        name,
-      };
-
-      const card = await stripeHelper.updateCard(
-        user?.stripeCustomerId as string,
-        req.params.id,
-        cardObj
-      );
-      if (!card) return ResponseHelper.sendResponse(404, "Card not updated");
-      return ResponseHelper.sendSuccessResponse(
-        "Card updated successfully",
-        card
-      );
-    } catch (error) {
-      return ResponseHelper.sendResponse(500, (error as Error).message);
-    }
-  }
-
-  async getCustomerCards(req: Request): Promise<ApiResponse> {
-    try {
-      const user: IUser | null = await this.userRepository.getById(
-        req.locals.auth?.userId ?? "",
-        undefined,
-        "stripeCustomerId"
-      );
-      if (!user) return ResponseHelper.sendResponse(404, "User not found");
-      const cards = await stripeHelper.getCustomerCards(
-        user.stripeCustomerId as string,
-        parseInt(req.body.page)
-      );
-
-      if (cards.data.length == 0)
-        return ResponseHelper.sendResponse(404, "Card list not found");
-      return ResponseHelper.sendSuccessResponse("Card list found", cards);
-    } catch (error) {
-      return ResponseHelper.sendResponse(500, (error as Error).message);
-    }
-  }
-
-  async selectDefaultCard(req: Request): Promise<ApiResponse> {
-    try {
-      const user: IUser | null = await this.userRepository.getById(
-        req.locals.auth?.userId ?? "",
-        undefined,
-        "stripeCustomerId"
-      );
-      if (!user) return ResponseHelper.sendResponse(404, "User not found");
-      const card = await stripeHelper.selectDefaultCard(
-        user.stripeCustomerId as string,
-        req.params.id
-      );
-      return ResponseHelper.sendSuccessResponse("Default card updated", card);
-    } catch (error) {
-      return ResponseHelper.sendResponse(500, (error as Error).message);
-    }
-  }
-
-  async createTopUp(req: Request): Promise<ApiResponse> {
-    let { amount, source, currency, description } = req.body;
-
-    try {
-      const user: IUser | null = await this.userRepository.getById(
-        req.locals.auth?.userId ?? "",
-        undefined,
-        "stripeConnectId stripeCustomerId"
-      );
-      if (!user?.stripeCustomerId) {
-        return ResponseHelper.sendResponse(400, "Please add a card first");
-      }
-
-      const customer = await stripeHelper.updateCustomer(
-        user.stripeCustomerId,
-        { source }
-      );
-      if (!customer) {
-        return ResponseHelper.sendResponse(400, "Customer not updated");
-      }
-
-      const charge = await stripeHelper.stripeCharge({
-        amount: amount * 100,
-        currency: currency || "usd",
-        description,
-        customer: user.stripeCustomerId,
-        statement_descriptor: "Top-up",
-        capture: true,
-      });
-
-      const netAmount = amount - (amount * STRIPE_PERCENTAGE + STRIPE_FIXED);
-
-      if (charge.status == "succeeded") {
-        const wallet = await this.walletRepository.updateBalance(
-          req.locals.auth?.userId as string,
-          netAmount
-        );
-
-        this.transactionRepository.create({
-          amount,
-          user: req.locals.auth?.userId as string,
-          type: TransactionType.topUp,
-          wallet: wallet?._id,
-        } as ITransaction);
-        return ResponseHelper.sendSuccessResponse(
-          "Top up created successfully",
-          { charge, wallet }
-        );
-      }
-      throw charge;
-    } catch (error) {
-      return ResponseHelper.sendResponse(500, (error as Error).message);
-    }
   }
 
   async createPaymentIntent(req: Request): Promise<ApiResponse> {
@@ -337,6 +171,8 @@ class StripeService {
             type: TransactionType.applicationFee,
             wallet: updatedWallet?._id as string,
             status: ETransactionStatus.pending,
+            createdAt: new Date(),
+            updatedAt: new Date(),
           } as ITransaction,
           { session }
         ),
@@ -347,6 +183,8 @@ class StripeService {
             type: TransactionType.topUp,
             wallet: updatedWallet?._id as string,
             status: ETransactionStatus.completed,
+            createdAt: new Date(),
+            updatedAt: new Date(),
           } as ITransaction,
           { session }
         ),
@@ -407,9 +245,6 @@ class StripeService {
           account.charges_enabled &&
           account.payouts_enabled
         ) {
-          console.log(
-            `Account ${account.id} is fully activated and ready to use.`
-          );
           this.userRepository.updateByOne(
             { stripeConnectId: account.id },
             { accountAuthorized: true }
@@ -485,156 +320,6 @@ class StripeService {
       if (!customer)
         return ResponseHelper.sendResponse(404, "Customer not found");
       return ResponseHelper.sendSuccessResponse("Customer retreived", customer);
-    } catch (error) {
-      return ResponseHelper.sendResponse(500, (error as Error).message);
-    }
-  }
-
-  async addBank(req: Request): Promise<ApiResponse> {
-    try {
-      const user: IUser | null = await this.userRepository.getById(
-        req.locals.auth?.userId ?? "",
-        undefined,
-        "stripeConnectId"
-      );
-      if (!user) return ResponseHelper.sendResponse(404, "User not found");
-      const connect = await stripeHelper.getConnect(
-        user.stripeConnectId as string
-      );
-      if (!connect)
-        return ResponseHelper.sendResponse(404, "Connect not found");
-
-      const bank = await stripeHelper.addBankAccount(
-        user.stripeConnectId as string,
-        { external_account: req.body }
-      );
-      return ResponseHelper.sendSuccessResponse("Bank account added", bank);
-    } catch (error) {
-      return ResponseHelper.sendResponse(500, (error as Error).message);
-    }
-  }
-
-  async updateBank(sourceId: string, req: Request): Promise<ApiResponse> {
-    try {
-      const { account_holder_name, account_holder_type } = req.body;
-      const user: IUser | null = await this.userRepository.getById(
-        req.locals.auth?.userId ?? "",
-        undefined,
-        "stripeConnectId"
-      );
-      if (!user) return ResponseHelper.sendResponse(404, "User not found");
-      const connect = await stripeHelper.getConnect(
-        user.stripeConnectId as string
-      );
-      if (!connect)
-        return ResponseHelper.sendResponse(404, "Connect not found");
-
-      const bank = await stripeHelper.updateBankAccount(
-        sourceId,
-        user.stripeConnectId as string,
-        {
-          account_holder_name,
-          account_holder_type,
-        } as any
-      );
-      return ResponseHelper.sendSuccessResponse("Bank account updated", bank);
-    } catch (error) {
-      return ResponseHelper.sendResponse(500, (error as Error).message);
-    }
-  }
-
-  async deleteBank(sourceId: string, req: Request): Promise<ApiResponse> {
-    try {
-      const user: IUser | null = await this.userRepository.getById(
-        req.locals.auth?.userId ?? "",
-        undefined,
-        "stripeConnectId"
-      );
-      if (!user) return ResponseHelper.sendResponse(404, "User not found");
-      const connect = await stripeHelper.getConnect(
-        user.stripeConnectId as string
-      );
-      if (!connect)
-        return ResponseHelper.sendResponse(404, "Connect not found");
-
-      const result = await stripeHelper.deleteBank(
-        sourceId,
-        user.stripeConnectId as string
-      );
-      return ResponseHelper.sendSuccessResponse(
-        SUCCESS_DATA_DELETION_PASSED,
-        result
-      );
-    } catch (error) {
-      return ResponseHelper.sendResponse(500, (error as Error).message);
-    }
-  }
-
-  async deleteSource(sourceId: string, req: Request): Promise<ApiResponse> {
-    try {
-      const user: IUser | null = await this.userRepository.getById(
-        req.locals.auth?.userId ?? "",
-        undefined,
-        "stripeCustomerId"
-      );
-      if (!user) return ResponseHelper.sendResponse(404, "User not found");
-      const customer = await stripeHelper.getStripeCustomer(
-        user.stripeCustomerId as string
-      );
-      if (!customer)
-        return ResponseHelper.sendResponse(404, "Customer not found");
-
-      const result = await stripeHelper.deleteSource(
-        sourceId,
-        user.stripeCustomerId as string
-      );
-      return ResponseHelper.sendSuccessResponse(
-        SUCCESS_DATA_DELETION_PASSED,
-        result
-      );
-    } catch (error) {
-      return ResponseHelper.sendResponse(500, (error as Error).message);
-    }
-  }
-
-  async getBankAccounts(req: Request): Promise<ApiResponse> {
-    try {
-      const user: IUser | null = await this.userRepository.getById(
-        req.locals.auth?.userId ?? "",
-        undefined,
-        "stripeConnectId"
-      );
-      if (!user) return ResponseHelper.sendResponse(404, "User not found");
-      const banks = await stripeHelper.getBankAccounts(
-        user.stripeConnectId as string,
-        parseInt(req.body.page)
-      );
-      return ResponseHelper.sendSuccessResponse("Bank list found", banks);
-    } catch (error) {
-      return ResponseHelper.sendResponse(500, (error as Error).message);
-    }
-  }
-
-  async getPaymentMethods(req: Request): Promise<ApiResponse> {
-    try {
-      const user: IUser | null = await this.userRepository.getById(
-        req.locals.auth?.userId ?? "",
-        undefined,
-        "stripeCustomerId"
-      );
-      if (!user) return ResponseHelper.sendResponse(404, "User not found");
-      const paymentMethods = await stripeHelper.getPaymentMethods(
-        user.stripeCustomerId as string,
-        parseInt(req.body.page)
-      );
-
-      return ResponseHelper.sendSuccessResponse(
-        "Payment methods list found",
-        paymentMethods.data.filter(
-          (a: Stripe.CustomerSource) =>
-            a.object !== "source" && a.object !== "bank_account"
-        )
-      );
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
@@ -758,6 +443,7 @@ class StripeService {
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   }
+
   stripeBalance = async (req: Request): Promise<ApiResponse> => {
     try {
       const balance = await stripeHelper.retrieveBalance();

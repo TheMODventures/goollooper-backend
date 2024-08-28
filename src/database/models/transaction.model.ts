@@ -11,6 +11,7 @@ const transactionModel: Schema = new Schema(
   {
     user: { type: Schema.Types.ObjectId, ref: "User", required: true },
     wallet: { type: Schema.Types.ObjectId, ref: "Wallet" },
+
     amount: { type: Number, required: true, positive: true, default: 0 },
     type: {
       type: String,
