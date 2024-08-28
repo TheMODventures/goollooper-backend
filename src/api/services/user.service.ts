@@ -191,100 +191,103 @@ class UserService {
       });
 
       dataset.company = { ...userResponse?.company, ...dataset.company };
-      if (req && _.isArray(req.files)) {
-        if (
-          req.files.length &&
-          req.files?.find((file) => file.fieldname === "profileImage")
-        ) {
-          const image = req.files?.filter(
-            (file) => file.fieldname === "profileImage"
-          );
-          let path = await this.uploadHelper.uploadFileFromBuffer(image);
-          dataset.profileImage = path[0];
-        }
+      // if (req && _.isArray(req.files)) {
+      //   if (
+      //     req.files.length &&
+      //     req.files?.find((file) => file.fieldname === "profileImage")
+      //   ) {
+      //     const image = req.files?.filter(
+      //       (file) => file.fieldname === "profileImage"
+      //     );
+      //     let path = await this.uploadHelper.uploadFileFromBuffer(image);
+      //     dataset.profileImage = path[0];
+      //   }
 
-        if (
-          req.files.length &&
-          req.files?.find((file) => file.fieldname === "gallery")
-        ) {
-          const image = req.files?.filter(
-            (file) => file.fieldname === "gallery"
-          );
-          let path: any = await this.uploadHelper.uploadFileFromBuffer(image);
-          body.galleryImages?.push(...path);
-          dataset.gallery = body.galleryImages || path;
-        }
+      //   if (
+      //     req.files.length &&
+      //     req.files?.find((file) => file.fieldname === "gallery")
+      //   ) {
+      //     const image = req.files?.filter(
+      //       (file) => file.fieldname === "gallery"
+      //     );
+      //     let path: any = await this.uploadHelper.uploadFileFromBuffer(image);
+      //     body.galleryImages?.push(...path);
+      //     dataset.gallery = body.galleryImages || path;
+      //   }
 
-        if (
-          req.files.length &&
-          req.files?.find((file) => file.fieldname === "visuals")
-        ) {
-          const image = req.files?.filter(
-            (file) => file.fieldname === "visuals"
-          );
-          let path = await this.uploadHelper.uploadFileFromBuffer(image);
-          body.visualFiles?.push(...path);
-          dataset.visuals = body.visualFiles || path;
-        }
+      //   if (
+      //     req.files.length &&
+      //     req.files?.find((file) => file.fieldname === "visuals")
+      //   ) {
+      //     const image = req.files?.filter(
+      //       (file) => file.fieldname === "visuals"
+      //     );
+      //     let path = await this.uploadHelper.uploadFileFromBuffer(image);
+      //     body.visualFiles?.push(...path);
+      //     dataset.visuals = body.visualFiles || path;
+      //   }
 
-        if (
-          req.files.length &&
-          req.files?.find((file) => file.fieldname === "companyLogo")
-        ) {
-          const image = req.files?.filter(
-            (file) => file.fieldname === "companyLogo"
-          );
-          let path = await this.uploadHelper.uploadFileFromBuffer(image);
-          dataset.company.logo = path[0];
-        }
+      //   if (
+      //     req.files.length &&
+      //     req.files?.find((file) => file.fieldname === "companyLogo")
+      //   ) {
+      //     const image = req.files?.filter(
+      //       (file) => file.fieldname === "companyLogo"
+      //     );
+      //     let path = await this.uploadHelper.uploadFileFromBuffer(image);
+      //     dataset.company.logo = path[0];
+      //   }
 
-        if (
-          req.files.length &&
-          req.files?.find((file) => file.fieldname === "companyResume")
-        ) {
-          const image = req.files?.filter(
-            (file) => file.fieldname === "companyResume"
-          );
-          let path = await this.uploadHelper.uploadFileFromBuffer(image);
-          dataset.company.resume = path[0];
-        }
+      //   if (
+      //     req.files.length &&
+      //     req.files?.find((file) => file.fieldname === "companyResume")
+      //   ) {
+      //     const image = req.files?.filter(
+      //       (file) => file.fieldname === "companyResume"
+      //     );
+      //     let path = await this.uploadHelper.uploadFileFromBuffer(image);
+      //     dataset.company.resume = path[0];
+      //   }
 
-        if (
-          req.files.length &&
-          req.files?.find((file) => file.fieldname === "certificates")
-        ) {
-          const image = req.files?.filter(
-            (file) => file.fieldname === "certificates"
-          );
-          let path = await this.uploadHelper.uploadFileFromBuffer(image);
-          body.certificateFiles?.push(...path);
-          dataset.certificates = body.certificateFiles || path;
-        }
+      //   if (
+      //     req.files.length &&
+      //     req.files?.find((file) => file.fieldname === "certificates")
+      //   ) {
+      //     const image = req.files?.filter(
+      //       (file) => file.fieldname === "certificates"
+      //     );
+      //     let path = await this.uploadHelper.uploadFileFromBuffer(image);
+      //     body.certificateFiles?.push(...path);
+      //     dataset.certificates = body.certificateFiles || path;
+      //   }
 
-        if (
-          req.files.length &&
-          req.files?.find((file) => file.fieldname === "licenses")
-        ) {
-          const image = req.files?.filter(
-            (file) => file.fieldname === "licenses"
-          );
-          let path = await this.uploadHelper.uploadFileFromBuffer(image);
-          body.licenseFiles?.push(...path);
-          dataset.licenses = body.licenseFiles || path;
-        }
+      //   if (
+      //     req.files.length &&
+      //     req.files?.find((file) => file.fieldname === "licenses")
+      //   ) {
+      //     const image = req.files?.filter(
+      //       (file) => file.fieldname === "licenses"
+      //     );
+      //     let path = await this.uploadHelper.uploadFileFromBuffer(image);
+      //     body.licenseFiles?.push(...path);
+      //     dataset.licenses = body.licenseFiles || path;
+      //   }
 
-        if (
-          req.files.length &&
-          req.files?.find((file) => file.fieldname === "insurances")
-        ) {
-          const image = req.files?.filter(
-            (file) => file.fieldname === "insurances"
-          );
-          let path = await this.uploadHelper.uploadFileFromBuffer(image);
-          body.insuranceFiles?.push(...path);
-          dataset.insurances = body.insuranceFiles || path;
-        }
-      }
+      //   if (
+      //     req.files.length &&
+      //     req.files?.find((file) => file.fieldname === "insurances")
+      //   ) {
+      //     const image = req.files?.filter(
+      //       (file) => file.fieldname === "insurances"
+      //     );
+      //     let path = await this.uploadHelper.uploadFileFromBuffer(image);
+      //     body.insuranceFiles?.push(...path);
+      //     dataset.insurances = body.insuranceFiles || path;
+      //   }
+      // }
+      //
+
+      // file is now will be handling from the fe with media api
       let isBSL = false;
       if (dataset?.subscription?.subscription) {
         // let response = await stripeHelper.subscriptions(dataset.subscription.subscription);
@@ -377,41 +380,6 @@ class UserService {
           ...dataset?.taskLocation
         );
       }
-
-      // Check if locationType is local and all location details are provided
-      // if (
-      //   dataset.locationType === EUserLocationType.local &&
-      //   (!dataset.location || !dataset.location.length)
-      // ) {
-      //   return ResponseHelper.sendResponse(422, "Provide all location details");
-      // }
-
-      // if (
-      //   dataset.locationType === EUserLocationType.local &&
-      //   dataset.location &&
-      //   dataset.location.length
-      // ) {
-      //   for (let i = 0; i < dataset.location.length; i++) {
-      //     const element = dataset.location[i];
-      //     if (dataset.role == 3) {
-      //       if (element.county || element.city || element.state || (dataset.zipCode && dataset.zipCode.length)) {
-      //         return ResponseHelper.sendResponse(422, "Country, city, state, and zipcode are forbidden for this role");
-      //       }
-      //     } else {
-      //       if (element.coordinates.length < 2 || !element.state || !element.city || !element.county || (dataset.zipCode && !dataset.zipCode.length)) {
-      //         return ResponseHelper.sendResponse(422, "Provide all location details");
-      //       }
-      //     }
-
-      //     // Convert coordinates to float if they exist
-      //     dataset.location[i].coordinates?.map(e => parseFloat(e.toString()));
-      //     dataset.location[i].type ??= "Point";
-
-      //     if (element.isSelected === "true") {
-      //       dataset.selectedLocation = dataset.location[i];
-      //     }
-      //   }
-      // }
 
       if (dataset.schedule?.length) {
         for (let i = 0; i < dataset.schedule.length; i++) {

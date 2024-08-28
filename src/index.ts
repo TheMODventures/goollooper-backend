@@ -37,7 +37,6 @@ class App {
     this.app.use(morgan("dev"));
     this.app.use(express.json());
     this.app.use(express.urlencoded({ extended: true, limit: "100mb" }));
-
     this.app.get("/", (req, res) =>
       res.json({ message: "Welcome to the goollooper" })
     );

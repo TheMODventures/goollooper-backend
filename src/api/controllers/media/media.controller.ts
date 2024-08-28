@@ -12,6 +12,8 @@ class MediaController {
   }
 
   upload = async (req: Request, res: Response) => {
+    console.log("req.files", req.files);
+
     if (req && _.isArray(req.files)) {
       if (
         req.files.length &&

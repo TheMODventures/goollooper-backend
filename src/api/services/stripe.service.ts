@@ -230,7 +230,7 @@ class StripeService {
   }
 
   async createPaymentIntent(req: Request): Promise<ApiResponse> {
-    const { amount, paymentMethodId, type } = req.body;
+    const { amount } = req.body;
     const userId = req.locals.auth?.userId;
 
     if (!userId) {
@@ -257,6 +257,7 @@ class StripeService {
       // Create payment intent
       const paymentIntent = await stripeHelper.createPaymentIntent({
         currency: "usd",
+        confirmation_method: "manual",
         amount: amountInCents,
         payment_method_types: ["card"],
         customer: user.stripeCustomerId,
