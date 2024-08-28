@@ -807,8 +807,6 @@ class StripeService {
     try {
       session.startTransaction();
       const status = req.body.status;
-      console.log("status", status);
-      console.log("req.params.id", req.params.id);
 
       const transaction =
         await this.transactionRepository.getById<ITransaction>(
