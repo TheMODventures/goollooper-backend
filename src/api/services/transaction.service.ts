@@ -6,7 +6,10 @@ import {
   SUCCESS_DATA_UPDATION_PASSED,
   SUCCESS_DATA_DELETION_PASSED,
 } from "../../constant";
-import { ITransaction } from "../../database/interfaces/transaction.interface";
+import {
+  ITransaction,
+  ITransactionDoc,
+} from "../../database/interfaces/transaction.interface";
 import { ResponseHelper } from "../helpers/reponseapi.helper";
 import { TransactionRepository } from "../repository/transaction/transaction.repository";
 
@@ -25,7 +28,7 @@ class TransactionService {
     try {
       const getDocCount = await this.transactionRepository.getCount(filter);
 
-      const response = await this.transactionRepository.getAll<ITransaction>(
+      const response = await this.transactionRepository.getAll<ITransactionDoc>(
         filter,
         "",
         "",
@@ -33,7 +36,7 @@ class TransactionService {
           createdAt: "desc",
         },
         undefined,
-        true,
+        false,
         page,
         limit
       );
@@ -88,7 +91,7 @@ class TransactionService {
 
   create = async (payload: ITransaction): Promise<ApiResponse> => {
     try {
-      const data = await this.transactionRepository.create<ITransaction>(
+      const data = await this.transactionRepository.create<ITransactionDoc>(
         payload
       );
       return ResponseHelper.sendResponse(201, data);
