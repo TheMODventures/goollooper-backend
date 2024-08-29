@@ -641,6 +641,7 @@ class UserService {
       { $skip: (page - 1) * limit },
       { $limit: limit },
     ]);
+    console.log("response", response);
 
     return ResponseHelper.sendSuccessResponse(
       SUCCESS_DATA_LIST_PASSED,
