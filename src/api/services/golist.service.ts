@@ -121,7 +121,7 @@ class GolistService {
               email: 1,
               phone: 1,
               profileImage: 1,
-              location: {
+              selectedLocation: {
                 city: 1,
                 town: 1,
               },

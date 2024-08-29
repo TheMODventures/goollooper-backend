@@ -63,7 +63,13 @@ const createRule = yup.object().shape({
     .shape({
       title: yup.string().required(),
       description: yup.string().notRequired(),
-      applicationEndDate: yup.date().optional(),
+      applicationEndDate: yup
+        .string()
+        .matches(
+          /^(19|20)\d{2}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/,
+          "Please enter a valid application end date in the format YYYY-MM-DD"
+        )
+        .optional(),
       location: yup
         .object()
         .shape({

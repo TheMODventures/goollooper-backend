@@ -70,12 +70,13 @@ class ServiceService {
           },
         },
         {
-          $unwind: "$matchedServices",
-        },
-        {
           $match: {
+            subServices: { $ne: [] },
             matchedServices: { $ne: null },
           },
+        },
+        {
+          $unwind: "$matchedServices",
         },
         {
           $project: {
