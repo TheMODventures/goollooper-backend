@@ -229,6 +229,7 @@ class GolistService {
         // isVerified: true,
         isProfileCompleted: true,
       } as any;
+
       if (town) {
         match["location"] = {
           $elemMatch: { town: { $regex: town, $options: "i" } },
@@ -334,6 +335,9 @@ class GolistService {
       if (rating) {
         query.push({ $sort: { averageRating: rating } });
       }
+
+      query.push({ $sort: { createdAt: -1 } });
+
       query.push(
         ...[
           {
@@ -354,9 +358,16 @@ class GolistService {
           },
         ]
       );
-      query.push({
-        $sort: { createdAt: -1 },
-      });
+      // const users = await this.userRepository.getAllWithAggregatePagination(
+      //   query,
+      //   undefined,
+      //   undefined,
+      //   { createdAt: -1 },
+      //   undefined,
+      //   true,
+      //   page,
+      //   limit
+      // );
       const users = await new UserService().getDataByAggregate(
         page,
         limit,
