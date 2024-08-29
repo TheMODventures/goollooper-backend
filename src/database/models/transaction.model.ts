@@ -25,6 +25,7 @@ const transactionModel: Schema = new Schema(
     },
     task: { type: Schema.Types.ObjectId, ref: "Task" },
     subscription: { type: Schema.Types.ObjectId, ref: "Subscription" },
+    isCredit: { type: Boolean, required: true },
   },
   schemaOptions
 );

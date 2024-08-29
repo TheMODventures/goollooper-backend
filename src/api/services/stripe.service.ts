@@ -9,7 +9,10 @@ import { APPLICATION_FEE } from "../../constant";
 import Stripe from "stripe";
 import { WalletRepository } from "../repository/wallet/wallet.repository";
 import { TransactionRepository } from "../repository/transaction/transaction.repository";
-import { ITransaction } from "../../database/interfaces/transaction.interface";
+import {
+  ITransaction,
+  ITransactionDoc,
+} from "../../database/interfaces/transaction.interface";
 import {
   ETransactionStatus,
   TransactionType,
@@ -164,31 +167,34 @@ class StripeService {
       }
 
       const [topUpTransaction, applicationFeeTransaction] = await Promise.all([
-        this.transactionRepository.create(
+        this.transactionRepository.create<ITransactionDoc>(
           {
             amount: profitInDollars,
             user: req.locals.auth?.userId as string,
             type: TransactionType.applicationFee,
             wallet: updatedWallet?._id as string,
             status: ETransactionStatus.pending,
+            isCredit: true,
             createdAt: new Date(),
             updatedAt: new Date(),
-          } as ITransaction,
+          },
           { session }
         ),
-        this.transactionRepository.create(
+        this.transactionRepository.create<ITransactionDoc>(
           {
             amount: finalAmountToAddInDollars,
             user: req.locals.auth?.userId as string,
             type: TransactionType.topUp,
             wallet: updatedWallet?._id as string,
             status: ETransactionStatus.completed,
+            isCredit: false,
             createdAt: new Date(),
             updatedAt: new Date(),
-          } as ITransaction,
+          },
           { session }
         ),
       ]);
+      console.log(topUpTransaction, applicationFeeTransaction);
 
       if (!topUpTransaction || !applicationFeeTransaction) {
         await session.abortTransaction();
@@ -367,6 +373,7 @@ class StripeService {
           this.transactionRepository.create({
             amount: withdraw.amount / 100,
             user: req.locals.auth?.userId as string,
+            isCredit: false,
             type: TransactionType.withdraw,
             wallet: wallet?._id,
           } as ITransaction);
@@ -470,6 +477,7 @@ class StripeService {
           amount: req.body.amount,
           user: req.locals.auth?.userId as string,
           type: TransactionType.withdraw,
+          isCredit: false,
           status: ETransactionStatus.pending,
         } as ITransaction,
         { session }

@@ -184,6 +184,7 @@ class SubscriptionService {
           amount: payload.price,
           type: TransactionType.subscription,
           status: ETransactionStatus.completed,
+          isCredit: false,
           subscription: subscription.id,
           wallet: wallet._id as string,
         } as ITransaction,

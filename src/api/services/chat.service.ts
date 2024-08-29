@@ -316,7 +316,6 @@ export class ChatService {
           });
 
           const creatorId = chat.createdBy ? chat.createdBy.toString() : "";
-          // console.log("~ chat", chat);
 
           const updatedParticipants = chat.participants.filter(
             (participant: IParticipant) =>

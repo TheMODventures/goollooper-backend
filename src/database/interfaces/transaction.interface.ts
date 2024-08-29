@@ -3,7 +3,7 @@ import { Moment } from "moment";
 
 import { ETransactionStatus, TransactionType } from "./enums";
 
-export interface ITransaction extends JwtToken {
+export interface ITransaction {
   _id?: mongoose.Types.ObjectId | string;
   user: mongoose.Types.ObjectId | string;
   wallet: mongoose.Types.ObjectId | string;
@@ -12,8 +12,7 @@ export interface ITransaction extends JwtToken {
   task?: mongoose.Types.ObjectId | string;
   status: ETransactionStatus;
   subscription?: mongoose.Types.ObjectId | string;
-  createdAt?: Date | Moment;
-  updatedAt?: Date | Moment;
+  isCredit: boolean;
 }
 
 export interface ITransactionDoc extends ITransaction, Document {
