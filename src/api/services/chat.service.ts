@@ -4,6 +4,7 @@ import { Request } from "express";
 import _ from "lodash";
 
 import {
+  SERVICE_INITIATION_FEE,
   SUCCESS_DATA_LIST_PASSED,
   SUCCESS_DATA_UPDATION_PASSED,
 } from "../../constant";
@@ -17,6 +18,7 @@ import { ITask } from "../../database/interfaces/task.interface";
 import { ICalendar } from "../../database/interfaces/calendar.interface";
 import { ChatRepository } from "../repository/chat/chat.repository";
 import { TaskRepository } from "../repository/task/task.repository";
+import { WalletRepository } from "../repository/wallet/wallet.repository";
 import { CalendarRepository } from "../repository/calendar/calendar.repository";
 import { Authorize } from "../../middleware/authorize.middleware";
 import { ResponseHelper } from "../helpers/reponseapi.helper";
@@ -27,6 +29,7 @@ import {
   MessageType,
   RequestStatus,
 } from "../../database/interfaces/enums";
+import { IWallet } from "../../database/interfaces/wallet.interface";
 
 interface CustomSocket extends SocketIO.Socket {
   user?: any; // Adjust the type according to your user structure
@@ -232,13 +235,13 @@ export class ChatService {
   private taskRepository: TaskRepository;
   private calendarRepository: CalendarRepository;
   private uploadHelper: UploadHelper;
-
+  private walletRepository: WalletRepository;
   constructor() {
     this.chatRepository = new ChatRepository();
     this.taskRepository = new TaskRepository();
     this.calendarRepository = new CalendarRepository();
-
     this.uploadHelper = new UploadHelper("chat");
+    this.walletRepository = new WalletRepository();
   }
 
   addRequest = async (
@@ -297,6 +300,9 @@ export class ChatService {
 
         case "2":
           msg.body = "Pause";
+          const task = await this.taskRepository.updateById<ITask>(chat?.task, {
+            status: ETaskStatus.pause,
+          });
           msg.type = MessageType.pause;
           break;
 
@@ -341,58 +347,131 @@ export class ChatService {
               (provider: any) => ({
                 user: provider.user as string,
                 task: chat.task,
-                date: dataset.date ? dataset.date.toISOString() : "",
+                date: dataset.date
+                  ? dataset?.date.toISOString()
+                  : new Date().toISOString(),
               })
             );
-
             await this.calendarRepository.createMany(calendarEntries);
           }
           break;
 
-        case "5":
-          msg.type = MessageType.invoice;
-          if (
-            !dataset.amount &&
-            dataset.status === RequestStatus.SERVICE_PROVIDER_INVOICE_REQUEST
-          )
-            return ResponseHelper.sendResponse(404, "Amount is required");
-          msg.body = dataset?.amount || "0";
-          if (dataset.mediaUrl) {
-            msg.mediaUrls = [dataset.mediaUrl];
-          }
-          let task: ITask | null = await this.taskRepository.getById(
-            chat?.task
-          );
-          if (task && !task?.commercial) {
-            msg.type = MessageType.complete;
-            await this.taskRepository.updateById<ITask>(chat?.task, {
-              status: ETaskStatus.completed,
-            });
-            await this.calendarRepository.updateMany<ICalendar>(
-              { task: new mongoose.Types.ObjectId(chat?.task) },
-              {
-                isActive: false,
-              }
-            );
-          }
-          break;
+        case "5": {
+          const taskId = chat?.task;
+          const amount = dataset.amount || "0";
+          const isServiceProviderInvoice =
+            dataset.status === RequestStatus.SERVICE_PROVIDER_INVOICE_REQUEST;
 
-        case "6":
+          // Early return if amount is required but not provided
+          if (!amount && isServiceProviderInvoice) {
+            return ResponseHelper.sendResponse(404, "Amount is required");
+          }
+
+          // Set initial message properties
+          msg.type = MessageType.invoice;
+          msg.body = amount;
+          if (dataset.mediaUrl) msg.mediaUrls = [dataset.mediaUrl];
+
+          if (!taskId)
+            return ResponseHelper.sendResponse(404, "Task id not found");
+
+          // Fetch the task associated with the chat
+          const task: ITask | null = await this.taskRepository.getById(taskId);
+          if (!task) return ResponseHelper.sendResponse(404, "Task not found");
+
+          if (task.commercial) {
+            // Update invoice amount for commercial tasks
+            await this.taskRepository.updateById<ITask>(taskId, {
+              invoiceAmount: amount,
+            });
+          } else {
+            // Mark non-commercial task as completed and update calendar
+            msg.type = MessageType.complete;
+            await Promise.all([
+              this.taskRepository.updateById<ITask>(taskId, {
+                status: ETaskStatus.completed,
+              }),
+              this.calendarRepository.updateMany<ICalendar>(
+                { task: new mongoose.Types.ObjectId(taskId) },
+                { isActive: false }
+              ),
+            ]);
+          }
+
+          break;
+        }
+
+        case "6": {
           msg.body = "Completed";
           msg.type = MessageType.complete;
-          if (!dataset.amount)
+
+          // Validate amount
+          const amount = Number(dataset.amount);
+          if (isNaN(amount) || amount <= 0) {
             return ResponseHelper.sendResponse(404, "Amount is required");
-          msg.body = dataset?.amount;
-          await this.taskRepository.updateById<ITask>(chat?.task, {
-            status: ETaskStatus.completed,
-          });
-          await this.calendarRepository.updateMany<ICalendar>(
-            { task: new mongoose.Types.ObjectId(chat?.task) },
-            {
-              isActive: false,
-            }
+          }
+
+          // Fetch the completed task
+          const completedTask = await this.taskRepository.getById<ITask>(
+            chat?.task
           );
+          if (!completedTask) {
+            return ResponseHelper.sendResponse(404, "Task not found");
+          }
+
+          // Check if the task is commercial and validate the invoice amount
+          if (completedTask.commercial) {
+            if (
+              completedTask.invoiceAmount === undefined ||
+              amount <= completedTask.invoiceAmount
+            ) {
+              return ResponseHelper.sendResponse(
+                404,
+                "Amount should be greater than the invoice amount"
+              );
+            }
+
+            // Fetch and validate user wallet
+            const userWallet = await this.walletRepository.getOne<IWallet>({
+              user: userId,
+            });
+            if (!userWallet) {
+              return ResponseHelper.sendResponse(404, "Wallet not found");
+            }
+            if (userWallet.balance < amount) {
+              return ResponseHelper.sendResponse(404, "Insufficient balance");
+            }
+
+            // Update user wallet balance and service provider balance using $inc
+            const serviceProviderId = completedTask.serviceProviders[0]
+              .user as string;
+            await Promise.all([
+              await this.walletRepository.updateByOne<IWallet>(
+                { user: userId as string },
+                {
+                  $inc: {
+                    amountHeld: -SERVICE_INITIATION_FEE,
+                    balance: -(amount - SERVICE_INITIATION_FEE),
+                  },
+                }
+              ),
+              this.walletRepository.updateBalance(serviceProviderId, +amount),
+            ]);
+          }
+
+          // Update task and calendar status
+          await Promise.all([
+            this.taskRepository.updateById<ITask>(chat?.task, {
+              status: ETaskStatus.completed,
+            }),
+            this.calendarRepository.updateMany<ICalendar>(
+              { task: new mongoose.Types.ObjectId(chat?.task) },
+              { isActive: false }
+            ),
+          ]);
+
           break;
+        }
 
         default:
           break;

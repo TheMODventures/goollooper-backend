@@ -13,10 +13,10 @@ export interface ITransaction {
   status: ETransactionStatus;
   subscription?: mongoose.Types.ObjectId | string;
   isCredit: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export interface ITransactionDoc extends ITransaction, Document {
   _id?: mongoose.Types.ObjectId;
-  createdAt?: Date;
-  updatedAt?: Date;
 }

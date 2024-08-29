@@ -6,6 +6,7 @@ export interface IWallet extends JwtToken {
   _id?: mongoose.Types.ObjectId | string;
   user: mongoose.Types.ObjectId | string;
   balance: number;
+  amountHeld: number;
   selectedTopupMethod: TOPUP_METHOD;
 }
 

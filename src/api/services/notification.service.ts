@@ -180,15 +180,12 @@ class NotificationService {
     }
   };
 
-  update = async (
-    _id: string,
-    dataset: Partial<INotification>
-  ): Promise<ApiResponse> => {
+  update = async (dataset: Partial<INotification>): Promise<ApiResponse> => {
     try {
       const response =
-        await this.notificationRepository.updateById<INotification>(
-          _id,
-          dataset
+        await this.notificationRepository.updateMany<INotification>(
+          { receiver: dataset.receiver, isRead: false },
+          { isRead: true }
         );
       if (response === null) {
         return ResponseHelper.sendResponse(404);

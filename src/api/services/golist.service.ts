@@ -220,29 +220,6 @@ class GolistService {
   ) => {
     try {
       const query: PipelineStage[] = [];
-      // if (zipCode) {
-      //   // coordinates = []
-      //   const googleCoordinates = (await GoogleMapHelper.searchLocation(
-      //     zipCode,
-      //     ""
-      //   )) as Number[] | null;
-      //   if (!googleCoordinates)
-      //     return ResponseHelper.sendResponse(404, "postal code is invalid");
-      //   coordinates = googleCoordinates;
-      // }
-      // if (coordinates?.length !== 0 && !isNaN(coordinates[0] as number)) {
-      //   query.push({
-      //     $geoNear: {
-      //       near: {
-      //         type: "Point",
-      //         coordinates: coordinates as [number, number],
-      //       },
-      //       distanceField: "distance",
-      //       spherical: true,
-      //       maxDistance: 2000,
-      //     },
-      //   });
-      // }
       const match = {
         _id: { $ne: new mongoose.Types.ObjectId(userId) },
         isDeleted: false,
@@ -377,6 +354,9 @@ class GolistService {
           },
         ]
       );
+      query.push({
+        $sort: { createdAt: -1 },
+      });
       const users = await new UserService().getDataByAggregate(
         page,
         limit,

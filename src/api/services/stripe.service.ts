@@ -479,6 +479,8 @@ class StripeService {
           type: TransactionType.withdraw,
           isCredit: false,
           status: ETransactionStatus.pending,
+          createdAt: new Date(),
+          updatedAt: new Date(),
         } as ITransaction,
         { session }
       );
