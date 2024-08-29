@@ -20,6 +20,12 @@ class NotificationRoutes extends BaseRoutes {
       this.notificationController.index
     );
 
+    this.router.put(
+      "/update",
+      this.validateRequest,
+      this.notificationController.update
+    );
+
     this.router.delete(
       "/delete/:id",
       this.validateRequest,

@@ -187,6 +187,8 @@ class SubscriptionService {
           isCredit: false,
           subscription: subscription.id,
           wallet: wallet._id as string,
+          createdAt: new Date(),
+          updatedAt: new Date(),
         } as ITransaction,
         { session }
       );

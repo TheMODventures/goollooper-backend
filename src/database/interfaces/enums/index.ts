@@ -72,6 +72,7 @@ export enum ETaskStatus {
   assigned = "assigned",
   completed = "completed",
   cancelled = "cancelled",
+  pause = "pause",
 }
 export enum ETaskUserStatus {
   PENDING = 1,

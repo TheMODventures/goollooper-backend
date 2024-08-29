@@ -57,9 +57,10 @@ export interface ITask {
   acceptedCount?: number;
   status?: ETaskStatus;
   serviceProviders: {
-    user: mongoose.Types.ObjectId;
+    user: mongoose.Types.ObjectId | string;
     status: ETaskUserStatus;
   }[];
+  invoiceAmount?: number;
   endDate?: Date | Moment;
   createdAt?: Date | Moment;
   updatedAt?: Date | Moment;
