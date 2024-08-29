@@ -632,15 +632,16 @@ class UserService {
   ) => {
     const countPipeline = (await this.userRepository.getDataByAggregate([
       ...(pipeline ?? []),
-      { $sort: { distance: -1 } },
+      { $sort: { createdAt: -1 } },
       { $count: "totalCount" },
     ])) as any[];
     const response = await this.userRepository.getDataByAggregate([
       ...(pipeline ?? []),
-      { $sort: { distance: -1 } },
+      { $sort: { createdAt: -1 } },
       { $skip: (page - 1) * limit },
       { $limit: limit },
     ]);
+
     return ResponseHelper.sendSuccessResponse(
       SUCCESS_DATA_LIST_PASSED,
       response,
