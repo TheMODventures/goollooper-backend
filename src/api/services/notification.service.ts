@@ -295,8 +295,9 @@ class NotificationService {
   };
 
   async getNotificationCount(userId: string) {
-    const count = await this.notificationRepository.getCount({
+    const count = await this.notificationRepository.getCount<INotification>({
       receiver: userId,
+      isRead: false,
     });
     return count;
   }

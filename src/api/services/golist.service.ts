@@ -358,22 +358,26 @@ class GolistService {
           },
         ]
       );
-      // const users = await this.userRepository.getAllWithAggregatePagination(
-      //   query,
-      //   undefined,
-      //   undefined,
-      //   { createdAt: -1 },
-      //   undefined,
-      //   true,
-      //   page,
-      //   limit
-      // );
-      const users = await new UserService().getDataByAggregate(
+      const users = await this.userRepository.getAllWithAggregatePagination(
+        query,
+        undefined,
+        undefined,
+        { createdAt: -1 },
+        undefined,
+        true,
         page,
-        limit,
-        query
+        limit
       );
-      return users;
+      // const users = await new UserService().getDataByAggregate(
+      //   page,
+      //   limit,
+      //   query
+      // );
+      return ResponseHelper.sendSuccessResponse(
+        SUCCESS_DATA_LIST_PASSED,
+        users
+      );
+      // return ResponseHelper.sendResponse(200, users);
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
