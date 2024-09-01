@@ -354,7 +354,7 @@ class UserService {
           dataset.location[i].coordinates?.map((e) => parseFloat(e.toString()));
           dataset.location[i].type ??= "Point";
 
-          // Ensure `type` is set to "Point"
+          // Ensure type is set to "Point"
           element.type = "Point";
 
           // Check if the element is selected
@@ -370,15 +370,21 @@ class UserService {
         }
       }
 
-      if (dataset.taskLocation) {
-        if (dataset.taskLocation.length === 3) {
-          dataset.taskLocation.shift();
+      if (dataset.taskLocation && dataset.taskLocation.length > 0) {
+        if (dataset.taskLocation.length > 3) {
+          return ResponseHelper.sendResponse(
+            422,
+            "can add upto 3 locations Max"
+          );
         }
-        console.log("~ dataset.taskLocation", dataset.taskLocation);
-        dataset.taskLocation.push(
-          ...(userResponse?.taskLocation ?? []),
-          ...dataset?.taskLocation
-        );
+
+        for (let i = 0; i < dataset.taskLocation.length; i++) {
+          const element = dataset.taskLocation[i];
+
+          if (element.isSelected === "true") {
+            dataset.taskSelectedLocation = element;
+          }
+        }
       }
 
       if (dataset.schedule?.length) {
