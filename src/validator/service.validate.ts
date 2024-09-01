@@ -42,6 +42,8 @@ const createRule = yup.object().shape({
       title: yup.string().required(),
       type: yup.string().required(),
       parent: yup.string().notRequired(),
+      industry: yup.string().required(),
+      keyWords: yup.array().of(yup.string()).notRequired(),
     })
     .noUnknown(),
   query: yup.object().noUnknown(),
@@ -57,6 +59,7 @@ const indexRule = yup.object().shape({
       limit: yup.string().notRequired(),
       title: yup.string().notRequired(),
       type: yup.string().notRequired(),
+      search: yup.string().notRequired(),
     })
     .noUnknown(),
 });

@@ -15,16 +15,19 @@ class ServiceRoutes extends BaseRoutes {
 
   protected routes(): void {
     this.router.get("/", this.validateRequest, this.serviceController.index);
-    this.router.post(
-      "/create",
-      this.validateRequest,
-      this.serviceController.create
-    );
+
+    // this.router.post(
+    //   "/create",
+    //   this.validateRequest,
+    //   this.serviceController.create
+    // );
+
     this.router.get(
       "/show/:id",
       this.validateRequest,
       this.serviceController.show
     );
+
     this.router.patch(
       "/update/:id",
       this.validateRequest,
