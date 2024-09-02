@@ -64,6 +64,8 @@ class UserRoutes extends BaseRoutes {
   protected routes(): void {
     this.router.use("/auth", this.authRoutes.router);
     this.router.use("/guideline", this.guidelineRoutes.router);
+    this.router.use("/transaction", this.transactionRoutes.router);
+
     this.router.use(this.authorize.validateAuth);
     this.router.use("/service", this.serviceRoutes.router);
     this.router.use("/subscription", this.subscriptionRoutes.router);
@@ -76,7 +78,6 @@ class UserRoutes extends BaseRoutes {
     this.router.use("/calendar", this.calendarRoutes.router);
     this.router.use("/chat", this.chatRoutes.router);
     this.router.use("/media", this.mediaRoutes.router);
-    this.router.use("/transaction", this.transactionRoutes.router);
     this.router.use("/stripe", this.stripeRoutes.router);
     this.router.use("/wallet", this.walletRoutes.router);
     this.router.use("/schedule", this.scheduleRoutes.router);
