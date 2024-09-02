@@ -300,9 +300,10 @@ export class ChatService {
 
         case "2":
           msg.body = "Pause";
-          const task = await this.taskRepository.updateById<ITask>(chat?.task, {
+          await this.taskRepository.updateById<ITask>(chat?.task, {
             status: ETaskStatus.pause,
           });
+
           msg.type = MessageType.pause;
           break;
 
@@ -331,6 +332,7 @@ export class ChatService {
           await this.chatRepository.updateById<IChat>(chat._id, {
             participants: updatedParticipants,
           });
+
           break;
 
         case "4":

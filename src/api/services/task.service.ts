@@ -692,6 +692,14 @@ class TaskService {
           } as ICalendar);
         }
 
+        const addUserToServiceProviderArray =
+          await this.taskRepository.updateById(_id, {
+            $addToSet: { serviceProviders: { user, status } },
+          });
+
+        if (!addUserToServiceProviderArray) {
+          return ResponseHelper.sendResponse(404);
+        }
         this.notificationService.createAndSendNotification({
           senderId: user,
           receiverId: response.postedBy,
