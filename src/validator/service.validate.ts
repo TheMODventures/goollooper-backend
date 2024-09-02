@@ -60,6 +60,7 @@ const indexRule = yup.object().shape({
       title: yup.string().notRequired(),
       type: yup.string().notRequired(),
       search: yup.string().notRequired(),
+      parent: yup.string().notRequired(),
     })
     .noUnknown(),
 });

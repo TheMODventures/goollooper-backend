@@ -21,26 +21,52 @@ class ServiceService {
     page: number,
     limit = 10,
     search: string,
-    filter: FilterQuery<IService>
+    filter: FilterQuery<IService>,
+    parent?: string // Optional parent parameter
   ): Promise<ApiResponse> => {
     try {
-      const getDocCount = await this.serviceRepository.getCount(filter);
-      const keyWords = search
-        .split(" ")
-        .map((keyword) => keyword.toLowerCase())
-        .filter(Boolean);
-
+      const keyWords = search.split(" ").filter(Boolean);
       const pipeline: PipelineStage[] = [];
 
+      // Determine whether to filter by parent or not
       pipeline.push({ $match: { isDeleted: false } });
-
-      if (keyWords.length > 0) {
+      if (parent) {
+        // If a parent ID is provided, fetch only the subcategories for that parent
         pipeline.push({
-          $match: {
-            keyWords: { $in: keyWords },
-          },
+          $match: { parent: new mongoose.Types.ObjectId(parent) },
         });
+      } else {
+        pipeline.push({ $match: { parent: null } });
+
+        if (keyWords.length > 0) {
+          pipeline.push({
+            $match: {
+              keyWords: { $in: keyWords },
+            },
+          });
+        }
       }
+
+      pipeline.push({
+        $lookup: {
+          from: "services",
+          localField: "_id",
+          foreignField: "parent",
+          as: "subCategories",
+        },
+      });
+
+      pipeline.push({
+        $addFields: {
+          hasSubCategory: { $gt: [{ $size: "$subCategories" }, 0] },
+        },
+      });
+
+      pipeline.push({
+        $project: {
+          subCategories: 0,
+        },
+      });
 
       const response =
         await this.serviceRepository.getAllWithAggregatePagination<IService>(
@@ -55,10 +81,10 @@ class ServiceService {
           page,
           limit
         );
+
       return ResponseHelper.sendSuccessResponse(
         SUCCESS_DATA_LIST_PASSED,
-        response,
-        getDocCount
+        response
       );
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);
