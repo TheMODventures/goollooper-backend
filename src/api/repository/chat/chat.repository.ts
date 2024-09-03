@@ -1461,6 +1461,7 @@ export class ChatRepository
       const currentUserId = new mongoose.Types.ObjectId(user);
       const chatSupportPip: any = {
         isChatSupport: chatSupport == true,
+        deleted: false,
       };
       if (chatId) chatSupportPip._id = new mongoose.Types.ObjectId(chatId);
       const query: any = [

@@ -528,16 +528,31 @@ class TaskService {
         this.chatRepository.updateById(chatId, { deleted: true }),
       ]);
 
-      if (!taskUpdate) {
+      if (!taskUpdate)
         return ResponseHelper.sendResponse(404, "Task not found");
-      }
+
+      if (taskUpdate.isDeleted)
+        return ResponseHelper.sendResponse(400, "Task is already deleted");
 
       // Delete related calendar entries
       await this.calendarRepository.deleteMany({ task: taskUpdate._id });
 
+      console.log(taskUpdate.postedBy.toString());
+
+      const wallet = await this.userWalletRepository.updateByOne(
+        { user: taskUpdate?.postedBy?.toString() },
+        {
+          $inc: {
+            amountHeld: -SERVICE_INITIATION_FEE,
+            balance: SERVICE_INITIATION_FEE,
+          },
+        }
+      );
+
       return ResponseHelper.sendSuccessResponse(SUCCESS_DATA_DELETION_PASSED);
     } catch (error) {
       console.error("Error deleting task and chat:", error);
+
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   };
