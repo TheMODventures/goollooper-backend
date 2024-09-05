@@ -729,11 +729,10 @@ class TaskService {
       } else if (status === ETaskUserStatus.ACCEPTED) {
         // If the service provider can be accepted, increase the accepted count
         updateCount["$inc"].acceptedCount = 1;
+        updateCount["$inc"].idleCount = -1;
       }
 
-      if (status === ETaskUserStatus.REJECTED) {
-        updateCount["$inc"].idleCount = -1;
-      } else if (status === ETaskUserStatus.ACCEPTED || status === 3) {
+      if (status === ETaskUserStatus.ACCEPTED || status === 3) {
         // Status 3 is for standby
         updateCount["$inc"].idleCount = -1;
       }
@@ -844,9 +843,6 @@ class TaskService {
         return ResponseHelper.sendResponse(404, "Service provider not found");
       }
 
-      console.log("Service provider:", serviceProvider);
-      console.log("Posted by:", response.postedBy);
-
       const [userWallet, serviceProviderWallet] = await Promise.all([
         this.userWalletRepository.getOne<IWallet>({ user: response.postedBy }),
         this.userWalletRepository.getOne<IWallet>({ user: serviceProvider }),
@@ -894,6 +890,15 @@ class TaskService {
       ]);
 
       await this.calendarRepository.deleteMany({ task: response._id });
+
+      await this.notificationService.createAndSendNotification({
+        senderId: response.postedBy,
+        receiverId: serviceProvider,
+        type: ENOTIFICATION_TYPES.TASK_CANCELLED,
+        data: { task: response._id?.toString() },
+        ntitle: "Task Cancelled",
+        nbody: "Task has been cancelled",
+      } as NotificationParams);
       // Return a successful response
       return ResponseHelper.sendSuccessResponse(
         "Task cancelled successfully",
