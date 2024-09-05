@@ -833,9 +833,6 @@ class TaskService {
       if (!response) return ResponseHelper.sendResponse(404, "Task not found");
       if (!chat) return ResponseHelper.sendResponse(404, "Chat not found");
 
-      if (response.status === ETaskStatus.cancelled)
-        return ResponseHelper.sendResponse(400, "Task is already cancelled");
-
       // Ensure the task is commercial
       if (!response.commercial)
         return ResponseHelper.sendResponse(400, "Task is not commercial");
@@ -846,6 +843,9 @@ class TaskService {
       if (!serviceProvider) {
         return ResponseHelper.sendResponse(404, "Service provider not found");
       }
+
+      console.log("Service provider:", serviceProvider);
+      console.log("Posted by:", response.postedBy);
 
       const [userWallet, serviceProviderWallet] = await Promise.all([
         this.userWalletRepository.getOne<IWallet>({ user: response.postedBy }),
@@ -876,9 +876,19 @@ class TaskService {
           amount: SERVICE_INITIATION_FEE,
           user: response.postedBy,
           type: TransactionType.serviceInitiationFee,
-          isCredit: true,
+          isCredit: false,
           status: ETransactionStatus.completed,
           wallet: userWallet?._id as string,
+          task: response._id,
+        } as ITransaction),
+
+        await this.transactionRepository.create({
+          amount: SERVICE_INITIATION_FEE,
+          user: serviceProvider,
+          type: TransactionType.serviceInitiationFee,
+          isCredit: true,
+          status: ETransactionStatus.completed,
+          wallet: serviceProviderWallet?._id as string,
           task: response._id,
         } as ITransaction),
       ]);
