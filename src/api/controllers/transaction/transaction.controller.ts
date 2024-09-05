@@ -12,7 +12,7 @@ class TransactionController {
   }
 
   index = async (req: Request, res: Response) => {
-    const { limit, page, type = "", user } = req.query;
+    const { limit, page, type = "", user, status = "" } = req.query;
     const limitNow = limit ? limit : 10;
 
     let filter: FilterQuery<ITransaction> = {};
@@ -20,6 +20,7 @@ class TransactionController {
     if (type) {
       filter = {
         type: type,
+        status: status,
       };
     }
 

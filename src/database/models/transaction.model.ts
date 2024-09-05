@@ -2,6 +2,8 @@ import mongoose, { Schema } from "mongoose";
 
 import { ETransactionStatus, TransactionType } from "../interfaces/enums";
 import { ITransactionDoc } from "../interfaces/transaction.interface";
+import mongoosePaginate from "mongoose-paginate-v2";
+import aggregatePaginate from "mongoose-aggregate-paginate-v2";
 
 const schemaOptions = {
   timestamps: true,
@@ -29,6 +31,8 @@ const transactionModel: Schema = new Schema(
   },
   schemaOptions
 );
+transactionModel.plugin(mongoosePaginate);
+transactionModel.plugin(aggregatePaginate);
 
 export const Transaction = mongoose.model<ITransactionDoc>(
   "Transaction",

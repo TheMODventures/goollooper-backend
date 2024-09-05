@@ -24,6 +24,7 @@ const indexRule = yup.object().shape({
           ...Object.values(TransactionType).map((value) => value?.toString()),
         ])
         .notRequired(),
+      status: yup.string().notRequired(),
       page: yup.string().required(),
       limit: yup.string().notRequired(),
       user: yup.string().notRequired(),

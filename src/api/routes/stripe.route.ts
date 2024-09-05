@@ -40,7 +40,7 @@ class StripeRoutes extends BaseRoutes {
     );
 
     this.router.post(
-      "/payout/:source",
+      "/payout",
       this.validateRequest,
       this.stripeController.payout
     );

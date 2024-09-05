@@ -65,20 +65,19 @@ class UserRoutes extends BaseRoutes {
     this.router.use("/auth", this.authRoutes.router);
     this.router.use("/guideline", this.guidelineRoutes.router);
     this.router.use("/transaction", this.transactionRoutes.router);
-
     this.router.use(this.authorize.validateAuth);
     this.router.use("/service", this.serviceRoutes.router);
     this.router.use("/subscription", this.subscriptionRoutes.router);
     this.router.use("/user", this.profileRoutes.router);
     this.router.use("/location-data", this.stateRoutes.router);
     this.router.use("/list", this.golistRoutes.router);
+    this.router.use("/stripe", this.stripeRoutes.router);
     this.router.use("/notification", this.notificationRoutes.router);
     this.router.use("/task", this.taskRoutes.router);
     this.router.use("/rating", this.ratingRoutes.router);
     this.router.use("/calendar", this.calendarRoutes.router);
     this.router.use("/chat", this.chatRoutes.router);
     this.router.use("/media", this.mediaRoutes.router);
-    this.router.use("/stripe", this.stripeRoutes.router);
     this.router.use("/wallet", this.walletRoutes.router);
     this.router.use("/schedule", this.scheduleRoutes.router);
   }

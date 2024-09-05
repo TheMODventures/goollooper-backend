@@ -25,7 +25,7 @@ class TransactionService {
     filter: FilterQuery<ITransaction>
   ): Promise<ApiResponse> => {
     try {
-      const response = await this.transactionRepository.getAll<ITransactionDoc>(
+      const response = await this.transactionRepository.getAllWithPagination(
         filter,
         "",
         "",
@@ -35,9 +35,9 @@ class TransactionService {
         {
           path: "user",
           model: "Users",
-          select: "firstName lastName userName email profileImage role",
+          select: "firstName lastName userName email",
         },
-        false,
+        true,
         page,
         limit
       );

@@ -237,7 +237,7 @@ class NotificationService {
         undefined,
         "fcmTokens firstName username lastName"
       );
-    console.log("fcmToken from notification model >>> ", fcmTokens);
+    // console.log("fcmToken from notification model >>> ", fcmTokens);
 
     switch (type) {
       case ENOTIFICATION_TYPES.MESSAGE_REQUEST:
@@ -269,7 +269,9 @@ class NotificationService {
         title = ntitle ?? `#sender`;
         body = nbody ?? `#sender has requested to be added to the task`;
         break;
-
+      case ENOTIFICATION_TYPES.ACTION_REQUEST:
+        title = ntitle ?? `#sender`;
+        body = nbody ?? `#sender has requested this action`;
       default:
         break;
     }

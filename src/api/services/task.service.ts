@@ -41,8 +41,6 @@ import NotificationService, {
 } from "./notification.service";
 import { WalletRepository } from "../repository/wallet/wallet.repository";
 import { IWallet } from "../../database/interfaces/wallet.interface";
-import { stripeHelper } from "../helpers/stripe.helper";
-import { log } from "console";
 import { TransactionRepository } from "../repository/transaction/transaction.repository";
 import { ITransaction } from "../../database/interfaces/transaction.interface";
 
@@ -325,33 +323,66 @@ class TaskService {
           }
         }
       }
+
       const data = await this.taskRepository.create<ITask>(payload);
+      if (!data) return ResponseHelper.sendResponse(400, "Task not created");
 
       if (
         payload.type === TaskType.megablast &&
         payload.taskInterests?.length
       ) {
-        let users = await this.userRepository.getAll({
+        // Fetch users based on task interests, excluding the user who created the task
+        let users = await this.userRepository.getAll<IUser>({
           volunteer: { $in: payload.taskInterests },
+          _id: { $ne: payload.postedBy }, // Exclude the task creator
         });
-        users?.map(async (user: any) => {
-          // when task created it wont add to users calender only notification will be send
-          await this.calendarRepository.create({
-            user: user?._id,
-            task: data._id,
-            date: data.date,
-          } as ICalendar);
 
-          await this.notificationService.createAndSendNotification({
-            senderId: payload.postedBy,
-            receiverId: user?._id,
-            type: ENOTIFICATION_TYPES.ANNOUNCEMENT,
-            data: { task: data?._id?.toString() },
-            ntitle: "Volunteer Work",
-            nbody: payload.title,
-          } as NotificationParams);
-        });
+        if (users?.length) {
+          // Process notifications, calendar entries, and task updates concurrently
+          await Promise.all(
+            users.map(async (user: any) => {
+              // Add task to user's calendar
+              const calendarPromise = this.calendarRepository.create({
+                user: user._id,
+                task: data._id,
+                date: data.date,
+              } as ICalendar);
+
+              // Send notification
+              const notificationPromise =
+                this.notificationService.createAndSendNotification({
+                  senderId: payload.postedBy,
+                  receiverId: user._id,
+                  type: ENOTIFICATION_TYPES.ANNOUNCEMENT,
+                  data: { task: data._id?.toString() },
+                  ntitle: "Volunteer Work",
+                  nbody: payload.title,
+                } as NotificationParams);
+              // Update task to include the user as a service provider
+
+              const taskUpdatePromise = this.taskRepository.updateById(
+                data._id?.toString()!,
+                {
+                  $addToSet: {
+                    serviceProviders: {
+                      user: user?._id?.toString(),
+                      status: ETaskUserStatus.IDLE,
+                    },
+                  },
+                }
+              );
+
+              // Execute all promises concurrently
+              await Promise.all([
+                calendarPromise,
+                notificationPromise,
+                taskUpdatePromise,
+              ]);
+            })
+          );
+        }
       }
+
       if (
         payload.type !== TaskType.megablast &&
         payload.goListServiceProviders.length
@@ -381,6 +412,16 @@ class TaskService {
             amountHeld: +SERVICE_INITIATION_FEE,
           },
         });
+
+        await this.transactionRepository.create({
+          amount: SERVICE_INITIATION_FEE,
+          user: userId,
+          type: TransactionType.serviceInitiationFee,
+          isCredit: false,
+          status: ETransactionStatus.pending,
+          wallet: wallet?._id as string,
+          task: data._id,
+        } as ITransaction);
       }
 
       await this.calendarRepository.create({
@@ -390,7 +431,6 @@ class TaskService {
       } as ICalendar);
 
       if (payload.type === TaskType.megablast) {
-        await this.userRepository.getById<IUser>(payload.postedBy);
         await this.userWalletRepository.updateById(wallet?._id as string, {
           $inc: { balance: -MEGA_BLAST_FEE },
         });
@@ -520,26 +560,33 @@ class TaskService {
     }
   };
 
-  delete = async (_id: string, chatId: string): Promise<ApiResponse> => {
+  delete = async (_id: string, chatId?: string): Promise<ApiResponse> => {
     try {
-      // Start update operations concurrently
-      const [taskUpdate, chatUpdate] = await Promise.all([
-        this.taskRepository.updateById<ITask>(_id, { isDeleted: true }),
-        this.chatRepository.updateById(chatId, { deleted: true }),
-      ]);
+      // Start task update operation
+      const taskUpdate = await this.taskRepository.updateById<ITask>(_id, {
+        isDeleted: true,
+      });
 
-      if (!taskUpdate)
+      // If task doesn't exist, return an error response
+      if (!taskUpdate) {
         return ResponseHelper.sendResponse(404, "Task not found");
+      }
 
-      if (taskUpdate.isDeleted)
+      // If task is already deleted, return an error response
+      if (taskUpdate.isDeleted) {
         return ResponseHelper.sendResponse(400, "Task is already deleted");
+      }
+
+      // Optionally update chat if chatId is provided
+      if (chatId) {
+        await this.chatRepository.updateById(chatId, { deleted: true });
+      }
 
       // Delete related calendar entries
       await this.calendarRepository.deleteMany({ task: taskUpdate._id });
 
-      console.log(taskUpdate.postedBy.toString());
-
-      const wallet = await this.userWalletRepository.updateByOne(
+      // Update the user's wallet
+      const wallet = await this.userWalletRepository.updateByOne<IWallet>(
         { user: taskUpdate?.postedBy?.toString() },
         {
           $inc: {
@@ -549,10 +596,19 @@ class TaskService {
         }
       );
 
+      // Log the transaction for the fee refund
+      await this.transactionRepository.create({
+        amount: SERVICE_INITIATION_FEE,
+        user: taskUpdate.postedBy,
+        type: TransactionType.serviceInitiationFee,
+        isCredit: true,
+        status: ETransactionStatus.completed,
+        wallet: wallet?._id as string,
+        task: taskUpdate._id,
+      } as ITransaction);
+
       return ResponseHelper.sendSuccessResponse(SUCCESS_DATA_DELETION_PASSED);
     } catch (error) {
-      console.error("Error deleting task and chat:", error);
-
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   };
@@ -593,7 +649,12 @@ class TaskService {
       });
 
       const response: ITask | null = await this.taskRepository.updateById(_id, {
-        $addToSet: { users: { user } },
+        $addToSet: {
+          serviceProviders: {
+            user,
+            status: ETaskUserStatus.PENDING,
+          },
+        },
         $inc: { pendingCount: 1 },
       });
 
@@ -807,8 +868,18 @@ class TaskService {
             $inc: { balance: SERVICE_INITIATION_FEE },
           }
         ),
+        await this.transactionRepository.create({
+          amount: SERVICE_INITIATION_FEE,
+          user: response.postedBy,
+          type: TransactionType.serviceInitiationFee,
+          isCredit: true,
+          status: ETransactionStatus.completed,
+          wallet: userWallet?._id as string,
+          task: response._id,
+        } as ITransaction),
       ]);
 
+      await this.calendarRepository.deleteMany({ task: response._id });
       // Return a successful response
       return ResponseHelper.sendSuccessResponse(
         "Task cancelled successfully",
