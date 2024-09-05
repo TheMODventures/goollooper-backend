@@ -818,16 +818,20 @@ class TaskService {
     }
   };
 
-  cancelTask = async (id: string) => {
+  cancelTask = async (id: string, chatId: string) => {
     try {
       // Update the task status to cancelled
       const response = await this.taskRepository.updateById<ITask>(id, {
         status: ETaskStatus.cancelled,
         populate: ["serviceProviders.user"],
       });
+      const chat = await this.chatRepository.updateById(chatId, {
+        deleted: true,
+      });
 
       // Handle cases where the task is already cancelled
       if (!response) return ResponseHelper.sendResponse(404, "Task not found");
+      if (!chat) return ResponseHelper.sendResponse(404, "Chat not found");
 
       if (response.status === ETaskStatus.cancelled)
         return ResponseHelper.sendResponse(400, "Task is already cancelled");

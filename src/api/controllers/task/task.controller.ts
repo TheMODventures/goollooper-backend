@@ -87,7 +87,11 @@ class TaskController {
 
   cancel = async (req: Request, res: Response) => {
     const { id } = req.params;
-    const response = await this.taskService.cancelTask(id as string);
+    const { chatId } = req.query;
+    const response = await this.taskService.cancelTask(
+      id as string,
+      chatId as string
+    );
     // console.log("response", response);
 
     return res.status(response.code).json(response);

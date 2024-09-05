@@ -266,7 +266,11 @@ const toggleRequestRule = yup.object().shape({
 const cancelTask = yup.object().shape({
   params: yup.object().shape(paramRule).noUnknown(),
   body: yup.object().shape({}).noUnknown(),
-  query: yup.object().noUnknown(),
+  query: yup
+    .object({
+      chatId: yup.string().required(),
+    })
+    .noUnknown(),
 });
 
 export = {
