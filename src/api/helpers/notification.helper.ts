@@ -25,15 +25,16 @@ class NotificationHelperC {
 
       response.responses.forEach((resp, idx) => {
         if (resp.error) {
-          console.error(`Failed to send notification to ${resp.error}`);
+          // console.error(`Failed to send notification to ${resp.error}`);
         } else {
-          console.log(
-            `Notification sent successfully to ${notification.tokens[idx]}`
-          );
+          console
+            .log
+            // `Notification sent successfully to ${notification.tokens[idx]}`
+            ();
         }
       });
     } catch (error) {
-      console.error("Error sending message:", error);
+      // console.error("Error sending message:", error);
     }
   };
 }

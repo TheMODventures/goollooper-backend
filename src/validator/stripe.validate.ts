@@ -21,8 +21,9 @@ const editCardRule = yup.object().shape({
 });
 
 const payoutRule = yup.object().shape({
-  params: yup.object().shape({
-    source: yup.string().required(),
+  params: yup.object().shape({}).unknown(),
+  body: yup.object().shape({
+    amount: yup.number().required(),
   }),
 });
 

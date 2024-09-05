@@ -331,69 +331,97 @@ class StripeService {
     }
   }
 
+  // payout = async (req: Request): Promise<ApiResponse> => {
+  //   try {
+  //     const connect = await this.getConnect(req.locals.auth?.userId as string);
+
+  //     const balance = await stripeHelper.retrieveBalance();
+  //     console.log("~ balance", balance);
+
+  //     const wallet = await this.walletRepository.getOne<IWallet>({
+  //       user: req.locals.auth?.userId as string,
+  //     });
+
+  //     if (!wallet) return ResponseHelper.sendResponse(400, "Wallet not found");
+
+  //     if (wallet?.balance < req.body.amount) {
+  //       return ResponseHelper.sendResponse(400, "Balance is low");
+  //     }
+
+  //     // const transfer = await stripeHelper.transfer({
+  //     //   amount: req.body.amount * 100,
+  //     //   destination: connect.data.id,
+  //     //   currency: "usd",
+  //     // });
+  //     // console.log("transaction", transfer);
+
+  //     if (connect.status) {
+  //       const withdraw = await stripeHelper.payout(connect.data.id, {
+  //         method: "standard", //req.params.source.includes("card") ? "instant" : "standard"
+  //         currency: (connect.data as Stripe.Account).default_currency,
+  //         amount: req.body.amount * 100,
+  //         destination: req.params.source,
+  //       } as Stripe.PayoutCreateParams);
+
+  //       if (withdraw === false)
+  //         return ResponseHelper.sendResponse(400, "Withdrawal failed");
+  //       else if (withdraw.id) {
+  //         const wallet = await this.walletRepository.updateBalance(
+  //           req.locals.auth?.userId as string,
+  //           -req.body.amount
+  //         );
+  //         this.transactionRepository.create({
+  //           amount: withdraw.amount / 100,
+  //           user: req.locals.auth?.userId as string,
+  //           isCredit: false,
+  //           type: TransactionType.withdraw,
+  //           wallet: wallet?._id,
+  //         } as ITransaction);
+  //         return ResponseHelper.sendSuccessResponse(
+  //           "Withdrawal successful",
+  //           withdraw
+  //         );
+  //       }
+  //       throw withdraw;
+  //     }
+  //     throw connect;
+  //   } catch (error) {
+  //     // console.log(error);
+  //     // console.log(error);
+  //     return ResponseHelper.sendResponse(
+  //       400,
+  //       (error as any)?.code === "parameter_invalid_integer"
+  //         ? "Balance is low"
+  //         : (error as Error).message
+  //     );
+  //   }
+  // };
+
   payout = async (req: Request): Promise<ApiResponse> => {
+    const session = await mongoose.startSession();
     try {
-      const connect = await this.getConnect(req.locals.auth?.userId as string);
+      session.startTransaction();
+      const { amount } = req.body;
+      const retrieveBalance = await stripeHelper.retrieveBalance();
 
-      const balance = await stripeHelper.retrieveBalance();
-      console.log("~ balance", balance);
+      if (
+        retrieveBalance.pending.length > 0 &&
+        retrieveBalance.pending[0].amount < amount * 100
+      ) {
+        session.abortTransaction();
+        return ResponseHelper.sendResponse(400, "Insufficient balance");
+      }
 
-      const wallet = await this.walletRepository.getOne<IWallet>({
-        user: req.locals.auth?.userId as string,
+      const payout = await stripeHelper.platformPayout({
+        amount: amount * 100,
+        currency: "usd",
+        description: "Payout Goollooper",
       });
 
-      if (!wallet) return ResponseHelper.sendResponse(400, "Wallet not found");
-
-      if (wallet?.balance < req.body.amount) {
-        return ResponseHelper.sendResponse(400, "Balance is low");
-      }
-
-      // const transfer = await stripeHelper.transfer({
-      //   amount: req.body.amount * 100,
-      //   destination: connect.data.id,
-      //   currency: "usd",
-      // });
-      // console.log("transaction", transfer);
-
-      if (connect.status) {
-        const withdraw = await stripeHelper.payout(connect.data.id, {
-          method: "standard", //req.params.source.includes("card") ? "instant" : "standard"
-          currency: (connect.data as Stripe.Account).default_currency,
-          amount: req.body.amount * 100,
-          destination: req.params.source,
-        } as Stripe.PayoutCreateParams);
-
-        if (withdraw === false)
-          return ResponseHelper.sendResponse(400, "Withdrawal failed");
-        else if (withdraw.id) {
-          const wallet = await this.walletRepository.updateBalance(
-            req.locals.auth?.userId as string,
-            -req.body.amount
-          );
-          this.transactionRepository.create({
-            amount: withdraw.amount / 100,
-            user: req.locals.auth?.userId as string,
-            isCredit: false,
-            type: TransactionType.withdraw,
-            wallet: wallet?._id,
-          } as ITransaction);
-          return ResponseHelper.sendSuccessResponse(
-            "Withdrawal successful",
-            withdraw
-          );
-        }
-        throw withdraw;
-      }
-      throw connect;
+      return ResponseHelper.sendSuccessResponse("Payout", payout);
     } catch (error) {
-      // console.log(error);
-      // console.log(error);
-      return ResponseHelper.sendResponse(
-        400,
-        (error as any)?.code === "parameter_invalid_integer"
-          ? "Balance is low"
-          : (error as Error).message
-      );
+      session.abortTransaction();
+      return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   };
 
@@ -538,6 +566,32 @@ class StripeService {
           if (!user) {
             session.abortTransaction();
             return ResponseHelper.sendResponse(404, "User not found");
+          }
+
+          const retrievedBalance = await stripeHelper.retrieveBalance();
+
+          if (retrievedBalance.pending[0].amount < transaction.amount * 100) {
+            session.abortTransaction();
+            return ResponseHelper.sendResponse(400, "Insufficient balance");
+          }
+
+          if (retrievedBalance.available[0].amount < transaction.amount * 100) {
+            session.abortTransaction();
+            return ResponseHelper.sendResponse(400, "Insufficient balance");
+          }
+
+          const transferFunds = await stripeHelper.transfer(
+            {
+              amount: transaction.amount * 100,
+              currency: "usd",
+              destination: user.stripeConnectId as string,
+            },
+            user.stripeConnectId as string
+          );
+
+          if (!transferFunds) {
+            session.abortTransaction();
+            return ResponseHelper.sendResponse(400, "Transfer failed");
           }
 
           const payout = stripeHelper.payout(user.stripeConnectId as string, {

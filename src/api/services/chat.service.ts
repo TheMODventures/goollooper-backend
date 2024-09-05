@@ -25,11 +25,17 @@ import { ResponseHelper } from "../helpers/reponseapi.helper";
 import { UploadHelper } from "../helpers/upload.helper";
 import {
   EMessageStatus,
+  ENOTIFICATION_TYPES,
   ETaskStatus,
   MessageType,
   RequestStatus,
 } from "../../database/interfaces/enums";
 import { IWallet } from "../../database/interfaces/wallet.interface";
+import { NotificationRepository } from "../repository/notification/notification.repository";
+import NotificationService, {
+  NotificationParams,
+} from "./notification.service";
+import { IUser } from "../../database/interfaces/user.interface";
 
 interface CustomSocket extends SocketIO.Socket {
   user?: any; // Adjust the type according to your user structure
@@ -236,12 +242,14 @@ export class ChatService {
   private calendarRepository: CalendarRepository;
   private uploadHelper: UploadHelper;
   private walletRepository: WalletRepository;
+  private notificationService: NotificationService;
   constructor() {
     this.chatRepository = new ChatRepository();
     this.taskRepository = new TaskRepository();
     this.calendarRepository = new CalendarRepository();
     this.uploadHelper = new UploadHelper("chat");
     this.walletRepository = new WalletRepository();
+    this.notificationService = new NotificationService();
   }
 
   addRequest = async (
@@ -478,6 +486,19 @@ export class ChatService {
         default:
           break;
       }
+
+      newRequest?.participants?.forEach((participant: IParticipant) => {
+        this.notificationService.createAndSendNotification({
+          ntitle: `${msg.body} Action Request`,
+          nbody: msg.body,
+          receiverId: participant.user,
+          type: ENOTIFICATION_TYPES.ACTION_REQUEST,
+          senderId: userId as string,
+          data: {
+            task: chat?.task?.toString(),
+          },
+        } as NotificationParams);
+      });
 
       const response = await this.chatRepository.subDocAction<IChat>(
         { _id },

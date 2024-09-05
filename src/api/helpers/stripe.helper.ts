@@ -206,8 +206,6 @@ class StripeHelper {
         { stripeAccount: stripeConnectId }
       );
 
-      console.log(balance, "Balance");
-
       const isInstant = payload.method === "instant";
       const isStandard = payload.method === "standard";
       const hasInstantBalance =
@@ -227,7 +225,7 @@ class StripeHelper {
       }
     } catch (error) {
       console.error("Error creating payout:", error);
-      throw error; // Re-throw the error to be handled by the calling code
+      throw error;
     }
   }
 
@@ -246,6 +244,10 @@ class StripeHelper {
       }
     );
   }
+
+  platformPayout = async (payload: Stripe.PayoutCreateParams) => {
+    return stripe.payouts.create(payload);
+  };
 
   async topup(payload: Stripe.TopupCreateParams) {
     return stripe.topups.create(payload);
@@ -273,7 +275,6 @@ class StripeHelper {
         },
       ],
     });
-    console.log(obj, "Subscription Item");
     return obj;
   }
 
