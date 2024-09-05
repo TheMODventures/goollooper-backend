@@ -322,10 +322,42 @@ export class ChatService {
           const tasks = await this.taskRepository.getById<ITask>(chat?.task);
           if (!tasks) return ResponseHelper.sendResponse(404, "Task not found");
 
-          const updatedServiceProviders = tasks.serviceProviders.map((sp) =>
-            sp.status === 4 ? { ...sp, status: 5 } : sp
+          const findStandByServiceProvider = tasks.serviceProviders.find(
+            (sp) => sp.status === 3
           );
 
+          const updatedServiceProviders = tasks.serviceProviders.map((sp) => {
+            // First, change the status from 4 to 5
+            if (sp.status === 4) {
+              return { ...sp, status: 5 };
+            }
+
+            // Then, if sp matches the found standby service provider, change status from 3 to 4
+            if (
+              findStandByServiceProvider &&
+              sp.user.toString() === findStandByServiceProvider.user.toString()
+            ) {
+              return { ...sp, status: 4 }; // Move from standby (3) to active (4)
+            }
+
+            // Return the service provider unchanged if no conditions match
+            return sp;
+          });
+
+          if (findStandByServiceProvider) {
+            await this.notificationService.createAndSendNotification({
+              ntitle: "your request has been accepted",
+              nbody: "Relieve Action Request",
+              receiverId: findStandByServiceProvider?.user,
+              type: ENOTIFICATION_TYPES.ACTION_REQUEST,
+              senderId: userId as string,
+              data: {
+                task: chat?.task?.toString(),
+              },
+            } as NotificationParams);
+          }
+
+          console.log(updatedServiceProviders, "updatedServiceProviders");
           await this.taskRepository.updateById<ITask>(chat?.task, {
             serviceProviders: updatedServiceProviders,
           });
@@ -336,6 +368,10 @@ export class ChatService {
             (participant: IParticipant) =>
               participant.user.toString() === creatorId
           );
+          updatedParticipants.push({
+            user: findStandByServiceProvider?.user,
+            status: "active",
+          });
 
           await this.chatRepository.updateById<IChat>(chat._id, {
             participants: updatedParticipants,
