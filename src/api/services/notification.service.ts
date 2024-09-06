@@ -273,6 +273,9 @@ class NotificationService {
         title = ntitle ?? `#sender`;
         body = nbody ?? `#sender has requested this action`;
       default:
+      case ENOTIFICATION_TYPES.TASK_CANCELLED:
+        title = ntitle ?? `#sender`;
+        body = nbody ?? `#sender has cancelled the task`;
         break;
     }
 
