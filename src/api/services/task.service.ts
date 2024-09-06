@@ -43,6 +43,7 @@ import { WalletRepository } from "../repository/wallet/wallet.repository";
 import { IWallet } from "../../database/interfaces/wallet.interface";
 import { TransactionRepository } from "../repository/transaction/transaction.repository";
 import { ITransaction } from "../../database/interfaces/transaction.interface";
+import { IChatDoc } from "../../database/interfaces/chat.interface";
 
 class TaskService {
   private taskRepository: TaskRepository;
@@ -560,7 +561,7 @@ class TaskService {
     }
   };
 
-  delete = async (_id: string, chatId?: string): Promise<ApiResponse> => {
+  delete = async (_id: string): Promise<ApiResponse> => {
     try {
       // Start task update operation
       const taskUpdate = await this.taskRepository.updateById<ITask>(_id, {
@@ -572,11 +573,17 @@ class TaskService {
         return ResponseHelper.sendResponse(404, "Task not found");
       }
 
-
+      const chat = await this.chatRepository.getOne<IChatDoc>(
+        { task: _id },
+        "",
+        "_id"
+      );
 
       // Optionally update chat if chatId is provided
-      if (chatId) {
-        await this.chatRepository.updateById(chatId, { deleted: true });
+      if (chat && chat._id) {
+        await this.chatRepository.updateById(chat._id.toString(), {
+          deleted: true,
+        });
       }
 
       // Delete related calendar entries

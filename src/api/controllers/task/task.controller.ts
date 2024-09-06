@@ -58,8 +58,7 @@ class TaskController {
 
   delete = async (req: Request, res: Response) => {
     const { id } = req.params;
-    const { chatId } = req.query;
-    const response = await this.taskService.delete(id, chatId as string);
+    const response = await this.taskService.delete(id);
     return res.status(response.code).json(response);
   };
 

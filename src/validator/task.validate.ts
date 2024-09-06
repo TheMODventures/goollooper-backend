@@ -15,11 +15,7 @@ const paramRule = {
 const showRule = yup.object().shape({
   params: yup.object().shape(paramRule).noUnknown(),
   body: yup.object().shape({}).noUnknown(),
-  query: yup
-    .object({
-      chatId: yup.string().notRequired(),
-    })
-    .noUnknown(),
+  query: yup.object({}).noUnknown(),
 });
 
 const indexRule = yup.object().shape({
