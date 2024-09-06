@@ -572,10 +572,7 @@ class TaskService {
         return ResponseHelper.sendResponse(404, "Task not found");
       }
 
-      // If task is already deleted, return an error response
-      if (taskUpdate.isDeleted) {
-        return ResponseHelper.sendResponse(400, "Task is already deleted");
-      }
+
 
       // Optionally update chat if chatId is provided
       if (chatId) {
