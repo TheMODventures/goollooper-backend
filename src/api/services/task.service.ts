@@ -572,6 +572,8 @@ class TaskService {
         return ResponseHelper.sendResponse(404, "Task not found");
       }
 
+
+
       // Optionally update chat if chatId is provided
       if (chatId) {
         await this.chatRepository.updateById(chatId, { deleted: true });
