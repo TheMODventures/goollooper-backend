@@ -828,88 +828,107 @@ class TaskService {
         status: ETaskStatus.cancelled,
         populate: ["serviceProviders.user"],
       });
+
+      // Handle cases where the task is already cancelled or not found
+      if (!response) return ResponseHelper.sendResponse(404, "Task not found");
+
+      // Update the chat status
       const chat = await this.chatRepository.updateById(chatId, {
         deleted: true,
       });
 
-      // Handle cases where the task is already cancelled
-      if (!response) return ResponseHelper.sendResponse(404, "Task not found");
       if (!chat) return ResponseHelper.sendResponse(404, "Chat not found");
 
       // Ensure the task is commercial
       if (!response.commercial)
         return ResponseHelper.sendResponse(400, "Task is not commercial");
 
-      // Retrieve the service provider and wallets
-      const serviceProvider = response.serviceProviders?.[0]?.user;
+      // Retrieve the service provider with ACCEPTED status
+      const serviceProviderObj = response.serviceProviders.find(
+        (s) => s.status === ETaskUserStatus.ACCEPTED
+      );
 
-      if (!serviceProvider) {
+      if (!serviceProviderObj || !serviceProviderObj.user) {
         return ResponseHelper.sendResponse(404, "Service provider not found");
       }
 
-      const [userWallet, serviceProviderWallet] = await Promise.all([
-        this.userWalletRepository.getOne<IWallet>({ user: response.postedBy }),
-        this.userWalletRepository.getOne<IWallet>({ user: serviceProvider }),
-      ]);
+      const serviceProvider = serviceProviderObj.user;
 
-      if (!userWallet)
-        return ResponseHelper.sendResponse(404, "User wallet not found");
+      // Wrap the operation in a transaction for atomicity
 
-      if (!serviceProviderWallet)
-        return ResponseHelper.sendResponse(
-          404,
-          "Service provider wallet not found"
-        );
+      try {
+        // Retrieve both wallets
+        const [userWallet, serviceProviderWallet] = await Promise.all([
+          this.userWalletRepository.getOne<IWallet>({
+            user: response.postedBy,
+          }),
+          this.userWalletRepository.getOne<IWallet>({ user: serviceProvider }),
+        ]);
 
-      // Update the wallets' balances
-      await Promise.all([
-        this.userWalletRepository.updateById(userWallet._id as string, {
-          $inc: { amountHeld: -SERVICE_INITIATION_FEE },
-        }),
-        this.userWalletRepository.updateById(
-          serviceProviderWallet._id as string,
-          {
-            $inc: { balance: SERVICE_INITIATION_FEE },
-          }
-        ),
-        await this.transactionRepository.create({
-          amount: SERVICE_INITIATION_FEE,
-          user: response.postedBy,
-          type: TransactionType.serviceInitiationFee,
-          isCredit: false,
-          status: ETransactionStatus.completed,
-          wallet: userWallet?._id as string,
-          task: response._id,
-        } as ITransaction),
+        if (!userWallet)
+          return ResponseHelper.sendResponse(404, "User wallet not found");
 
+        if (!serviceProviderWallet)
+          return ResponseHelper.sendResponse(
+            404,
+            "Service provider wallet not found"
+          );
+
+        // Update the wallets' balances
+        await Promise.all([
+          this.userWalletRepository.updateById(
+            userWallet._id?.toString() as string,
+            {
+              $inc: { amountHeld: -SERVICE_INITIATION_FEE },
+            }
+          ),
+          this.userWalletRepository.updateById(
+            serviceProviderWallet._id?.toString() as string,
+            {
+              $inc: { balance: +SERVICE_INITIATION_FEE },
+            }
+          ),
+        ]);
+
+        // Record the transaction
         await this.transactionRepository.create({
           amount: SERVICE_INITIATION_FEE,
           user: serviceProvider,
           type: TransactionType.serviceInitiationFee,
           isCredit: true,
           status: ETransactionStatus.completed,
-          wallet: serviceProviderWallet?._id as string,
+          wallet: serviceProviderWallet._id as string,
           task: response._id,
-        } as ITransaction),
-      ]);
+        } as ITransaction);
 
-      await this.calendarRepository.deleteMany({ task: response._id });
+        // Delete the calendar entries associated with the task
+        await this.calendarRepository.deleteMany({ task: response._id });
 
-      await this.notificationService.createAndSendNotification({
-        senderId: response.postedBy,
-        receiverId: serviceProvider,
-        type: ENOTIFICATION_TYPES.TASK_CANCELLED,
-        data: { task: response._id?.toString() },
-        ntitle: "Task Cancelled",
-        nbody: "Task has been cancelled",
-      } as NotificationParams);
-      // Return a successful response
-      return ResponseHelper.sendSuccessResponse(
-        "Task cancelled successfully",
-        response
-      );
+        // Send a notification to the service provider
+        await this.notificationService.createAndSendNotification({
+          senderId: response.postedBy,
+          receiverId: serviceProvider,
+          type: ENOTIFICATION_TYPES.TASK_CANCELLED,
+          data: { task: response._id?.toString() },
+          ntitle: "Task Cancelled",
+          nbody: "Task has been cancelled",
+        } as NotificationParams);
+
+        // Commit the transaction
+
+        // Return a successful response
+        return ResponseHelper.sendSuccessResponse(
+          "Task cancelled successfully",
+          response
+        );
+      } catch (error) {
+        console.error("Error in transaction:", error);
+        return ResponseHelper.sendResponse(
+          500,
+          `Failed to cancel task: ${(error as Error).message}`
+        );
+      }
     } catch (error) {
-      // Handle and log any errors that occur
       console.error("Error cancelling task:", error);
       return ResponseHelper.sendResponse(
         500,
