@@ -21,8 +21,9 @@ const editCardRule = yup.object().shape({
 });
 
 const payoutRule = yup.object().shape({
-  params: yup.object().shape({
-    source: yup.string().required(),
+  params: yup.object().shape({}).unknown(),
+  body: yup.object().shape({
+    amount: yup.number().required(),
   }),
 });
 
@@ -43,6 +44,8 @@ const createPaymentIntentRule = yup.object().shape({
     .object()
     .shape({
       amount: yup.number().required(),
+      // paymentMethodId: yup.string().required(),
+      // type: yup.string().required().oneOf(["top-up", "subscription"]),
     })
     .noUnknown(),
 });
@@ -51,7 +54,8 @@ const confirmPaymentRule = yup.object().shape({
   body: yup
     .object()
     .shape({
-      paymentIntentId: yup.string().required(),
+      paymentIntentId: yup.string().required("Payment intent id is required"),
+      paymentMethod: yup.string().required("Payment method is required"),
     })
     .noUnknown(),
 });
@@ -72,6 +76,12 @@ const webhookRule = yup.object().shape({
   }),
 });
 
+const withdrawRequest = yup.object().shape({
+  body: yup.object().shape({
+    amount: yup.number().required(),
+  }),
+});
+
 export = {
   "/add-card": cardRule,
   "/update-card": editCardRule,
@@ -81,4 +91,5 @@ export = {
   "/confirm-payment": confirmPaymentRule,
   "/apply-for-subscription": applyForSubscriptionRule,
   "/webhook": webhookRule,
+  "/withdraw-request": withdrawRequest,
 };

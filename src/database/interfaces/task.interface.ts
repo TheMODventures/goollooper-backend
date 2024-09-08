@@ -19,10 +19,6 @@ interface Slot {
 
 export interface GoList {
   title: string;
-  serviceProviders: {
-    user: mongoose.Types.ObjectId;
-    status: ETaskUserStatus;
-  }[];
   taskInterests?: mongoose.Types.ObjectId[];
   goListId: string;
 }
@@ -42,6 +38,7 @@ export interface ITask {
   location: Location;
   requirement: string;
   date: string;
+  applicationEndDate?: string;
   slot: Slot;
   noOfServiceProvider: number;
   media: string;
@@ -56,8 +53,14 @@ export interface ITask {
   ageFrom?: number;
   ageTo?: number;
   pendingCount?: number;
+  idleCount?: number;
   acceptedCount?: number;
   status?: ETaskStatus;
+  serviceProviders: {
+    user: mongoose.Types.ObjectId | string;
+    status: ETaskUserStatus;
+  }[];
+  invoiceAmount?: number;
   endDate?: Date | Moment;
   createdAt?: Date | Moment;
   updatedAt?: Date | Moment;
@@ -85,7 +88,12 @@ export interface ITaskPayload {
   isDeleted?: boolean;
   gender?: string;
   ageFrom?: number;
+  idleCount?: number;
   ageTo?: number;
+  serviceProviders: {
+    user: mongoose.Types.ObjectId;
+    status: ETaskUserStatus;
+  }[];
   pendingCount?: number;
   acceptedCount?: number;
   status?: ETaskStatus;

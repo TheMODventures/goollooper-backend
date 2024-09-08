@@ -4,6 +4,7 @@ import { Request } from "express";
 import _ from "lodash";
 
 import {
+  SERVICE_INITIATION_FEE,
   SUCCESS_DATA_LIST_PASSED,
   SUCCESS_DATA_UPDATION_PASSED,
 } from "../../constant";
@@ -17,16 +18,24 @@ import { ITask } from "../../database/interfaces/task.interface";
 import { ICalendar } from "../../database/interfaces/calendar.interface";
 import { ChatRepository } from "../repository/chat/chat.repository";
 import { TaskRepository } from "../repository/task/task.repository";
+import { WalletRepository } from "../repository/wallet/wallet.repository";
 import { CalendarRepository } from "../repository/calendar/calendar.repository";
 import { Authorize } from "../../middleware/authorize.middleware";
 import { ResponseHelper } from "../helpers/reponseapi.helper";
 import { UploadHelper } from "../helpers/upload.helper";
 import {
   EMessageStatus,
+  ENOTIFICATION_TYPES,
   ETaskStatus,
   MessageType,
   RequestStatus,
 } from "../../database/interfaces/enums";
+import { IWallet } from "../../database/interfaces/wallet.interface";
+import { NotificationRepository } from "../repository/notification/notification.repository";
+import NotificationService, {
+  NotificationParams,
+} from "./notification.service";
+import { IUser } from "../../database/interfaces/user.interface";
 
 interface CustomSocket extends SocketIO.Socket {
   user?: any; // Adjust the type according to your user structure
@@ -66,7 +75,7 @@ export default (io: SocketIO.Server) => {
           data.page ?? 0,
           20,
           data.chatSupport ?? false,
-          null,
+          data.chatId ?? null,
           data.search
         );
       }
@@ -232,13 +241,15 @@ export class ChatService {
   private taskRepository: TaskRepository;
   private calendarRepository: CalendarRepository;
   private uploadHelper: UploadHelper;
-
+  private walletRepository: WalletRepository;
+  private notificationService: NotificationService;
   constructor() {
     this.chatRepository = new ChatRepository();
     this.taskRepository = new TaskRepository();
     this.calendarRepository = new CalendarRepository();
-
     this.uploadHelper = new UploadHelper("chat");
+    this.walletRepository = new WalletRepository();
+    this.notificationService = new NotificationService();
   }
 
   addRequest = async (
@@ -285,6 +296,7 @@ export class ChatService {
           status: EMessageStatus.SENT,
         })),
       };
+
       switch (dataset.type?.toString()) {
         case "1":
           msg.type = MessageType.request;
@@ -296,70 +308,233 @@ export class ChatService {
 
         case "2":
           msg.body = "Pause";
+          await this.taskRepository.updateById<ITask>(chat?.task, {
+            status: ETaskStatus.pause,
+          });
+
           msg.type = MessageType.pause;
           break;
 
         case "3":
           msg.body = "Relieve";
           msg.type = MessageType.relieve;
+
+          const tasks = await this.taskRepository.getById<ITask>(chat?.task);
+          if (!tasks) return ResponseHelper.sendResponse(404, "Task not found");
+
+          const findStandByServiceProvider = tasks.serviceProviders.find(
+            (sp) => sp.status === 3
+          );
+
+          const updatedServiceProviders = tasks.serviceProviders.map((sp) => {
+            // First, change the status from 4 to 5
+            if (sp.status === 4) {
+              return { ...sp, status: 5 };
+            }
+
+            // Then, if sp matches the found standby service provider, change status from 3 to 4
+            if (
+              findStandByServiceProvider &&
+              sp.user.toString() === findStandByServiceProvider.user.toString()
+            ) {
+              return { ...sp, status: 4 }; // Move from standby (3) to active (4)
+            }
+
+            // Return the service provider unchanged if no conditions match
+            return sp;
+          });
+
+          if (findStandByServiceProvider) {
+            await this.notificationService.createAndSendNotification({
+              ntitle: "your request has been accepted",
+              nbody: "Relieve Action Request",
+              receiverId: findStandByServiceProvider?.user,
+              type: ENOTIFICATION_TYPES.ACTION_REQUEST,
+              senderId: userId as string,
+              data: {
+                task: chat?.task?.toString(),
+              },
+            } as NotificationParams);
+          }
+
+          console.log(updatedServiceProviders, "updatedServiceProviders");
+          await this.taskRepository.updateById<ITask>(chat?.task, {
+            serviceProviders: updatedServiceProviders,
+          });
+
+          const creatorId = chat.createdBy ? chat.createdBy.toString() : "";
+
+          const updatedParticipants = chat.participants.filter(
+            (participant: IParticipant) =>
+              participant.user.toString() === creatorId
+          );
+          updatedParticipants.push({
+            user: findStandByServiceProvider?.user,
+            status: "active",
+          });
+
+          await this.chatRepository.updateById<IChat>(chat._id, {
+            participants: updatedParticipants,
+          });
+
           break;
 
         case "4":
           msg.body = "Proceed";
           msg.type = MessageType.proceed;
-          await this.taskRepository.updateById<ITask>(chat?.task, {
-            status: ETaskStatus.assigned,
-          });
-          break;
 
-        case "5":
-          msg.type = MessageType.invoice;
-          if (
-            !dataset.amount &&
-            dataset.status === RequestStatus.SERVICE_PROVIDER_INVOICE_REQUEST
-          )
-            return ResponseHelper.sendResponse(404, "Amount is required");
-          msg.body = dataset?.amount || "0";
-          if (dataset.mediaUrl) {
-            msg.mediaUrls = [dataset.mediaUrl];
-          }
-          let task: ITask | null = await this.taskRepository.getById(
-            chat?.task
-          );
-          if (task && !task?.commercial) {
-            msg.type = MessageType.complete;
+          const taskUpdateResponse =
             await this.taskRepository.updateById<ITask>(chat?.task, {
-              status: ETaskStatus.completed,
+              status: ETaskStatus.assigned,
             });
-            await this.calendarRepository.updateMany<ICalendar>(
-              { task: new mongoose.Types.ObjectId(chat?.task) },
-              {
-                isActive: false,
-              }
+
+          if (taskUpdateResponse?.serviceProviders?.length) {
+            const calendarEntries = taskUpdateResponse.serviceProviders.map(
+              (provider: any) => ({
+                user: provider.user as string,
+                task: chat.task,
+                date: dataset.date
+                  ? dataset?.date.toISOString()
+                  : new Date().toISOString(),
+              })
             );
+            await this.calendarRepository.createMany(calendarEntries);
           }
           break;
 
-        case "6":
+        case "5": {
+          const taskId = chat?.task;
+          const amount = dataset.amount || "0";
+          const isServiceProviderInvoice =
+            dataset.status === RequestStatus.SERVICE_PROVIDER_INVOICE_REQUEST;
+
+          // Early return if amount is required but not provided
+          if (!amount && isServiceProviderInvoice) {
+            return ResponseHelper.sendResponse(404, "Amount is required");
+          }
+
+          // Set initial message properties
+          msg.type = MessageType.invoice;
+          msg.body = amount;
+          if (dataset.mediaUrl) msg.mediaUrls = [dataset.mediaUrl];
+
+          if (!taskId)
+            return ResponseHelper.sendResponse(404, "Task id not found");
+
+          // Fetch the task associated with the chat
+          const task: ITask | null = await this.taskRepository.getById(taskId);
+          if (!task) return ResponseHelper.sendResponse(404, "Task not found");
+
+          if (task.commercial) {
+            // Update invoice amount for commercial tasks
+            await this.taskRepository.updateById<ITask>(taskId, {
+              invoiceAmount: amount,
+            });
+          } else {
+            // Mark non-commercial task as completed and update calendar
+            msg.type = MessageType.complete;
+            await Promise.all([
+              this.taskRepository.updateById<ITask>(taskId, {
+                status: ETaskStatus.completed,
+              }),
+              this.calendarRepository.updateMany<ICalendar>(
+                { task: new mongoose.Types.ObjectId(taskId) },
+                { isActive: false }
+              ),
+            ]);
+          }
+
+          break;
+        }
+
+        case "6": {
           msg.body = "Completed";
           msg.type = MessageType.complete;
-          if (!dataset.amount)
+
+          // Validate amount
+          const amount = Number(dataset.amount);
+          if (isNaN(amount) || amount <= 0) {
             return ResponseHelper.sendResponse(404, "Amount is required");
-          msg.body = dataset?.amount;
-          await this.taskRepository.updateById<ITask>(chat?.task, {
-            status: ETaskStatus.completed,
-          });
-          await this.calendarRepository.updateMany<ICalendar>(
-            { task: new mongoose.Types.ObjectId(chat?.task) },
-            {
-              isActive: false,
-            }
+          }
+
+          // Fetch the completed task
+          const completedTask = await this.taskRepository.getById<ITask>(
+            chat?.task
           );
+          if (!completedTask) {
+            return ResponseHelper.sendResponse(404, "Task not found");
+          }
+
+          // Check if the task is commercial and validate the invoice amount
+          if (completedTask.commercial) {
+            if (
+              completedTask.invoiceAmount === undefined ||
+              amount <= completedTask.invoiceAmount
+            ) {
+              return ResponseHelper.sendResponse(
+                404,
+                "Amount should be greater than the invoice amount"
+              );
+            }
+
+            // Fetch and validate user wallet
+            const userWallet = await this.walletRepository.getOne<IWallet>({
+              user: userId,
+            });
+            if (!userWallet) {
+              return ResponseHelper.sendResponse(404, "Wallet not found");
+            }
+            if (userWallet.balance < amount) {
+              return ResponseHelper.sendResponse(404, "Insufficient balance");
+            }
+
+            // Update user wallet balance and service provider balance using $inc
+            const serviceProviderId = completedTask.serviceProviders[0]
+              .user as string;
+            await Promise.all([
+              await this.walletRepository.updateByOne<IWallet>(
+                { user: userId as string },
+                {
+                  $inc: {
+                    amountHeld: -SERVICE_INITIATION_FEE,
+                    balance: -(amount - SERVICE_INITIATION_FEE),
+                  },
+                }
+              ),
+              this.walletRepository.updateBalance(serviceProviderId, +amount),
+            ]);
+          }
+
+          // Update task and calendar status
+          await Promise.all([
+            this.taskRepository.updateById<ITask>(chat?.task, {
+              status: ETaskStatus.completed,
+            }),
+            this.calendarRepository.updateMany<ICalendar>(
+              { task: new mongoose.Types.ObjectId(chat?.task) },
+              { isActive: false }
+            ),
+          ]);
+
           break;
+        }
 
         default:
           break;
       }
+
+      newRequest?.participants?.forEach((participant: IParticipant) => {
+        this.notificationService.createAndSendNotification({
+          ntitle: `${msg.body} Action Request`,
+          nbody: msg.body,
+          receiverId: participant.user,
+          type: ENOTIFICATION_TYPES.ACTION_REQUEST,
+          senderId: userId as string,
+          data: {
+            task: chat?.task?.toString(),
+          },
+        } as NotificationParams);
+      });
 
       const response = await this.chatRepository.subDocAction<IChat>(
         { _id },
@@ -404,6 +579,33 @@ export class ChatService {
       );
       if (!response) {
         return ResponseHelper.sendResponse(404);
+      }
+      return ResponseHelper.sendSuccessResponse(
+        SUCCESS_DATA_LIST_PASSED,
+        response
+      );
+    } catch (error) {
+      return ResponseHelper.sendResponse(500, (error as Error).message);
+    }
+  };
+
+  chatDetails = async (
+    chatId: string | null | undefined,
+    user: string,
+    chatSupport: boolean
+  ): Promise<ApiResponse> => {
+    try {
+      const response = await this.chatRepository.getChats(
+        user,
+        1,
+        20,
+        chatSupport,
+        chatId,
+        ""
+      );
+
+      if (!response) {
+        return ResponseHelper.sendResponse(404, "Chat not found");
       }
       return ResponseHelper.sendSuccessResponse(
         SUCCESS_DATA_LIST_PASSED,

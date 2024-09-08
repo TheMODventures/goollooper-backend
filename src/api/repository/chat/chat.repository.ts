@@ -3,7 +3,7 @@ import axios, { AxiosResponse } from "axios";
 import { Server } from "socket.io";
 import { RtcRole, RtcTokenBuilder } from "agora-access-token";
 import { uuid } from "uuidv4";
-import { Request } from "express";
+import express, { Application, Request } from "express";
 import * as apn from "apn";
 
 import {
@@ -23,6 +23,7 @@ import {
   ECALLDEVICETYPE,
   EChatType,
   EMessageStatus,
+  ENOTIFICATION_TYPES,
   EParticipantStatus,
   ETICKET_STATUS,
   ETaskStatus,
@@ -50,6 +51,14 @@ import {
   IOS_KEY_ID,
   IOS_TEAM_ID,
 } from "../../../config/environment.config";
+import { TaskRepository } from "../task/task.repository";
+import NotificationService, {
+  NotificationParams,
+} from "../../services/notification.service";
+import { CalendarRepository } from "../calendar/calendar.repository";
+import { IWallet } from "../../../database/interfaces/wallet.interface";
+import { WalletRepository } from "../wallet/wallet.repository";
+import { SERVICE_INITIATION_FEE } from "../../../constant";
 
 export class ChatRepository
   extends BaseRepository<IChat, IChatDoc>
@@ -57,19 +66,32 @@ export class ChatRepository
 {
   private io?: Server;
   private userRepository: UserRepository;
+  private taskRepository: TaskRepository;
+  private notificationService: NotificationService;
+  private calendarRepository: CalendarRepository;
+  private walletRepository: WalletRepository;
+  protected app: Application;
 
   constructor(io?: Server) {
     super(Chat);
+    this.app = express();
     this.io = io;
     this.userRepository = new UserRepository();
+    this.taskRepository = new TaskRepository();
+    this.calendarRepository = new CalendarRepository();
+    this.walletRepository = new WalletRepository();
   }
+
+  deleteChat = async (chatId: string) => {
+    this.io?.emit(`deleteChat/${chatId}`, { chatId, deleted: true });
+  };
 
   async getChats(
     user: string,
     page = 1,
     pageSize = 20,
     chatSupport = false,
-    chatId = null,
+    chatId: string | null = null,
     search?: string
   ) {
     try {
@@ -77,6 +99,7 @@ export class ChatRepository
       const currentUserId = new mongoose.Types.ObjectId(user);
       const chatSupportPip: any = {
         isChatSupport: chatSupport == true,
+        deleted: false,
       };
       if (chatId) chatSupportPip._id = new mongoose.Types.ObjectId(chatId);
       const query: any = [
@@ -140,6 +163,33 @@ export class ChatRepository
           $unwind: { path: "$messages", preserveNullAndEmptyArrays: true },
         },
         {
+          $lookup: {
+            from: "tasks",
+            let: { taskId: "$task" },
+            as: "task",
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $eq: ["$_id", "$$taskId"],
+                  },
+                },
+              },
+              {
+                $project: {
+                  title: 1,
+                  description: 1,
+                  status: 1,
+                  date: 1,
+                },
+              },
+            ],
+          },
+        },
+        {
+          $unwind: { path: "$task", preserveNullAndEmptyArrays: true },
+        },
+        {
           $group: {
             _id: "$_id", // Unique identifier for the chat
             chatType: { $first: "$chatType" },
@@ -153,6 +203,7 @@ export class ChatRepository
             participants: { $first: "$participantsData" },
             totalCount: { $first: "$totalCount" },
             unReadCount: { $first: "$unReadCount" },
+            task: { $first: "$task" },
             createdBy: { $first: "$createdBy" },
           },
         },
@@ -307,6 +358,7 @@ export class ChatRepository
             participants: { $first: "$participants" },
             totalCount: { $first: "$totalCount" },
             unReadCount: { $first: "$unReadCount" },
+            task: { $first: "$task" },
             createdBy: { $first: "$createdBy" },
           },
         },
@@ -326,6 +378,7 @@ export class ChatRepository
             participants: 1,
             totalCount: 1,
             unReadCount: 1,
+            task: 1,
             createdBy: 1,
           },
         },
@@ -496,10 +549,7 @@ export class ChatRepository
     ]);
 
     // Step 3: Extract the messages, total count, and unread count from the result
-    const messages =
-      result.length > 0
-        ? processChatMessages(result[0].messages as IMessage[])
-        : [];
+    const messages = result.length > 0 ? result[0].messages : [];
     const totalCount = result.length > 0 ? result[0].totalCount : 0;
     const unReadCount = result.length > 0 ? result[0].unReadCount : 0;
     const requests = result.length > 0 ? result[0].requests : 0;
@@ -661,71 +711,232 @@ export class ChatRepository
         case "2":
           msg.body = "Pause";
           msg.type = MessageType.pause;
+          await this.taskRepository.updateById<ITask>(chat?.task, {
+            status: ETaskStatus.pause,
+          });
           break;
 
         case "3":
           msg.body = "Relieve";
           msg.type = MessageType.relieve;
+
+          const tasks = await this.taskRepository.getById<ITask>(chat?.task);
+          if (!tasks) return ResponseHelper.sendResponse(404, "Task not found");
+
+          const findStandByServiceProvider = tasks.serviceProviders.find(
+            (sp) => sp.status === 3
+          );
+
+          const updatedServiceProviders = tasks.serviceProviders.map((sp) => {
+            // First, change the status from 4 to 5
+            if (sp.status === 4) {
+              return { ...sp, status: 5 };
+            }
+
+            // Then, if sp matches the found standby service provider, change status from 3 to 4
+            if (
+              findStandByServiceProvider &&
+              sp.user.toString() === findStandByServiceProvider.user.toString()
+            ) {
+              return { ...sp, status: 4 }; // Move from standby (3) to active (4)
+            }
+
+            // Return the service provider unchanged if no conditions match
+            return sp;
+          });
+
+          if (findStandByServiceProvider) {
+            await this.notificationService.createAndSendNotification({
+              ntitle: "your request has been accepted",
+              nbody: "Relieve Action Request",
+              receiverId: findStandByServiceProvider?.user,
+              type: ENOTIFICATION_TYPES.ACTION_REQUEST,
+              senderId: senderId as string,
+              data: {
+                task: chat?.task?.toString(),
+              },
+            } as NotificationParams);
+          }
+
+          console.log(updatedServiceProviders, "updatedServiceProviders");
+          await this.taskRepository.updateById<ITask>(chat?.task, {
+            serviceProviders: updatedServiceProviders,
+          });
+
+          const creatorId = chat.createdBy ? chat.createdBy.toString() : "";
+
+          const updatedParticipants = chat.participants.filter(
+            (participant: IParticipant) =>
+              participant.user.toString() === creatorId
+          );
+          updatedParticipants.push({
+            user: findStandByServiceProvider?.user,
+            status: "active",
+          });
+
+          await this.updateById<IChat>(chat._id, {
+            participants: updatedParticipants,
+          });
+
           break;
 
         case "4":
           msg.body = "Proceed";
           msg.type = MessageType.proceed;
-          await Task.updateOne<ITask>(
-            { _id: chat?.task },
-            {
-              status: ETaskStatus.assigned,
-            }
-          );
-          break;
-
-        case "5":
-          msg.type = MessageType.invoice;
-          if (
-            !dataset.amount &&
-            dataset.status === RequestStatus.SERVICE_PROVIDER_INVOICE_REQUEST
-          )
-            return ResponseHelper.sendResponse(404, "Amount is required");
-          msg.body = dataset?.amount || "0";
-          if (dataset.mediaUrl) {
-            msg.mediaUrls = [dataset.mediaUrl];
-          }
-          let task: ITask | null = await Task.findById(chat?.task);
-          if (task && !task?.commercial) {
-            msg.type = MessageType.complete;
-            await Task.updateOne<ITask>(
+          const taskUpdateResponse =
+            await this.taskRepository.updateByOne<ITask>(
               { _id: chat?.task },
               {
-                status: ETaskStatus.completed,
+                status: ETaskStatus.assigned,
               }
             );
-            await Calendar.updateMany<ICalendar>(
-              { task: new mongoose.Types.ObjectId(chat?.task) },
-              {
-                isActive: false,
-              }
+          if (taskUpdateResponse?.serviceProviders?.length) {
+            const calendarEntries = taskUpdateResponse.serviceProviders.map(
+              (provider: any) => ({
+                user: provider.user as string,
+                task: chat.task,
+                date: dataset.date
+                  ? dataset?.date.toISOString()
+                  : new Date().toISOString(),
+              })
             );
+            await this.calendarRepository.createMany(calendarEntries);
           }
           break;
 
-        case "6":
+        case "5": {
+          const taskId = chat?.task;
+          const amount = dataset.amount || "0";
+          const isServiceProviderInvoice =
+            dataset.status === RequestStatus.SERVICE_PROVIDER_INVOICE_REQUEST;
+
+          // Early return if amount is required but not provided
+          if (!amount && isServiceProviderInvoice) {
+            return ResponseHelper.sendResponse(404, "Amount is required");
+          }
+
+          // Set initial message properties
+          msg.type = MessageType.invoice;
+          msg.body = amount;
+          if (dataset.mediaUrl) msg.mediaUrls = [dataset.mediaUrl];
+
+          if (!taskId)
+            return ResponseHelper.sendResponse(404, "Task id not found");
+
+          // Fetch the task associated with the chat
+          const task: ITask | null = await this.taskRepository.getById(taskId);
+          if (!task) return ResponseHelper.sendResponse(404, "Task not found");
+
+          if (task.commercial) {
+            // Update invoice amount for commercial tasks
+            await this.taskRepository.updateById<ITask>(taskId, {
+              invoiceAmount: amount,
+            });
+          } else {
+            // Mark non-commercial task as completed and update calendar
+            msg.type = MessageType.complete;
+            await Promise.all([
+              this.taskRepository.updateById<ITask>(taskId, {
+                status: ETaskStatus.completed,
+              }),
+              this.calendarRepository.updateMany<ICalendar>(
+                { task: new mongoose.Types.ObjectId(taskId) },
+                { isActive: false }
+              ),
+            ]);
+          }
+
+          break;
+        }
+
+        case "6": {
           msg.body = "Completed";
           msg.type = MessageType.complete;
-          if (!dataset.amount)
+
+          // Validate amount
+          const amount = Number(dataset.amount);
+          if (isNaN(amount) || amount <= 0) {
             return ResponseHelper.sendResponse(404, "Amount is required");
-          msg.body = dataset?.amount;
-          await Task.updateOne<ITask>(
-            { _id: chat?.task },
-            {
+          }
+
+          // Fetch the completed task
+          const completedTask = await this.taskRepository.getById<ITask>(
+            chat?.task
+          );
+          if (!completedTask) {
+            return ResponseHelper.sendResponse(404, "Task not found");
+          }
+
+          // Check if the task is commercial and validate the invoice amount
+          if (completedTask.commercial) {
+            if (
+              completedTask.invoiceAmount === undefined ||
+              amount <= completedTask.invoiceAmount
+            ) {
+              return ResponseHelper.sendResponse(
+                404,
+                "Amount should be greater than the invoice amount"
+              );
+            }
+
+            // Fetch and validate user wallet
+            const userWallet = await this.walletRepository.getOne<IWallet>({
+              user: senderId,
+            });
+            if (!userWallet) {
+              return ResponseHelper.sendResponse(404, "Wallet not found");
+            }
+            if (userWallet.balance < amount) {
+              return ResponseHelper.sendResponse(404, "Insufficient balance");
+            }
+
+            // Update user wallet balance and service provider balance using $inc
+            const serviceProviderId = completedTask.serviceProviders[0]
+              .user as string;
+            await Promise.all([
+              await this.walletRepository.updateByOne<IWallet>(
+                { user: senderId },
+                {
+                  $inc: {
+                    amountHeld: -SERVICE_INITIATION_FEE,
+                    balance: -(amount - SERVICE_INITIATION_FEE),
+                  },
+                }
+              ),
+              this.walletRepository.updateBalance(serviceProviderId, +amount),
+            ]);
+          }
+
+          // Update task and calendar status
+          await Promise.all([
+            this.taskRepository.updateById<ITask>(chat?.task, {
               status: ETaskStatus.completed,
-            }
-          );
-          await Calendar.updateMany<ICalendar>(
-            { task: new mongoose.Types.ObjectId(chat?.task) },
-            {
-              isActive: false,
-            }
-          );
+            }),
+            this.calendarRepository.updateMany<ICalendar>(
+              { task: new mongoose.Types.ObjectId(chat?.task) },
+              { isActive: false }
+            ),
+          ]);
+
+          break;
+        }
+
+        case "7":
+          msg.type = MessageType.tour;
+          if (
+            (!dataset?.date || !dataset?.slot) &&
+            dataset.status === RequestStatus.CLIENT_TOUR_REQUEST_ACCEPT
+          )
+            return ResponseHelper.sendResponse(
+              400,
+              "Date and Time is required"
+            );
+          msg.body = "Tour Request";
+          break;
+
+        case "8":
+          msg.type = MessageType.reschedule;
+          msg.body = "Task Rescheduled";
           break;
 
         default:
@@ -767,6 +978,21 @@ export class ChatRepository
         chatType: chat.chatType,
         groupName: chat?.groupName,
       });
+
+      newRequest?.participants
+        ?.filter((participant: IParticipant) => participant.user !== senderId)
+        .forEach((participant: IParticipant) => {
+          this.notificationService.createAndSendNotification({
+            ntitle: `${msg.body} Action Request`,
+            nbody: msg.body,
+            receiverId: participant.user,
+            type: ENOTIFICATION_TYPES.ACTION_REQUEST,
+            senderId: senderId as string,
+            data: {
+              task: chat?.task?.toString(),
+            },
+          } as NotificationParams);
+        });
 
       return response;
     } catch (error) {
@@ -1416,6 +1642,7 @@ export class ChatRepository
       const currentUserId = new mongoose.Types.ObjectId(user);
       const chatSupportPip: any = {
         isChatSupport: chatSupport == true,
+        deleted: false,
       };
       if (chatId) chatSupportPip._id = new mongoose.Types.ObjectId(chatId);
       const query: any = [
@@ -2382,27 +2609,6 @@ function convertTo32BitInt(hexValue: string): Number {
     console.error("Error converting to 32-bit integer:", error);
     return NaN; // Indicate an error by returning NaN
   }
-}
-
-function processChatMessages(messages: IMessage[]) {
-  let processedMessages = [];
-
-  for (let i = 0; i < messages.length; i++) {
-    const currentMessage = { ...messages[i] };
-    {
-      if (
-        currentMessage.createdAt &&
-        messages[i - 1]?.createdAt &&
-        currentMessage.createdAt.toISOString().slice(0, 16) ===
-          messages[i - 1]?.createdAt?.toISOString().slice(0, 16)
-      ) {
-        delete currentMessage.createdAt;
-      }
-    }
-
-    processedMessages.push(currentMessage);
-  }
-  return processedMessages;
 }
 
 function findUserpipeline(match: any) {

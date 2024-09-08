@@ -19,14 +19,8 @@ const timeValidator = (value: string) => {
 
 const taskModel: Schema = new Schema(
   {
-    title: {
-      type: String,
-      default: null,
-    },
-    description: {
-      type: String,
-      default: null,
-    },
+    title: { type: String, default: null },
+    description: { type: String, default: null },
     location: {
       type: { type: String, enum: ["Point"], default: "Point" },
       coordinates: { type: [Number, Number] },
@@ -46,7 +40,7 @@ const taskModel: Schema = new Schema(
         validate: [timeValidator, "Invalid end time"],
       },
     },
-    noOfServiceProvider: { type: Number },
+    noOfServiceProvider: { type: Number, default: 1 },
     media: { type: String },
     commercial: { type: Boolean, default: false },
     type: {
@@ -56,51 +50,18 @@ const taskModel: Schema = new Schema(
       default: TaskType.normal,
     },
     taskInterests: [
-      {
-        type: Schema.Types.ObjectId,
-        ref: "Service",
-        default: [],
-      },
+      { type: Schema.Types.ObjectId, ref: "Service", default: [] },
     ],
     goList: {
-      title: {
-        type: String,
-      },
-      serviceProviders: {
-        type: [
-          {
-            user: {
-              type: Schema.Types.ObjectId,
-              required: true,
-              ref: "Users",
-            },
-            status: {
-              type: Number,
-              // enum: Object.values(ETaskUserStatus),
-              default: ETaskUserStatus.STANDBY,
-            },
-          },
-        ],
-      },
-      taskInterests: [
-        {
-          type: Schema.Types.ObjectId,
-          ref: "Service",
-        },
-      ],
-      goListId: {
-        type: Schema.Types.ObjectId,
-        ref: "Golist",
-      },
+      title: { type: String },
+      taskInterests: [{ type: Schema.Types.ObjectId, ref: "Service" }],
+      goListId: { type: Schema.Types.ObjectId, ref: "Golist" },
     },
     subTasks: [
       {
         title: { type: String },
         noOfServiceProvider: { type: Number },
-        note: {
-          type: String,
-          default: null,
-        },
+        note: { type: String, default: null },
         slot: {
           startTime: {
             type: String,
@@ -125,7 +86,7 @@ const taskModel: Schema = new Schema(
     ageFrom: { type: Number, default: null },
     ageTo: { type: Number, default: null },
     endDate: { type: Date, required: false },
-    users: {
+    serviceProviders: {
       type: [
         {
           _id: false,
@@ -136,15 +97,16 @@ const taskModel: Schema = new Schema(
           },
           status: {
             type: Number,
-            enum: Object.values(ETaskUserStatus),
-            default: ETaskUserStatus.PENDING,
+            enum: ETaskUserStatus,
           },
         },
       ],
       default: [],
     },
+    applicationEndDate: { type: Date },
     pendingCount: { type: Number, default: 0 },
     acceptedCount: { type: Number, default: 0 },
+    idleCount: { type: Number, default: 0 },
     status: {
       type: String,
       enum: Object.values(ETaskStatus),
@@ -154,6 +116,7 @@ const taskModel: Schema = new Schema(
       type: Boolean,
       default: false,
     },
+    invoiceAmount: { type: Number, default: 0 },
   },
   schemaOptions
 );

@@ -2,21 +2,16 @@ import mongoose, { FilterQuery, PipelineStage } from "mongoose";
 import { Request } from "express";
 import _ from "lodash";
 
-import {
-  Days,
-  EUserLocationType,
-  EUserRole,
-  Repetition,
-  RepetitionEvery,
-  Subscription,
-} from "../../database/interfaces/enums";
+import { EUserRole, Subscription } from "../../database/interfaces/enums";
+
 import {
   IUser,
   IUserWithSchedule,
 } from "../../database/interfaces/user.interface";
+import { ISchedule } from "../../database/interfaces/schedule.interface";
 import { UserRepository } from "../repository/user/user.repository";
-import { SubscriptionRepository } from "../repository/subscription/subscription.repository";
 import { ScheduleRepository } from "../repository/schedule/schedule.repository";
+import { SubscriptionRepository } from "../repository/subscription/subscription.repository";
 import {
   SUCCESS_DATA_DELETION_PASSED,
   SUCCESS_DATA_INSERTION_PASSED,
@@ -25,27 +20,21 @@ import {
   SUCCESS_DATA_UPDATION_PASSED,
 } from "../../constant";
 import { ResponseHelper } from "../helpers/reponseapi.helper";
-import { ISchedule } from "../../database/interfaces/schedule.interface";
-import { DateHelper } from "../helpers/date.helper";
 import { UploadHelper } from "../helpers/upload.helper";
 import TokenService from "./token.service";
+import { stripeHelper } from "../helpers/stripe.helper";
 
 class UserService {
   private userRepository: UserRepository;
   private scheduleRepository: ScheduleRepository;
-  private dateHelper: DateHelper;
   private uploadHelper: UploadHelper;
-
   private tokenService: TokenService;
 
   constructor() {
     this.userRepository = new UserRepository();
     this.scheduleRepository = new ScheduleRepository();
     this.uploadHelper = new UploadHelper("user");
-
     this.tokenService = new TokenService();
-
-    this.dateHelper = new DateHelper();
   }
 
   getByFilter = async (filter: FilterQuery<IUser>): Promise<ApiResponse> => {
@@ -168,10 +157,10 @@ class UserService {
           model: "Service",
           select: "title type parent",
         },
-        {
-          path: "subscription.subscription",
-          model: "Subscription",
-        },
+        // {
+        //   path: "subscription.subscription",
+        //   model: "Subscription",
+        // },
       ]);
 
       if (response === null) {
@@ -180,7 +169,7 @@ class UserService {
 
       const schedules = await this.scheduleRepository.getAll({
         user: _id,
-        isActive: true,
+        isDeleted: false,
       });
       const res = { ...response, schedule: schedules };
       return ResponseHelper.sendSuccessResponse(SUCCESS_DATA_SHOW_PASSED, res);
@@ -200,445 +189,222 @@ class UserService {
       let userResponse = await this.userRepository.getOne<IUser>({
         _id: _id,
       });
+
       dataset.company = { ...userResponse?.company, ...dataset.company };
+      // if (req && _.isArray(req.files)) {
+      //   if (
+      //     req.files.length &&
+      //     req.files?.find((file) => file.fieldname === "profileImage")
+      //   ) {
+      //     const image = req.files?.filter(
+      //       (file) => file.fieldname === "profileImage"
+      //     );
+      //     let path = await this.uploadHelper.uploadFileFromBuffer(image);
+      //     dataset.profileImage = path[0];
+      //   }
 
-      if (req && _.isArray(req.files)) {
-        if (
-          req.files.length &&
-          req.files?.find((file) => file.fieldname === "profileImage")
-        ) {
-          const image = req.files?.filter(
-            (file) => file.fieldname === "profileImage"
-          );
-          let path = await this.uploadHelper.uploadFileFromBuffer(image);
-          dataset.profileImage = path[0];
-        }
+      //   if (
+      //     req.files.length &&
+      //     req.files?.find((file) => file.fieldname === "gallery")
+      //   ) {
+      //     const image = req.files?.filter(
+      //       (file) => file.fieldname === "gallery"
+      //     );
+      //     let path: any = await this.uploadHelper.uploadFileFromBuffer(image);
+      //     body.galleryImages?.push(...path);
+      //     dataset.gallery = body.galleryImages || path;
+      //   }
 
-        if (
-          req.files.length &&
-          req.files?.find((file) => file.fieldname === "gallery")
-        ) {
-          const image = req.files?.filter(
-            (file) => file.fieldname === "gallery"
-          );
-          let path: any = await this.uploadHelper.uploadFileFromBuffer(image);
-          body.galleryImages?.push(...path);
-          dataset.gallery = body.galleryImages || path;
-        }
+      //   if (
+      //     req.files.length &&
+      //     req.files?.find((file) => file.fieldname === "visuals")
+      //   ) {
+      //     const image = req.files?.filter(
+      //       (file) => file.fieldname === "visuals"
+      //     );
+      //     let path = await this.uploadHelper.uploadFileFromBuffer(image);
+      //     body.visualFiles?.push(...path);
+      //     dataset.visuals = body.visualFiles || path;
+      //   }
 
-        if (
-          req.files.length &&
-          req.files?.find((file) => file.fieldname === "visuals")
-        ) {
-          const image = req.files?.filter(
-            (file) => file.fieldname === "visuals"
-          );
-          let path = await this.uploadHelper.uploadFileFromBuffer(image);
-          body.visualFiles?.push(...path);
-          dataset.visuals = body.visualFiles || path;
-        }
+      //   if (
+      //     req.files.length &&
+      //     req.files?.find((file) => file.fieldname === "companyLogo")
+      //   ) {
+      //     const image = req.files?.filter(
+      //       (file) => file.fieldname === "companyLogo"
+      //     );
+      //     let path = await this.uploadHelper.uploadFileFromBuffer(image);
+      //     dataset.company.logo = path[0];
+      //   }
 
-        if (
-          req.files.length &&
-          req.files?.find((file) => file.fieldname === "companyLogo")
-        ) {
-          const image = req.files?.filter(
-            (file) => file.fieldname === "companyLogo"
-          );
-          let path = await this.uploadHelper.uploadFileFromBuffer(image);
-          dataset.company.logo = path[0];
-        }
+      //   if (
+      //     req.files.length &&
+      //     req.files?.find((file) => file.fieldname === "companyResume")
+      //   ) {
+      //     const image = req.files?.filter(
+      //       (file) => file.fieldname === "companyResume"
+      //     );
+      //     let path = await this.uploadHelper.uploadFileFromBuffer(image);
+      //     dataset.company.resume = path[0];
+      //   }
 
-        if (
-          req.files.length &&
-          req.files?.find((file) => file.fieldname === "companyResume")
-        ) {
-          const image = req.files?.filter(
-            (file) => file.fieldname === "companyResume"
-          );
-          let path = await this.uploadHelper.uploadFileFromBuffer(image);
-          dataset.company.resume = path[0];
-        }
+      //   if (
+      //     req.files.length &&
+      //     req.files?.find((file) => file.fieldname === "certificates")
+      //   ) {
+      //     const image = req.files?.filter(
+      //       (file) => file.fieldname === "certificates"
+      //     );
+      //     let path = await this.uploadHelper.uploadFileFromBuffer(image);
+      //     body.certificateFiles?.push(...path);
+      //     dataset.certificates = body.certificateFiles || path;
+      //   }
 
-        if (
-          req.files.length &&
-          req.files?.find((file) => file.fieldname === "certificates")
-        ) {
-          const image = req.files?.filter(
-            (file) => file.fieldname === "certificates"
-          );
-          let path = await this.uploadHelper.uploadFileFromBuffer(image);
-          body.certificateFiles?.push(...path);
-          dataset.certificates = body.certificateFiles || path;
-        }
+      //   if (
+      //     req.files.length &&
+      //     req.files?.find((file) => file.fieldname === "licenses")
+      //   ) {
+      //     const image = req.files?.filter(
+      //       (file) => file.fieldname === "licenses"
+      //     );
+      //     let path = await this.uploadHelper.uploadFileFromBuffer(image);
+      //     body.licenseFiles?.push(...path);
+      //     dataset.licenses = body.licenseFiles || path;
+      //   }
 
-        if (
-          req.files.length &&
-          req.files?.find((file) => file.fieldname === "licenses")
-        ) {
-          const image = req.files?.filter(
-            (file) => file.fieldname === "licenses"
-          );
-          let path = await this.uploadHelper.uploadFileFromBuffer(image);
-          body.licenseFiles?.push(...path);
-          dataset.licenses = body.licenseFiles || path;
-        }
+      //   if (
+      //     req.files.length &&
+      //     req.files?.find((file) => file.fieldname === "insurances")
+      //   ) {
+      //     const image = req.files?.filter(
+      //       (file) => file.fieldname === "insurances"
+      //     );
+      //     let path = await this.uploadHelper.uploadFileFromBuffer(image);
+      //     body.insuranceFiles?.push(...path);
+      //     dataset.insurances = body.insuranceFiles || path;
+      //   }
+      // }
+      //
 
-        if (
-          req.files.length &&
-          req.files?.find((file) => file.fieldname === "insurances")
-        ) {
-          const image = req.files?.filter(
-            (file) => file.fieldname === "insurances"
-          );
-          let path = await this.uploadHelper.uploadFileFromBuffer(image);
-          body.insuranceFiles?.push(...path);
-          dataset.insurances = body.insuranceFiles || path;
+      // file is now will be handling from the fe with media api
+      let isBSL = false;
+      if (dataset?.subscription?.subscription) {
+        // let response = await stripeHelper.subscriptions(dataset.subscription.subscription);
+        // console.log("response", response);
+        let subscription = dataset.subscription.name;
+        console.log("dataset.subscription", dataset.subscription);
+        if (subscription) {
+          isBSL =
+            subscription.toLocaleLowerCase() ===
+            Subscription.bsl.toLocaleLowerCase();
+
+          console.log("isBSL", isBSL);
+
+          // service provider can add upto 3 location max
+          if (dataset.location && dataset.location.length > 3) {
+            return ResponseHelper.sendResponse(
+              422,
+              "Service Provider can add upto 3 locations Max"
+            );
+          }
+
+          // Validate location details
         }
       }
-
-      // checking if subscription is bsp then location should be local
-      // removing condition because of frontend
-      // if (dataset.subscription?.subscription) {
-      // let subscription =
-      //   await this.subscriptionRepository.getById<ISubscription>(
-      //     dataset.subscription.subscription
-      //   );
-
-      // if (
-      //   subscription &&
-      //   subscription.name.toLowerCase() === Subscription.bsl &&
-      //   dataset?.locationType !== EUserLocationType.local
-      // )
-      //   return ResponseHelper.sendResponse(
-      //     422,
-      //     "Location should be local while subscribing to BSL"
-      //   );
-      // }
-
-      // checking if location is local then all location details should be provided
-      if (
-        dataset.locationType &&
-        dataset.locationType === EUserLocationType.local &&
-        (!dataset.location || !dataset.location.length)
-      ) {
-        return ResponseHelper.sendResponse(422, "Provide all location details");
-      } else if (
-        dataset.locationType &&
-        dataset.locationType === EUserLocationType.local &&
-        dataset.location &&
-        dataset.location.length
-      ) {
+      if (dataset.location && dataset.location.length) {
         for (let i = 0; i < dataset.location.length; i++) {
           const element = dataset.location[i];
-          if (
-            element.coordinates.length < 2 ||
-            !element.state ||
-            !element.city ||
-            !element.county ||
-            (dataset.zipCode && !dataset.zipCode.length)
-          ) {
-            return ResponseHelper.sendResponse(
-              422,
-              "Provide all location details"
-            );
+          if (isBSL) {
+            // BSL subscription: no country or zip code allowed
+            if (element.county || element.zipCode) {
+              return ResponseHelper.sendResponse(
+                422,
+                "Country and zipcode are forbidden for BSL subscription"
+              );
+            }
+
+            // Ensure coordinates, city, and town are present
+            // town is optional for all service providers
+            if ((element?.coordinates?.length ?? 0) < 2 || !element.city) {
+              return ResponseHelper.sendResponse(
+                422,
+                "Provide coordinates, city, and town for BSL subscription"
+              );
+            }
+          } else {
+            // Non-BSL subscription: no coordinates allowed
+            if (element?.coordinates?.length ?? 0 > 0) {
+              return ResponseHelper.sendResponse(
+                422,
+                "Coordinates are forbidden for non-BSL subscription"
+              );
+            }
+
+            // Ensure city, are present
+            if (!element.city) {
+              return ResponseHelper.sendResponse(
+                422,
+                "Provide  city, town, for non-BSL subscription"
+              );
+            }
           }
+
+          // Convert coordinates to float if they exist
           dataset.location[i].coordinates?.map((e) => parseFloat(e.toString()));
           dataset.location[i].type ??= "Point";
-          if (element.isSelected === "true")
-            dataset.selectedLocation = dataset.location[i];
+
+          // Ensure type is set to "Point"
+          element.type = "Point";
+
+          // Check if the element is selected
+          if (element.isSelected === "true") {
+            // Ensure that the element.coordinates follows the schema definition
+            if (!element.coordinates || element.coordinates.length !== 2) {
+              // If coordinates are missing or not in the expected format, set default coordinates
+              element.coordinates = [0, 0];
+            }
+            // Assign the element to selectedLocation
+            dataset.selectedLocation = element;
+          }
         }
       }
 
-      // schedule creation
-      if (dataset.schedule) {
-        let schedule = dataset.schedule;
-        let noOfDays: number = 60;
-        const daysInWeek = 7;
-        let startDate = new Date(schedule.startDate);
-        const currentDate: Date = new Date();
-        let daysRemaining: number =
-          noOfDays -
-          Math.ceil(
-            (startDate.getTime() - currentDate.getTime()) / (1000 * 3600 * 24)
+      if (dataset.taskLocation && dataset.taskLocation.length > 0) {
+        if (dataset.taskLocation.length > 3) {
+          return ResponseHelper.sendResponse(
+            422,
+            "can add upto 3 locations Max"
           );
+        }
 
-        if (schedule.repetition === Repetition.none) {
-          const scheduleStartDate = new Date(startDate);
-          scheduleStartDate.setDate(startDate.getDate());
+        for (let i = 0; i < dataset.taskLocation.length; i++) {
+          const element = dataset.taskLocation[i];
 
-          await this.scheduleRepository.updateCollidingSchedules(
-            scheduleStartDate,
-            schedule.slots,
-            _id as mongoose.Types.ObjectId
-          );
+          if (element.isSelected === "true") {
+            dataset.taskSelectedLocation = element;
+          }
+        }
+      }
 
-          await this.scheduleRepository.create<ISchedule>({
-            date: scheduleStartDate,
-            day: this.dateHelper.getDayOfWeek(scheduleStartDate) as Days,
-            slots: schedule.slots,
-            user: _id as mongoose.Types.ObjectId,
+      if (dataset.schedule?.length) {
+        for (let i = 0; i < dataset.schedule.length; i++) {
+          const element = dataset.schedule[i];
+          const schedule = await this.scheduleRepository.getOne<ISchedule>({
+            user: _id,
+            day: element.day,
+            isDeleted: false,
           });
-        } else if (schedule.repetition === Repetition.day) {
-          for (let i = 0; i < daysRemaining; i++) {
-            const scheduleStartDate = new Date(startDate);
-            scheduleStartDate.setDate(startDate.getDate() + i);
-
-            await this.scheduleRepository.updateCollidingSchedules(
-              scheduleStartDate,
-              schedule.slots,
-              _id as mongoose.Types.ObjectId
+          if (schedule) {
+            await this.scheduleRepository.updateById(
+              schedule._id as string,
+              element
             );
-
-            await this.scheduleRepository.create<ISchedule>({
-              date: scheduleStartDate,
-              day: this.dateHelper.getDayOfWeek(scheduleStartDate) as Days,
-              slots: schedule.slots,
-              user: _id as mongoose.Types.ObjectId,
-            });
-          }
-        } else if (schedule.repetition === Repetition.week) {
-          const noOfWeeks = Math.ceil(daysRemaining / daysInWeek);
-
-          for (let i = 0; i < noOfWeeks; i++) {
-            const scheduleStartDate = new Date(startDate);
-            scheduleStartDate.setDate(startDate.getDate() + i * daysInWeek);
-
-            await this.scheduleRepository.updateCollidingSchedules(
-              scheduleStartDate,
-              schedule.slots,
-              _id as mongoose.Types.ObjectId
-            );
-
-            await this.scheduleRepository.create<ISchedule>({
-              date: scheduleStartDate,
-              day: this.dateHelper.getDayOfWeek(scheduleStartDate) as Days,
-              slots: schedule.slots,
-              user: _id as mongoose.Types.ObjectId,
-            });
-          }
-        } else if (schedule.repetition === Repetition.month) {
-          const scheduleStartDate = new Date(startDate);
-
-          while (daysRemaining > 0) {
-            await this.scheduleRepository.updateCollidingSchedules(
-              scheduleStartDate,
-              schedule.slots,
-              _id as mongoose.Types.ObjectId
-            );
-
-            await this.scheduleRepository.create<ISchedule>({
-              date: scheduleStartDate,
-              day: this.dateHelper.getDayOfWeek(scheduleStartDate) as Days,
-              slots: schedule.slots,
-              user: _id as mongoose.Types.ObjectId,
-            });
-
-            // Move to the next month
-            scheduleStartDate.setMonth(scheduleStartDate.getMonth() + 1);
-
-            // Subtract the actual number of days in the month from the remaining days
-            daysRemaining -= this.dateHelper.getDaysInMonth(scheduleStartDate);
-          }
-        } else if (schedule.repetition === Repetition.year) {
-          const scheduleStartDate = new Date(startDate);
-
-          while (daysRemaining > 0) {
-            await this.scheduleRepository.updateCollidingSchedules(
-              scheduleStartDate,
-              schedule.slots,
-              _id as mongoose.Types.ObjectId
-            );
-
-            await this.scheduleRepository.create<ISchedule>({
-              date: scheduleStartDate,
-              day: this.dateHelper.getDayOfWeek(scheduleStartDate) as Days,
-              slots: schedule.slots,
-              user: _id as mongoose.Types.ObjectId,
-            });
-
-            // Move to the next year
-            scheduleStartDate.setFullYear(scheduleStartDate.getFullYear() + 1);
-
-            // Subtract the actual number of days in the year from the remaining days
-            daysRemaining -= this.dateHelper.getDaysInYear(scheduleStartDate);
-          }
-        } else if (schedule.repetition === Repetition.custom) {
-          if (
-            !schedule.repeatsEvery ||
-            !schedule.repeatsOn ||
-            !schedule.repeatsAfter
-          ) {
-            return ResponseHelper.sendResponse(
-              422,
-              "Provide all schedule details required"
-            );
-          }
-
-          let daysDifference = 0;
-          // check if end date is provided
-          if (schedule.endDate) {
-            daysDifference = this.dateHelper.isDateDifferenceGreaterThan(
-              schedule.startDate,
-              schedule.endDate
-            );
-          } else if (schedule.occurrence) {
-            let endDate = startDate;
-            endDate.setDate(startDate.getDate() + +schedule.occurrence * 7);
-
-            daysDifference = daysDifference =
-              this.dateHelper.isDateDifferenceGreaterThan(
-                schedule.startDate,
-                endDate.toString()
-              );
-          } else if (!schedule.endDate && !schedule.occurrence) {
-            daysDifference = daysRemaining + 1;
-          }
-
-          // if schedule is greater than {noOfDays} days
-          if (daysDifference > daysRemaining) {
-            if (schedule.repeatsEvery === RepetitionEvery.week) {
-              const selectedDays = schedule.repeatsOn;
-              const noOfWeeks = Math.ceil(daysRemaining / daysInWeek);
-              let repeatsAfter = schedule.repeatsAfter || 1;
-              for (let i = 0; i < noOfWeeks; i += +repeatsAfter) {
-                // iterate through selected days and create schedules
-                for (const day of selectedDays) {
-                  // calculating next occurrence of the selected day
-                  const scheduleStartDate = this.dateHelper.getNextWeekdayByDay(
-                    schedule.startDate,
-                    day,
-                    i
-                  );
-
-                  await this.scheduleRepository.updateCollidingSchedules(
-                    scheduleStartDate,
-                    schedule.slots,
-                    _id as mongoose.Types.ObjectId
-                  );
-
-                  await this.scheduleRepository.create<ISchedule>({
-                    date: scheduleStartDate,
-                    day: this.dateHelper.getDayOfWeek(
-                      scheduleStartDate
-                    ) as Days,
-                    slots: schedule.slots,
-                    user: _id as mongoose.Types.ObjectId,
-                  });
-                }
-              }
-            } else if (schedule.repeatsEvery === RepetitionEvery.month) {
-              const selectedDays = schedule.repeatsOn;
-              const daysInMonth = this.dateHelper.getDaysInMonth(
-                new Date(schedule.startDate)
-              );
-              const repeatsAfter = schedule.repeatsAfter || 1; // Default to 1 if repeatsAfter is not provided
-
-              // Calculate the number of months needed based on the total number of days
-              const totalMonths = Math.ceil(
-                daysRemaining / (daysInMonth * +repeatsAfter)
-              );
-
-              for (let i = 0; i < totalMonths; i++) {
-                // Iterate through selected days and create schedules
-                for (const day of selectedDays) {
-                  // Calculate the next occurrence of the selected day in the current month
-                  const scheduleStartDate =
-                    this.dateHelper.getNextMonthdayByDay(
-                      schedule.startDate,
-                      day,
-                      i * +repeatsAfter
-                    );
-
-                  await this.scheduleRepository.updateCollidingSchedules(
-                    scheduleStartDate,
-                    schedule.slots,
-                    _id as mongoose.Types.ObjectId
-                  );
-
-                  await this.scheduleRepository.create<ISchedule>({
-                    date: scheduleStartDate,
-                    day: this.dateHelper.getDayOfWeek(
-                      scheduleStartDate
-                    ) as Days,
-                    slots: schedule.slots,
-                    user: _id as mongoose.Types.ObjectId,
-                  });
-                }
-              }
-            }
           } else {
-            // schedule is less than {noOfDays} days
-            if (schedule.repeatsEvery === RepetitionEvery.week) {
-              const selectedDays = schedule.repeatsOn;
-              const noOfWeeks = Math.ceil(daysDifference / daysInWeek);
-              let repeatsAfter = schedule.repeatsAfter || 1;
-              for (let i = 0; i < noOfWeeks; i += +repeatsAfter) {
-                // iterate through selected days and create schedules
-                for (const day of selectedDays) {
-                  // calculating next occurrence of the selected day
-                  const scheduleStartDate = this.dateHelper.getNextWeekdayByDay(
-                    schedule.startDate,
-                    day,
-                    i
-                  );
-
-                  await this.scheduleRepository.updateCollidingSchedules(
-                    scheduleStartDate,
-                    schedule.slots,
-                    _id as mongoose.Types.ObjectId
-                  );
-
-                  await this.scheduleRepository.create<ISchedule>({
-                    date: scheduleStartDate,
-                    day: this.dateHelper.getDayOfWeek(
-                      scheduleStartDate
-                    ) as Days,
-                    slots: schedule.slots,
-                    user: _id as mongoose.Types.ObjectId,
-                  });
-                }
-              }
-            } else if (schedule.repeatsEvery === RepetitionEvery.month) {
-              const selectedDays = schedule.repeatsOn;
-              const daysInMonth = this.dateHelper.getDaysInMonth(
-                new Date(schedule.startDate)
-              );
-              const repeatsAfter = schedule.repeatsAfter || 1; // Default to 1 if repeatsAfter is not provided
-
-              // Calculate the number of months needed based on the total number of days
-              const totalMonths = Math.ceil(
-                daysDifference / (daysInMonth * +repeatsAfter)
-              );
-
-              for (let i = 0; i < totalMonths; i++) {
-                // Iterate through selected days and create schedules
-                for (const day of selectedDays) {
-                  // Calculate the next occurrence of the selected day in the current month
-                  const scheduleStartDate =
-                    this.dateHelper.getNextMonthdayByDay(
-                      schedule.startDate,
-                      day,
-                      i * +repeatsAfter
-                    );
-
-                  await this.scheduleRepository.updateCollidingSchedules(
-                    scheduleStartDate,
-                    schedule.slots,
-                    _id as mongoose.Types.ObjectId
-                  );
-
-                  await this.scheduleRepository.create<ISchedule>({
-                    date: scheduleStartDate,
-                    day: this.dateHelper.getDayOfWeek(
-                      scheduleStartDate
-                    ) as Days,
-                    slots: schedule.slots,
-                    user: _id as mongoose.Types.ObjectId,
-                  });
-                }
-              }
-            }
+            await this.scheduleRepository.create<ISchedule>({
+              ...element,
+              user: new mongoose.Types.ObjectId(_id),
+            });
           }
         }
       }
@@ -800,15 +566,11 @@ class UserService {
             model: "Service",
             select: "title type parent",
           },
-          {
-            path: "subscription.subscription",
-            model: "Subscription",
-          },
         ]
       );
       const schedules = await this.scheduleRepository.getAll({
         user: _id,
-        isActive: true,
+        isDeleted: false,
       });
       const res = { ...userResponse, schedule: schedules };
 
@@ -876,15 +638,17 @@ class UserService {
   ) => {
     const countPipeline = (await this.userRepository.getDataByAggregate([
       ...(pipeline ?? []),
-      { $sort: { distance: -1 } },
+      { $sort: { createdAt: -1 } },
       { $count: "totalCount" },
     ])) as any[];
     const response = await this.userRepository.getDataByAggregate([
       ...(pipeline ?? []),
-      { $sort: { distance: -1 } },
+      { $sort: { createdAt: -1 } },
       { $skip: (page - 1) * limit },
       { $limit: limit },
     ]);
+    console.log("response", response);
+
     return ResponseHelper.sendSuccessResponse(
       SUCCESS_DATA_LIST_PASSED,
       response,

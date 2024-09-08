@@ -3,7 +3,13 @@ import bcrypt from "bcrypt";
 import mongoosePaginate from "mongoose-paginate-v2";
 import aggregatePaginate from "mongoose-aggregate-paginate-v2";
 
-import { EUserRole, EUserLocationType } from "../interfaces/enums";
+import {
+  EUserRole,
+  EUserLocationType,
+  Subscription,
+  SubscriptionType,
+  AUTH_PROVIDER,
+} from "../interfaces/enums";
 import { IUserDoc } from "../interfaces/user.interface";
 
 const schemaOptions = {
@@ -18,7 +24,7 @@ const userModel: Schema = new Schema(
     username: {
       type: String,
       trim: true,
-      default: null,
+      // default: null,
       index: {
         unique: true,
         partialFilterExpression: {
@@ -26,6 +32,21 @@ const userModel: Schema = new Schema(
           isDeleted: false,
         },
       },
+    },
+    socialAuthId: {
+      type: String,
+      index: {
+        unique: true,
+        partialFilterExpression: {
+          socialAuthId: { $type: "string" },
+          isDeleted: false,
+        },
+      },
+    },
+    authProvider: {
+      type: String,
+      default: AUTH_PROVIDER.MANUAL,
+      enum: AUTH_PROVIDER,
     },
     email: {
       type: String,
@@ -37,11 +58,11 @@ const userModel: Schema = new Schema(
           isDeleted: false,
         },
       },
-      required: true,
+      required: false,
       lowercase: true,
       trim: true,
     },
-    password: { type: String, required: true, select: false },
+    password: { type: String, select: false },
     gender: { type: String },
     age: { type: Number, default: null },
     countryCode: { type: String }, // like 'PK' alpha-2 format
@@ -70,21 +91,43 @@ const userModel: Schema = new Schema(
     volunteer: [{ type: Schema.Types.ObjectId, ref: "Service" }],
     services: [{ type: Schema.Types.ObjectId, ref: "Service" }],
     subscription: {
-      subscription: { type: Schema.Types.ObjectId, ref: "Subscription" },
-      plan: { type: Schema.Types.ObjectId, ref: "Plan" },
+      subscription: { type: String }, // it will be stripe product id starting with prod
+      plan: { type: String, enum: Object.values(SubscriptionType) },
+      name: { type: String, enum: Object.values(Subscription) },
+      subscribe: { type: Boolean, default: false },
+      subscriptionAuthId: { type: String, default: null },
     },
     locationType: { type: String, enum: Object.values(EUserLocationType) },
+
     location: [
       {
         type: { type: String, enum: ["Point"], default: "Point" },
-        coordinates: { type: [Number, Number] },
+        coordinates: { type: [Number, Number], default: [0, 0] },
         state: { type: String, default: null },
         city: { type: String, default: null },
         county: { type: String, default: null },
+        town: { type: String, default: null },
         isSelected: { type: Boolean, default: false },
         readableLocation: { type: String, default: null },
       },
     ],
+    taskLocation: [
+      {
+        type: { type: String, enum: ["Point"], default: "Point" },
+        coordinates: { type: [Number, Number], default: [0, 0] },
+        city: { type: String, default: null },
+        town: { type: String, default: null },
+        isSelected: { type: Boolean, default: false },
+        readableLocation: { type: String, default: null },
+      },
+    ],
+    taskSelectedLocation: {
+      type: { type: String, enum: ["Point"], default: "Point" },
+      coordinates: { type: [Number, Number], default: [0, 0] },
+      city: { type: String, default: null },
+      town: { type: String, default: null },
+      readableLocation: { type: String, default: null },
+    },
     selectedLocation: {
       type: { type: String, enum: ["Point"], default: "Point" },
       coordinates: { type: [Number, Number], default: [0, 0] },
@@ -137,6 +180,13 @@ const userModel: Schema = new Schema(
     callDeviceType: { type: String, default: null },
     stripeCustomerId: { type: String, default: null },
     stripeConnectId: { type: String, default: null },
+    accountAuthorized: { type: Boolean, default: false },
+    stripeConnectAccountRequirementsDue: {
+      disabledReason: { type: String, default: null },
+      currentlyDue: { type: [String], default: [] },
+      eventuallyDue: { type: [String], default: [] },
+      pastDue: { type: [String], default: [] },
+    },
     wallet: { type: Schema.Types.ObjectId, ref: "Wallet", default: null },
   },
   schemaOptions
@@ -176,7 +226,7 @@ userModel.pre("save", async function (next) {
     this.password = hashedPassword;
     next();
   } catch (err) {
-    console.log("Something went wrong whil hashing passowrd", err);
+    console.log("Something went wrong while hashing password", err);
     next(err as Error);
   }
 });

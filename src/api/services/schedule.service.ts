@@ -46,9 +46,20 @@ class ScheduleService {
     }
   };
 
-  create = async (payload: ISchedule): Promise<ApiResponse> => {
+  create = async (payload: ISchedule, userId: string): Promise<ApiResponse> => {
     try {
-      const data = await this.scheduleRepository.create<ISchedule>(payload);
+      let schedule = await this.scheduleRepository.getOne<ISchedule>({
+        user: new mongoose.Types.ObjectId(userId),
+        day: payload.day,
+        isDeleted: false,
+      });
+      if (schedule) {
+        return ResponseHelper.sendResponse(409, "Already created");
+      }
+      const data = await this.scheduleRepository.create<ISchedule>({
+        ...payload,
+        user: new mongoose.Types.ObjectId(userId),
+      });
       return ResponseHelper.sendResponse(201, data);
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);
@@ -78,22 +89,6 @@ class ScheduleService {
     dataset: Partial<ISchedule>
   ): Promise<ApiResponse> => {
     try {
-      if (!dataset.date)
-        return ResponseHelper.sendResponse(422, "Please Provide date");
-
-      if (!dataset.slots?.length) {
-        dataset.isActive = false;
-      } else {
-        const scheduleResponse =
-          await this.scheduleRepository.getOne<ISchedule>({ _id });
-        await this.scheduleRepository.updateCollidingSchedules(
-          new Date(dataset.date),
-          dataset.slots,
-          scheduleResponse?.user as mongoose.Types.ObjectId
-        );
-        dataset.isActive = true;
-      }
-
       const response = await this.scheduleRepository.updateById<ISchedule>(
         _id as string,
         dataset
@@ -112,7 +107,12 @@ class ScheduleService {
 
   delete = async (_id: string): Promise<ApiResponse> => {
     try {
-      const response = await this.scheduleRepository.delete<ISchedule>({ _id });
+      const response = await this.scheduleRepository.updateById<ISchedule>(
+        _id,
+        {
+          isDeleted: true,
+        }
+      );
       if (!response) {
         return ResponseHelper.sendResponse(404);
       }

@@ -71,23 +71,14 @@ class GolistController {
 
   show = async (req: Request, res: Response) => {
     const { id } = req.params;
-    const response = await this.golistService.show(
-      id,
-      !req.query.longitude || !req.query.latitude
-        ? undefined
-        : ([
-            parseFloat(req.query.longitude as string),
-            parseFloat(req.query.latitude as string),
-          ] as [number, number]),
-      [
-        ModelHelper.populateData(
-          "serviceProviders",
-          ModelHelper.userSelect,
-          "Users"
-        ),
-        ModelHelper.populateData("taskInterests"),
-      ]
-    );
+    const response = await this.golistService.show(id, [
+      ModelHelper.populateData(
+        "serviceProviders",
+        ModelHelper.userSelect,
+        "Users"
+      ),
+      ModelHelper.populateData("taskInterests"),
+    ]);
     return res.status(response.code).json(response);
   };
 
@@ -102,12 +93,6 @@ class GolistController {
         .json({ data: null, status: false, msg: "Not found" });
     const response = await this.golistService.show(
       list.data.result[0]._id.toString(),
-      !req.query.longitude || !req.query.latitude
-        ? undefined
-        : ([
-            parseFloat(req.query.longitude as string),
-            parseFloat(req.query.latitude as string),
-          ] as [number, number]),
       [
         ModelHelper.populateData(
           "serviceProviders",
@@ -162,6 +147,8 @@ class GolistController {
       license,
       reference,
       insurance,
+      city,
+      town,
       search,
       visualPhotos,
       visualVideos,
@@ -169,6 +156,63 @@ class GolistController {
     const limitNow = limit ? limit : 10;
     const coordinates = [Number(longitude), Number(latitude)];
     const response = await this.golistService.getNearestServiceProviders(
+      Number(page),
+      Number(limitNow),
+      req.locals.auth?.userId,
+      city,
+      town,
+      coordinates,
+      taskInterests as string[],
+      volunteers as undefined | string[],
+      subscription as undefined | string[],
+      zipCode?.toString(),
+      rating ? (parseInt(rating.toString()) as ERating) : undefined,
+      companyLogo as boolean | undefined,
+      companyRegistration as boolean | undefined,
+      companyWebsite as boolean | undefined,
+      companyAffilation as boolean | undefined,
+      companyPublication as boolean | undefined,
+      companyResume as boolean | undefined,
+      certificate as boolean | undefined,
+      license as boolean | undefined,
+      reference as boolean | undefined,
+      insurance as boolean | undefined,
+      search as string,
+      visualPhotos as boolean | undefined,
+      visualVideos as boolean | undefined
+    );
+    // console.log(response);
+    return res.status(response.code).json(response);
+  };
+
+  getNearestUsers = async (req: Request, res: Response) => {
+    const { limit, page } = req.query;
+    const {
+      latitude,
+      longitude,
+      zipCode,
+      taskInterests = [],
+      volunteers,
+      subscription,
+      rating,
+      companyLogo,
+      companyRegistration,
+      companyWebsite,
+      companyAffilation,
+      companyPublication,
+      companyResume,
+      certificate,
+      license,
+      reference,
+      insurance,
+      search,
+      visualPhotos,
+      visualVideos,
+      userRole,
+    } = req.body;
+    const limitNow = limit ? limit : 10;
+    const coordinates = [Number(longitude), Number(latitude)];
+    const response = await this.golistService.getNearestUsers(
       Number(page),
       Number(limitNow),
       req.locals.auth?.userId,
@@ -190,7 +234,8 @@ class GolistController {
       insurance as boolean | undefined,
       search as string,
       visualPhotos as boolean | undefined,
-      visualVideos as boolean | undefined
+      visualVideos as boolean | undefined,
+      userRole as EUserRole | undefined
     );
     return res.status(response.code).json(response);
   };

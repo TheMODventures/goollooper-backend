@@ -14,12 +14,43 @@ import { ResponseHelper } from "../helpers/reponseapi.helper";
 import { NotificationRepository } from "../repository/notification/notification.repository";
 import { UserRepository } from "../repository/user/user.repository";
 import { IUser } from "../../database/interfaces/user.interface";
+import SocketIO from "socket.io";
+
 import {
   ENOTIFICATION_TYPES,
   EUserRole,
 } from "../../database/interfaces/enums";
 import { NotificationHelper } from "../helpers/notification.helper";
+import { Authorize } from "../../middleware/authorize.middleware";
 
+interface CustomSocket extends SocketIO.Socket {
+  user?: any;
+}
+
+export const notificationSockets = (io: SocketIO.Server) => {
+  console.log("Notification Socket Initialized");
+
+  const authorize = new Authorize();
+  const notificationService = new NotificationService();
+  io.use(async (socket: CustomSocket, next) => {
+    const token = socket.handshake.query.token;
+    const result = await authorize.validateAuthSocket(token as string);
+
+    if (result?.userId) {
+      socket.user = result;
+      next();
+    } else next(new Error(result));
+  });
+
+  io.on("connection", async (socket: CustomSocket) => {
+    socket.on("notification-event", async () => {
+      const count = await notificationService.getNotificationCount(
+        socket.user.userId
+      );
+      io.emit("notification-event", count);
+    });
+  });
+};
 class NotificationService {
   private notificationRepository: NotificationRepository;
   private userRepository: UserRepository;
@@ -149,15 +180,12 @@ class NotificationService {
     }
   };
 
-  update = async (
-    _id: string,
-    dataset: Partial<INotification>
-  ): Promise<ApiResponse> => {
+  update = async (dataset: Partial<INotification>): Promise<ApiResponse> => {
     try {
       const response =
-        await this.notificationRepository.updateById<INotification>(
-          _id,
-          dataset
+        await this.notificationRepository.updateMany<INotification>(
+          { receiver: dataset.receiver, isRead: false },
+          { isRead: true }
         );
       if (response === null) {
         return ResponseHelper.sendResponse(404);
@@ -209,7 +237,7 @@ class NotificationService {
         undefined,
         "fcmTokens firstName username lastName"
       );
-    console.log("fcmToken from notification model >>> ", fcmTokens);
+    // console.log("fcmToken from notification model >>> ", fcmTokens);
 
     switch (type) {
       case ENOTIFICATION_TYPES.MESSAGE_REQUEST:
@@ -241,8 +269,13 @@ class NotificationService {
         title = ntitle ?? `#sender`;
         body = nbody ?? `#sender has requested to be added to the task`;
         break;
-
+      case ENOTIFICATION_TYPES.ACTION_REQUEST:
+        title = ntitle ?? `#sender`;
+        body = nbody ?? `#sender has requested this action`;
       default:
+      case ENOTIFICATION_TYPES.TASK_CANCELLED:
+        title = ntitle ?? `#sender`;
+        body = nbody ?? `#sender has cancelled the task`;
         break;
     }
 
@@ -265,6 +298,14 @@ class NotificationService {
 
     return notification;
   };
+
+  async getNotificationCount(userId: string) {
+    const count = await this.notificationRepository.getCount<INotification>({
+      receiver: userId,
+      isRead: false,
+    });
+    return count;
+  }
 }
 
 export interface NotificationParams {

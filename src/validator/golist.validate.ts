@@ -83,7 +83,9 @@ const showRule = yup.object().shape({
   params: yup.object().shape(paramRule).noUnknown(),
   body: yup.object().shape({}).noUnknown(),
   query: yup
-    .object({ latitude: yup.string(), longitude: yup.string() })
+    .object
+    // { latitude: yup.string(), longitude: yup.string() }
+    ()
     .noUnknown(),
 });
 
@@ -162,8 +164,10 @@ const getNearestServiceProvidersRule = yup.object().shape({
         .string()
         .oneOf([...Object.values(ERating).map((value) => value.toString())]),
       taskInterests: yup.array().of(paramRule.id).notRequired(),
+      town: yup.string().notRequired(),
+      city: yup.string().notRequired(),
       volunteers: yup.array().of(paramRule.id).notRequired(),
-      subscription: yup.array().of(paramRule.id).notRequired(),
+      subscription: yup.array().of(yup.string()).notRequired(),
       companyLogo: yup.boolean().notRequired(),
       companyRegistration: yup.boolean().notRequired(),
       companyWebsite: yup.boolean().notRequired(),
@@ -178,23 +182,6 @@ const getNearestServiceProvidersRule = yup.object().shape({
       visualVideos: yup.boolean().notRequired(),
       search: yup.string(),
     })
-    .test(
-      "zipCodeOrCoordinates",
-      "Either zipCode or both latitude and longitude are required",
-      function (value) {
-        const { zipCode, latitude, longitude } = value;
-
-        if (zipCode && (latitude || longitude)) {
-          return this.createError({
-            message:
-              "Either zipCode or both latitude and longitude are required",
-            path: "zipCode",
-          });
-        }
-
-        return true;
-      }
-    )
     .noUnknown(),
   query: yup
     .object()
@@ -261,6 +248,7 @@ const getNearestUsers = yup.object().shape({
     })
     .noUnknown(),
 });
+
 
 export = {
   "/": indexRule,

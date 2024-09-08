@@ -15,7 +15,7 @@ const paramRule = {
 const showRule = yup.object().shape({
   params: yup.object().shape(paramRule).noUnknown(),
   body: yup.object().shape({}).noUnknown(),
-  query: yup.object().noUnknown(),
+  query: yup.object({}).noUnknown(),
 });
 
 const indexRule = yup.object().shape({
@@ -34,6 +34,13 @@ const indexRule = yup.object().shape({
       title: yup.string().notRequired(),
     })
     .noUnknown(),
+});
+const deleteRule = yup.object().shape({
+  params: yup.object().shape(paramRule).noUnknown(),
+  body: yup.object().shape({}).noUnknown(),
+  query: yup.object().shape({
+    chatId: yup.string().required(),
+  }),
 });
 
 const myTaskRule = yup.object().shape({
@@ -56,6 +63,13 @@ const createRule = yup.object().shape({
     .shape({
       title: yup.string().required(),
       description: yup.string().notRequired(),
+      applicationEndDate: yup
+        .string()
+        .matches(
+          /^(19|20)\d{2}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/,
+          "Please enter a valid application end date in the format YYYY-MM-DD"
+        )
+        .optional(),
       location: yup
         .object()
         .shape({
@@ -99,10 +113,7 @@ const createRule = yup.object().shape({
         .notRequired(),
       taskInterests: yup.array().of(yup.string().length(24)).default([]),
       goList: yup.string().length(24).notRequired(),
-      goListServiceProviders: yup
-        .array()
-        .of(yup.string().length(24))
-        .notRequired(),
+      goListServiceProviders: yup.array().of(yup.string()).notRequired(),
       myList: yup.array().of(yup.string().length(24)).default([]),
       subTasks: yup
         .array()
@@ -239,12 +250,23 @@ const toggleRequestRule = yup.object().shape({
           ETaskUserStatus.ACCEPTED,
           ETaskUserStatus.REJECTED,
           ETaskUserStatus.STANDBY,
+          ETaskUserStatus.IDLE,
         ])
         .required(),
-      type: yup.string().oneOf(["goList", "user"]).required(),
+      // type: yup.string().oneOf(["goList", "user"]).required(),
     })
     .noUnknown(),
   query: yup.object().noUnknown(),
+});
+
+const cancelTask = yup.object().shape({
+  params: yup.object().shape(paramRule).noUnknown(),
+  body: yup.object().shape({}).noUnknown(),
+  query: yup
+    .object({
+      chatId: yup.string().required(),
+    })
+    .noUnknown(),
 });
 
 export = {
@@ -256,4 +278,5 @@ export = {
   "/delete": showRule,
   "/toggle-request": toggleRequestRule,
   "/request": showRule,
+  "/cancel": cancelTask,
 };

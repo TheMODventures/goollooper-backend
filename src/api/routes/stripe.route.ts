@@ -1,6 +1,7 @@
 import { Validation } from "../../middleware/validation.middleware";
 import StripeController from "../controllers/stripe/stripe.controller";
 import BaseRoutes from "./base.route";
+import express from "express"; // Import the 'express' module
 
 class StripeRoutes extends BaseRoutes {
   private stripeController: StripeController;
@@ -26,30 +27,6 @@ class StripeRoutes extends BaseRoutes {
       this.stripeController.getConnect
     );
 
-    this.router.get(
-      "/cards",
-      this.validateRequest,
-      this.stripeController.getCustomerCards
-    );
-
-    this.router.post(
-      "/add-card",
-      this.validateRequest,
-      this.stripeController.addCardToCustomer
-    );
-
-    this.router.patch(
-      "/update-card/:id",
-      this.validateRequest,
-      this.stripeController.updateCardToCustomer
-    );
-
-    this.router.post(
-      "/create-top-up",
-      this.validateRequest,
-      this.stripeController.createTopUp
-    );
-
     this.router.post(
       "/create-payment-intent",
       this.validateRequest,
@@ -62,60 +39,26 @@ class StripeRoutes extends BaseRoutes {
       this.stripeController.confirmPayment
     );
 
-    this.router.delete(
-      "/card/:id",
-      this.validateRequest,
-      this.stripeController.deleteSource
-    );
-
-    this.router.patch(
-      "/card/default/:id",
-      this.validateRequest,
-      this.stripeController.selectDefaultCard
-    );
-
-    // this.router.post(
-    //   "/apply-for-subscription",
-    //   this.validateRequest,
-    //   this.stripeController.applyForSubscription
-    // );
-
-    this.router.post("/webhook", this.stripeController.webhook);
-
-    this.router.get(
-      "/banks",
-      this.validateRequest,
-      this.stripeController.getBankAccounts
-    );
-
     this.router.post(
-      "/add-bank",
-      this.validateRequest,
-      this.stripeController.addBank
-    );
-
-    this.router.patch(
-      "/update-bank",
-      this.validateRequest,
-      this.stripeController.updateBank
-    );
-
-    this.router.delete(
-      "/bank/:id",
-      this.validateRequest,
-      this.stripeController.deleteBank
-    );
-
-    this.router.get(
-      "/payment-methods",
-      this.validateRequest,
-      this.stripeController.getPaymentMethods
-    );
-
-    this.router.post(
-      "/payout/:source",
+      "/payout",
       this.validateRequest,
       this.stripeController.payout
+    );
+
+    this.router.post("/onboarding", this.stripeController.onboarding);
+
+    this.router.post(
+      "/withdraw-request",
+      this.validateRequest,
+      this.stripeController.withdrawRequest
+    );
+
+    this.router.get("/balance", this.stripeController.stripeBalance);
+
+    this.router.put(
+      "/toggle-withdraw-request/:id",
+      this.validateRequest,
+      this.stripeController.toggleWithdrawRequest
     );
   }
 }

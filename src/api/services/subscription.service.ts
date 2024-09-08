@@ -1,192 +1,234 @@
-import { FilterQuery } from "mongoose";
+import mongoose from "mongoose";
 
 import {
   SUCCESS_DATA_LIST_PASSED,
   SUCCESS_DATA_SHOW_PASSED,
-  SUCCESS_DATA_INSERTION_PASSED,
-  SUCCESS_DATA_UPDATION_PASSED,
-  SUCCESS_DATA_DELETION_PASSED,
 } from "../../constant";
-import {
-  ISubscription,
-  IPlans,
-} from "../../database/interfaces/subscription.interface";
+import { ISubscription } from "../../database/interfaces/subscription.interface";
 import { ResponseHelper } from "../helpers/reponseapi.helper";
-import { SubscriptionRepository } from "../repository/subscription/subscription.repository";
+import { stripeHelper } from "../helpers/stripe.helper";
+import { UserRepository } from "../repository/user/user.repository";
+import { IUser } from "../../database/interfaces/user.interface";
+import { WalletRepository } from "../repository/wallet/wallet.repository";
+import { TransactionRepository } from "../repository/transaction/transaction.repository";
+import { IWallet } from "../../database/interfaces/wallet.interface";
+import Stripe from "stripe";
+import {
+  ETransactionStatus,
+  TransactionType,
+} from "../../database/interfaces/enums";
+import { ITransaction } from "../../database/interfaces/transaction.interface";
 
 class SubscriptionService {
-  private subcriptionRepository: SubscriptionRepository;
-
+  private userRepository: UserRepository;
+  private walletRepository: WalletRepository;
+  private transactionRepository: TransactionRepository;
   constructor() {
-    this.subcriptionRepository = new SubscriptionRepository();
+    this.userRepository = new UserRepository();
+    this.walletRepository = new WalletRepository();
+    this.transactionRepository = new TransactionRepository();
   }
 
-  index = async (
-    page: number,
-    limit = 10,
-    filter: FilterQuery<ISubscription>
-  ): Promise<ApiResponse> => {
+  index = async ({
+    unique,
+    name,
+  }: {
+    unique: boolean;
+    name?: string;
+  }): Promise<ApiResponse> => {
     try {
-      const getDocCount = await this.subcriptionRepository.getCount(filter);
-      const response = await this.subcriptionRepository.getAll<ISubscription>(
-        filter,
-        "",
-        "",
-        {
-          createdAt: "desc",
-        },
-        undefined,
-        true,
-        page,
-        limit
-      );
-      return ResponseHelper.sendSuccessResponse(
-        SUCCESS_DATA_LIST_PASSED,
-        response,
-        getDocCount
-      );
-    } catch (error) {
-      return ResponseHelper.sendResponse(500, (error as Error).message);
-    }
-  };
+      const subscription = await stripeHelper.subscriptions();
 
-  create = async (payload: ISubscription): Promise<ApiResponse> => {
-    try {
-      const data = await this.subcriptionRepository.create<ISubscription>(
-        payload
-      );
-      return ResponseHelper.sendResponse(201, data);
-    } catch (error) {
-      return ResponseHelper.sendResponse(500, (error as Error).message);
-    }
-  };
+      if (unique) {
+        const uniqueKeys = new Set<string>();
+        const descriptions: { [key: string]: string } = {};
+        const tagLine: { [key: string]: string } = {};
 
-  show = async (_id: string): Promise<ApiResponse> => {
-    try {
-      const filter = {
-        _id: _id,
-      };
-      const response = await this.subcriptionRepository.getOne<ISubscription>(
-        filter
-      );
-      if (response === null) {
-        return ResponseHelper.sendResponse(404);
+        if ("data" in subscription) {
+          subscription.data.forEach((item: Stripe.Product) => {
+            const metadataKeys = Object.keys(item.metadata);
+            metadataKeys.forEach((key) => {
+              if (
+                key === "BSL" ||
+                key === "IW" ||
+                key === "MBS" ||
+                key === "BSP"
+              ) {
+                uniqueKeys.add(key);
+                descriptions[key] = item.description as string;
+                tagLine[key] = item.metadata["tagLine"];
+              }
+            });
+          });
+        }
+        const responseData = Array.from(uniqueKeys).map((key) => ({
+          key,
+          description: descriptions[key],
+          tagLine: tagLine[key],
+        }));
+
+        return ResponseHelper.sendSuccessResponse(
+          "subscription plan found",
+          responseData
+        );
+      } else if (name) {
+        let filteredSubscriptions: Stripe.Product[] = [];
+
+        if ("data" in subscription) {
+          filteredSubscriptions = subscription.data.filter(
+            (item: Stripe.Product) => item.metadata.hasOwnProperty(name)
+          );
+        }
+
+        return ResponseHelper.sendSuccessResponse(
+          `Subscriptions filtered by metadata key ${name}`,
+          filteredSubscriptions
+        );
+      } else {
+        return ResponseHelper.sendResponse(
+          422,
+          'Invalid request: must provide "unique" or "name" Query Param'
+        );
       }
+    } catch (error) {
+      return ResponseHelper.sendResponse(500, (error as Error).message);
+    }
+  };
+
+  create = async (
+    payload: ISubscription,
+    userId: string
+  ): Promise<ApiResponse> => {
+    const session = await mongoose.startSession();
+    try {
+      session.startTransaction();
+      console.log("Received payload:", payload);
+
+      const [user, wallet] = await Promise.all([
+        this.userRepository.getOne<IUser>({
+          _id: new mongoose.Types.ObjectId(userId),
+        }),
+        this.walletRepository.getOne<IWallet>({
+          user: new mongoose.Types.ObjectId(userId),
+        }),
+      ]);
+
+      if (!user) {
+        console.error(`User not found for ID: ${userId}`);
+        return ResponseHelper.sendResponse(404, "User not found");
+      }
+
+      if (!wallet) {
+        console.error(`Wallet not found for user ID: ${userId}`);
+        return ResponseHelper.sendResponse(404, "Wallet not found");
+      }
+
+      if (wallet.balance < payload.price) {
+        console.warn(
+          `Insufficient balance for user ID: ${userId}. Balance: ${wallet.balance}, Required: ${payload.price}`
+        );
+        return ResponseHelper.sendResponse(
+          400,
+          "Insufficient balance in wallet"
+        );
+      }
+
+      const subscription = await stripeHelper.createSubscriptionItem(
+        user.stripeCustomerId as string,
+        payload.priceId
+      );
+
+      if (!subscription) {
+        console.error("Failed to create subscription with Stripe");
+        throw new Error("Failed to create subscription");
+      }
+
+      const updatedWallet = await this.walletRepository.updateByOne(
+        { user: new mongoose.Types.ObjectId(userId) },
+        { $inc: { balance: -payload.price } },
+        { session }
+      );
+
+      if (!updatedWallet) {
+        console.error("Failed to update wallet balance");
+        throw new Error("Failed to update wallet balance");
+      }
+
+      const updateData = {
+        subscription: {
+          subscription: payload.subscription,
+          plan: payload.plan,
+          name: payload.name,
+          price: payload.price,
+          subscribe: true,
+          subscriptionAuthId: subscription.id,
+        },
+      };
+
+      const updatedUser = await this.userRepository.updateById<IUser>(
+        userId,
+        { $set: updateData },
+        { session }
+      );
+
+      if (!updatedUser) {
+        console.error(
+          `Failed to update user subscription details for user ID: ${userId}`
+        );
+        throw new Error("Failed to update user subscription details");
+      }
+
+      const transaction = await this.transactionRepository.create(
+        {
+          user: userId,
+          amount: payload.price,
+          type: TransactionType.subscription,
+          status: ETransactionStatus.completed,
+          isCredit: false,
+          subscription: subscription.id,
+          wallet: wallet._id as string,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        } as ITransaction,
+        { session }
+      );
+
+      if (!transaction) {
+        console.error("Failed to create transaction");
+        throw new Error("Failed to create transaction");
+      }
+
+      await session.commitTransaction();
+      return ResponseHelper.sendResponse(
+        201,
+        "Subscription created successfully"
+      );
+    } catch (error) {
+      await session.abortTransaction();
+      // console.error('Error creating subscription:', error);
+      return ResponseHelper.sendResponse(500, (error as Error).message);
+    } finally {
+      session.endSession();
+    }
+  };
+
+  show = async (id: string): Promise<ApiResponse> => {
+    try {
+      const subscription = await stripeHelper.subscriptions(id);
+
+      console.log(subscription, "Subscription");
+
+      if (!subscription) {
+        return ResponseHelper.sendResponse(404, "Subscription not found");
+      }
+
       return ResponseHelper.sendSuccessResponse(
         SUCCESS_DATA_SHOW_PASSED,
-        response
+        subscription
       );
     } catch (error) {
-      return ResponseHelper.sendResponse(500, (error as Error).message);
-    }
-  };
+      console.log(error, "Error");
 
-  update = async (
-    _id: string,
-    dataset: Partial<ISubscription>
-  ): Promise<ApiResponse> => {
-    try {
-      const response =
-        await this.subcriptionRepository.updateById<ISubscription>(
-          _id,
-          dataset
-        );
-      if (response === null) {
-        return ResponseHelper.sendResponse(404);
-      }
-      return ResponseHelper.sendSuccessResponse(
-        SUCCESS_DATA_UPDATION_PASSED,
-        response
-      );
-    } catch (error) {
-      return ResponseHelper.sendResponse(500, (error as Error).message);
-    }
-  };
-
-  delete = async (_id: string): Promise<ApiResponse> => {
-    try {
-      const response =
-        await this.subcriptionRepository.updateById<ISubscription>(_id, {
-          isDeleted: true,
-        });
-      if (!response) {
-        return ResponseHelper.sendResponse(404);
-      }
-      return ResponseHelper.sendSuccessResponse(SUCCESS_DATA_DELETION_PASSED);
-    } catch (error) {
-      return ResponseHelper.sendResponse(500, (error as Error).message);
-    }
-  };
-
-  addPlan = async (
-    _id: string,
-    dataset: Partial<IPlans>
-  ): Promise<ApiResponse> => {
-    try {
-      const response =
-        await this.subcriptionRepository.subDocAction<ISubscription>(
-          { _id },
-          { $push: { plans: dataset } },
-          { new: true }
-        );
-      if (response === null) {
-        return ResponseHelper.sendResponse(404);
-      }
-      return ResponseHelper.sendSuccessResponse(
-        SUCCESS_DATA_INSERTION_PASSED,
-        response
-      );
-    } catch (error) {
-      return ResponseHelper.sendResponse(500, (error as Error).message);
-    }
-  };
-
-  updatePlan = async (
-    subscriptionId: string,
-    _id: string,
-    dataset: Partial<IPlans>
-  ): Promise<ApiResponse> => {
-    try {
-      const updateFields: Record<string, any> = {};
-      for (const [key, value] of Object.entries(dataset)) {
-        updateFields[`plans.$.${key}`] = value;
-      }
-      const response =
-        await this.subcriptionRepository.subDocAction<ISubscription>(
-          { _id: subscriptionId, "plans._id": _id },
-          { $set: updateFields }
-        );
-      if (response === null) {
-        return ResponseHelper.sendResponse(404);
-      }
-      return ResponseHelper.sendSuccessResponse(
-        SUCCESS_DATA_UPDATION_PASSED,
-        response
-      );
-    } catch (error) {
-      return ResponseHelper.sendResponse(500, (error as Error).message);
-    }
-  };
-
-  removePlan = async (
-    subscriptionId: string,
-    _id: string
-  ): Promise<ApiResponse> => {
-    try {
-      const response =
-        await this.subcriptionRepository.subDocAction<ISubscription>(
-          { _id: subscriptionId, "plans._id": _id },
-          { $pull: { plans: { _id } } }
-        );
-      if (!response) {
-        return ResponseHelper.sendResponse(404);
-      }
-
-      return ResponseHelper.sendSuccessResponse(
-        SUCCESS_DATA_DELETION_PASSED,
-        response
-      );
-    } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   };

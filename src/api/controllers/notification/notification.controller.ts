@@ -91,10 +91,12 @@ class NotificationController {
   };
 
   update = async (req: Request, res: Response) => {
-    const { id } = req.params;
-    const dataset: Partial<INotification> = { ...req.body };
-
-    const response = await this.notificationService.update(id, dataset);
+    // const { id } = req.params;
+    const dataset: Partial<INotification> = {
+      ...req.body,
+      receiver: req.locals.auth?.userId,
+    };
+    const response = await this.notificationService.update(dataset);
     return res.status(response.code).json(response);
   };
 
