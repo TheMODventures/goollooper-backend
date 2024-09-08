@@ -44,6 +44,7 @@ import { IWallet } from "../../database/interfaces/wallet.interface";
 import { TransactionRepository } from "../repository/transaction/transaction.repository";
 import { ITransaction } from "../../database/interfaces/transaction.interface";
 import { IChatDoc } from "../../database/interfaces/chat.interface";
+import { ChatService } from "./chat.service";
 
 class TaskService {
   private taskRepository: TaskRepository;
@@ -54,6 +55,7 @@ class TaskService {
   private chatRepository: ChatRepository;
   private userRepository: UserRepository;
   private transactionRepository: TransactionRepository;
+  private chatService: ChatService;
   private userWalletRepository: WalletRepository;
   constructor() {
     this.taskRepository = new TaskRepository();
@@ -64,6 +66,7 @@ class TaskService {
     this.notificationService = new NotificationService();
     this.userWalletRepository = new WalletRepository();
     this.transactionRepository = new TransactionRepository();
+    this.chatService = new ChatService();
     this.uploadHelper = new UploadHelper("task");
   }
 
@@ -584,6 +587,7 @@ class TaskService {
         await this.chatRepository.updateById(chat._id.toString(), {
           deleted: true,
         });
+        await this.chatRepository.deleteChat(chat?._id.toString());
       }
 
       // Delete related calendar entries
@@ -914,7 +918,7 @@ class TaskService {
           nbody: "Task has been cancelled",
         } as NotificationParams);
 
-        // Commit the transaction
+        await this.chatRepository.deleteChat(chatId);
 
         // Return a successful response
         return ResponseHelper.sendSuccessResponse(

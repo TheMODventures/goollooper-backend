@@ -49,6 +49,7 @@ class App {
       console.log(`Server running at http://${APP_HOST}:${appPort}/`);
     });
     this.io = new SocketIOServer(httpServer);
+    this.app.set("io", this.io);
     ChatService(this.io);
     notificationSockets(this.io);
   }
