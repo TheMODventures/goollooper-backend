@@ -22,6 +22,7 @@ import {
 } from "../../database/interfaces/enums";
 import { NotificationHelper } from "../helpers/notification.helper";
 import { Authorize } from "../../middleware/authorize.middleware";
+import { Server } from "socket.io";
 
 interface CustomSocket extends SocketIO.Socket {
   user?: any;
@@ -31,7 +32,7 @@ export const notificationSockets = (io: SocketIO.Server) => {
   console.log("Notification Socket Initialized");
 
   const authorize = new Authorize();
-  const notificationService = new NotificationService();
+  const notificationService = new NotificationService(io as Server);
   io.use(async (socket: CustomSocket, next) => {
     const token = socket.handshake.query.token;
     const result = await authorize.validateAuthSocket(token as string);
@@ -42,20 +43,17 @@ export const notificationSockets = (io: SocketIO.Server) => {
     } else next(new Error(result));
   });
 
-  io.on("connection", async (socket: CustomSocket) => {
-    socket.on("notification-event", async () => {
-      const count = await notificationService.getNotificationCount(
-        socket.user.userId
-      );
-      io.emit("notification-event", count);
-    });
+  io.on("connection", (socket: CustomSocket) => {
+    console.log(`Socket Connected: ${socket.id}`);
+    console.log(`User Connected: ${socket.user?.userId}`);
   });
 };
 class NotificationService {
   private notificationRepository: NotificationRepository;
   private userRepository: UserRepository;
-
-  constructor() {
+  private io?: Server;
+  constructor(io?: Server) {
+    this.io = io;
     this.notificationRepository = new NotificationRepository();
     this.userRepository = new UserRepository();
   }
@@ -153,6 +151,10 @@ class NotificationService {
               body: payload.content,
             });
         });
+      }
+
+      if (this.io) {
+        const userId = this.io.emit("notification-event");
       }
       return ResponseHelper.sendResponse(201, "Successfully sent");
     } catch (error) {
@@ -295,7 +297,11 @@ class NotificationService {
       tokens: fcmTokens,
       data,
     });
-
+    console.log("test", this.io);
+    if (this.io) {
+      const count = this.getNotificationCount(receiverId as string);
+      this.io?.emit("notification-event", count);
+    }
     return notification;
   };
 

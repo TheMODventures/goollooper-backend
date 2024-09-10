@@ -27,6 +27,7 @@ import {
   EParticipantStatus,
   ETICKET_STATUS,
   ETaskStatus,
+  ETransactionStatus,
   EUserRole,
   MessageType,
   RequestStatus,
@@ -59,6 +60,8 @@ import { CalendarRepository } from "../calendar/calendar.repository";
 import { IWallet } from "../../../database/interfaces/wallet.interface";
 import { WalletRepository } from "../wallet/wallet.repository";
 import { SERVICE_INITIATION_FEE } from "../../../constant";
+import { TransactionRepository } from "../transaction/transaction.repository";
+import { ITransaction } from "../../../database/interfaces/transaction.interface";
 
 export class ChatRepository
   extends BaseRepository<IChat, IChatDoc>
@@ -70,6 +73,7 @@ export class ChatRepository
   private notificationService: NotificationService;
   private calendarRepository: CalendarRepository;
   private walletRepository: WalletRepository;
+  private transactionRepository: TransactionRepository;
   protected app: Application;
 
   constructor(io?: Server) {
@@ -80,6 +84,8 @@ export class ChatRepository
     this.taskRepository = new TaskRepository();
     this.calendarRepository = new CalendarRepository();
     this.walletRepository = new WalletRepository();
+    this.notificationService = new NotificationService();
+    this.transactionRepository = new TransactionRepository();
   }
 
   deleteChat = async (chatId: string) => {
@@ -153,6 +159,8 @@ export class ChatRepository
                   lastName: 1,
                   email: 1,
                   profileImage: 1,
+                  selectedLocation: 1,
+                  subscription: 1,
                 },
               },
             ],
@@ -719,9 +727,12 @@ export class ChatRepository
         case "3":
           msg.body = "Relieve";
           msg.type = MessageType.relieve;
+          console.log("🚀 break_point", dataset);
+          // console.log("🚀 chat",chat);
 
           const tasks = await this.taskRepository.getById<ITask>(chat?.task);
           if (!tasks) return ResponseHelper.sendResponse(404, "Task not found");
+          console.log("🚀 break_point 2", dataset);
 
           const findStandByServiceProvider = tasks.serviceProviders.find(
             (sp) => sp.status === 3
@@ -744,12 +755,17 @@ export class ChatRepository
             // Return the service provider unchanged if no conditions match
             return sp;
           });
+          console.log("🚀 break_point 3", dataset);
+          console.log(
+            "🚀 findStandByServiceProvider",
+            findStandByServiceProvider
+          );
 
           if (findStandByServiceProvider) {
             await this.notificationService.createAndSendNotification({
               ntitle: "your request has been accepted",
               nbody: "Relieve Action Request",
-              receiverId: findStandByServiceProvider?.user,
+              receiverId: findStandByServiceProvider?.user as string,
               type: ENOTIFICATION_TYPES.ACTION_REQUEST,
               senderId: senderId as string,
               data: {
@@ -758,7 +774,7 @@ export class ChatRepository
             } as NotificationParams);
           }
 
-          console.log(updatedServiceProviders, "updatedServiceProviders");
+          // console.log(updatedServiceProviders, "updatedServiceProviders");
           await this.taskRepository.updateById<ITask>(chat?.task, {
             serviceProviders: updatedServiceProviders,
           });
@@ -777,7 +793,6 @@ export class ChatRepository
           await this.updateById<IChat>(chat._id, {
             participants: updatedParticipants,
           });
-
           break;
 
         case "4":
@@ -845,17 +860,19 @@ export class ChatRepository
               ),
             ]);
           }
-
+          console.log("🚀 CASE 5", dataset);
           break;
         }
 
         case "6": {
           msg.body = "Completed";
           msg.type = MessageType.complete;
+          console.log("🚀 CASE 6", dataset);
 
           // Validate amount
           const amount = Number(dataset.amount);
           if (isNaN(amount) || amount <= 0) {
+            console.log("🚀 error amount is less");
             return ResponseHelper.sendResponse(404, "Amount is required");
           }
 
@@ -866,12 +883,12 @@ export class ChatRepository
           if (!completedTask) {
             return ResponseHelper.sendResponse(404, "Task not found");
           }
-
+          console.log("🚀🚀🚀🚀🚀 ");
           // Check if the task is commercial and validate the invoice amount
           if (completedTask.commercial) {
             if (
               completedTask.invoiceAmount === undefined ||
-              amount <= completedTask.invoiceAmount
+              amount < completedTask.invoiceAmount
             ) {
               return ResponseHelper.sendResponse(
                 404,
@@ -884,15 +901,20 @@ export class ChatRepository
               user: senderId,
             });
             if (!userWallet) {
+              console.log("code stopped here 2");
               return ResponseHelper.sendResponse(404, "Wallet not found");
             }
             if (userWallet.balance < amount) {
+              console.log("code stopped here");
               return ResponseHelper.sendResponse(404, "Insufficient balance");
             }
 
             // Update user wallet balance and service provider balance using $inc
-            const serviceProviderId = completedTask.serviceProviders[0]
-              .user as string;
+            const serviceProviderId = completedTask.serviceProviders.find(
+              (sp) => sp.status === 4
+            )?.user as string;
+            console.log("🚀", serviceProviderId);
+
             await Promise.all([
               await this.walletRepository.updateByOne<IWallet>(
                 { user: senderId },
@@ -918,6 +940,7 @@ export class ChatRepository
             ),
           ]);
 
+          console.log("🚀 CASE 6", dataset);
           break;
         }
 
@@ -932,11 +955,14 @@ export class ChatRepository
               "Date and Time is required"
             );
           msg.body = "Tour Request";
+          console.log("🚀 CASE 7", dataset);
+
           break;
 
         case "8":
           msg.type = MessageType.reschedule;
           msg.body = "Task Rescheduled";
+          console.log("🚀 CASE 8", dataset);
           break;
 
         default:
@@ -996,6 +1022,10 @@ export class ChatRepository
 
       return response;
     } catch (error) {
+      console.log(
+        "🚀 ~ file: chat.repository.ts ~ line 566 ~ ChatRepository ~ sendRequest= ~ error",
+        error
+      );
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   };
@@ -2030,7 +2060,7 @@ export class ChatRepository
       } else {
         payload.chatType = EChatType.GROUP;
         let msg: IMessage = {
-          body: `Hey, I think you guys are good candidates for this task. I am looking forward in working with you all this task.`,
+          body: `Hey, I think you guys are good candidates for this task. I am looking forward in working with you all on this task.`,
           sentBy: payload.user,
           receivedBy: [
             {

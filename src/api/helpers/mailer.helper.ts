@@ -1,4 +1,5 @@
 import nodeMailer from "nodemailer";
+import { DateHelper } from "./date.helper";
 
 class Mailer {
   static async sendEmail({
@@ -11,25 +12,30 @@ class Mailer {
     message: string;
   }) {
     const transporter = nodeMailer.createTransport({
-      service: "gmail",
+      host: "sandbox.smtp.mailtrap.io",
+      port: 2525,
       auth: {
-        user: "usman09salman@gmail.com",
-        pass: "cjci gstl vfgr hvcd",
+        user: "d786f90c32a85f",
+        pass: "ad999c91a4882c",
       },
     });
 
+    // Ensure DateHelper's mailTemplate method is called with proper parameters
+    const dateHelper = new DateHelper();
+    const htmlMessage = dateHelper.mailTemplate(new Date(), message);
+
     const mailOptions = {
-      from: "usman09salam@gmail.com",
+      from: "goollooperinc@gmail.com",
       to: email,
       subject,
-      html: message,
+      html: htmlMessage,
     };
 
     try {
       const info = await transporter.sendMail(mailOptions);
-      // console.log("Email sent: " + info.response);
+      console.log("Email sent: " + info.response);
     } catch (error) {
-      console.log(error);
+      console.error("Error sending email: ", error);
     }
   }
 }

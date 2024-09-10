@@ -5,7 +5,6 @@ import {
   MANGO_ATLAS_URI,
   MANGO_ATLAS_URI_PRD,
 } from "../config/environment.config";
-
 export class Database {
   protected mangoAtlasURI: string;
   protected mangoAtlasURIPrd: string;

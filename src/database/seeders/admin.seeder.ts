@@ -17,12 +17,12 @@ User.findOne({ role: EUserRole.admin })
       const Admindata: IUserDoc = new User({
         _id: new mongoose.Types.ObjectId(),
         role: EUserRole.admin,
-        firstName: "dummy",
-        lastName: "dummy",
-        email: "admin@fund.pk",
+        firstName: "admin",
+        lastName: "goollooper",
+        email: "admin@goollooper.com",
         phoneNumber: "+81XXXXXXXXXXX",
-        emailVerifiedAt: moment(),
-        password: "123456",
+        // emailVerifiedAt: moment(),
+        password: "00110011",
       });
 
       Admindata.save()
