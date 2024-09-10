@@ -62,7 +62,6 @@ import { WalletRepository } from "../wallet/wallet.repository";
 import { SERVICE_INITIATION_FEE } from "../../../constant";
 import { TransactionRepository } from "../transaction/transaction.repository";
 import { ITransaction } from "../../../database/interfaces/transaction.interface";
-
 export class ChatRepository
   extends BaseRepository<IChat, IChatDoc>
   implements IChatRepository
@@ -693,7 +692,8 @@ export class ChatRepository
       const newRequest: IChat | any = await Chat.findById(chatId);
 
       if (!requestId || !newRequest) {
-        return ResponseHelper.sendResponse(404);
+        this.io?.emit(`error`, { error: "Chat not found" });
+        return;
       }
 
       const newRequestId =
@@ -731,7 +731,10 @@ export class ChatRepository
           // console.log("🚀 chat",chat);
 
           const tasks = await this.taskRepository.getById<ITask>(chat?.task);
-          if (!tasks) return ResponseHelper.sendResponse(404, "Task not found");
+
+          if (!tasks)
+            return this.io?.emit(`error`, { error: "Task not found" });
+
           console.log("🚀 break_point 2", dataset);
 
           const findStandByServiceProvider = tasks.serviceProviders.find(
@@ -821,26 +824,33 @@ export class ChatRepository
 
         case "5": {
           const taskId = chat?.task;
-          const amount = dataset.amount || "0";
+          const amount = dataset.amount;
           const isServiceProviderInvoice =
             dataset.status === RequestStatus.SERVICE_PROVIDER_INVOICE_REQUEST;
 
-          // Early return if amount is required but not provided
-          if (!amount && isServiceProviderInvoice) {
-            return ResponseHelper.sendResponse(404, "Amount is required");
+          // Early return if amount is undefined and it's a service provider invoice request
+          if (amount === undefined || amount === null) {
+            this.io?.emit(`error`, { error: "Amount is required" });
+            console.log("🚀 ELSE CASE: Amount is required and not provided.");
+            return;
           }
+
+          console.log("🚀 CASE 5", dataset);
 
           // Set initial message properties
           msg.type = MessageType.invoice;
           msg.body = amount;
           if (dataset.mediaUrl) msg.mediaUrls = [dataset.mediaUrl];
 
-          if (!taskId)
-            return ResponseHelper.sendResponse(404, "Task id not found");
+          if (!taskId) {
+            this.io?.emit(`error`, { error: "Task id is required" });
+            return;
+            // return ResponseHelper.sendResponse(404, "Task id not found");
+          }
 
           // Fetch the task associated with the chat
           const task: ITask | null = await this.taskRepository.getById(taskId);
-          if (!task) return ResponseHelper.sendResponse(404, "Task not found");
+          if (!task) return this.io?.emit(`error`, { error: "Task not found" });
 
           if (task.commercial) {
             // Update invoice amount for commercial tasks
@@ -860,7 +870,8 @@ export class ChatRepository
               ),
             ]);
           }
-          console.log("🚀 CASE 5", dataset);
+
+
           break;
         }
 
@@ -873,7 +884,7 @@ export class ChatRepository
           const amount = Number(dataset.amount);
           if (isNaN(amount) || amount <= 0) {
             console.log("🚀 error amount is less");
-            return ResponseHelper.sendResponse(404, "Amount is required");
+            return this.io?.emit(`error`, { error: "Amount is required" });
           }
 
           // Fetch the completed task
@@ -881,7 +892,8 @@ export class ChatRepository
             chat?.task
           );
           if (!completedTask) {
-            return ResponseHelper.sendResponse(404, "Task not found");
+            return this.io?.emit(`error`, { error: "Task not found" });
+            // return ResponseHelper.sendResponse(404, "Task not found");
           }
           console.log("🚀🚀🚀🚀🚀 ");
           // Check if the task is commercial and validate the invoice amount
@@ -890,10 +902,13 @@ export class ChatRepository
               completedTask.invoiceAmount === undefined ||
               amount < completedTask.invoiceAmount
             ) {
-              return ResponseHelper.sendResponse(
-                404,
-                "Amount should be greater than the invoice amount"
-              );
+              this.io?.emit(`error`, {
+                error: "Amount should be greater than the invoice amount",
+              });
+              // return ResponseHelper.sendResponse(
+              //   404,
+              //   "Amount should be greater than the invoice amount"
+              // );
             }
 
             // Fetch and validate user wallet
@@ -949,11 +964,11 @@ export class ChatRepository
           if (
             (!dataset?.date || !dataset?.slot) &&
             dataset.status === RequestStatus.CLIENT_TOUR_REQUEST_ACCEPT
-          )
-            return ResponseHelper.sendResponse(
-              400,
-              "Date and Time is required"
-            );
+          ) {
+            return this.io?.emit(`error`, {
+              error: "Date and slot are required",
+            });
+          }
           msg.body = "Tour Request";
           console.log("🚀 CASE 7", dataset);
 
@@ -1026,7 +1041,9 @@ export class ChatRepository
         "🚀 ~ file: chat.repository.ts ~ line 566 ~ ChatRepository ~ sendRequest= ~ error",
         error
       );
-      return ResponseHelper.sendResponse(500, (error as Error).message);
+      this.io?.emit(`error`, { error: error as Error });
+      return;
+      // return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   };
 

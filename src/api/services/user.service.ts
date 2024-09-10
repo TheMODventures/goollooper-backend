@@ -173,7 +173,11 @@ class UserService {
         "",
         "",
         { createdAt: "desc" },
-        undefined,
+        {
+          path: "by",
+          model: "Users",
+          select: "firstName lastName profileImage username email",
+        },
         true,
         1,
         2
