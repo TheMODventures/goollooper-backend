@@ -29,32 +29,28 @@ interface CustomSocket extends SocketIO.Socket {
 }
 
 export const notificationSockets = (io: SocketIO.Server) => {
-  console.log("Notification Socket Initialized");
-
-  const authorize = new Authorize();
-  const notificationService = new NotificationService(io as Server);
-
-  io.use(async (socket: CustomSocket, next) => {
-    const token = socket.handshake.query.token;
-    const result = await authorize.validateAuthSocket(token as string);
-
-    if (result?.userId) {
-      socket.user = result;
-      next();
-    } else next(new Error(result));
-  });
-
-  io.on("connection", async (socket: CustomSocket) => {
-    console.log(socket.user?.userId, "socket user");
-    // const result = await authorize.validateAuthSocket(token as string);
-    const count = await notificationService.getNotificationCount(
-      socket?.user?.userId
-    );
-    console.log("Notification Count: ", count);
-    io.emit("notification-event", count);
-    console.log(`Socket Connected: ${socket.id}`);
-    console.log(`User Connected: ${socket.user?.userId}`);
-  });
+  // console.log("Notification Socket Initialized");
+  // const authorize = new Authorize();
+  // const notificationService = new NotificationService(io as Server);
+  // io.use(async (socket: CustomSocket, next) => {
+  //   const token = socket.handshake.query.token;
+  //   const result = await authorize.validateAuthSocket(token as string);
+  //   if (result?.userId) {
+  //     socket.user = result;
+  //     next();
+  //   } else next(new Error(result));
+  // });
+  // io.on("connection", async (socket: CustomSocket) => {
+  //   console.log(socket.user?.userId, "socket user");
+  //   // const result = await authorize.validateAuthSocket(token as string);
+  //   const count = await notificationService.getNotificationCount(
+  //     socket?.user?.userId
+  //   );
+  //   console.log("Notification Count: ", count);
+  //   io.emit("notification-event", count);
+  //   console.log(`Socket Connected: ${socket.id}`);
+  //   console.log(`User Connected: ${socket.user?.userId}`);
+  // });
 };
 
 class NotificationService {
