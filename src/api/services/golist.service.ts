@@ -334,9 +334,9 @@ class GolistService {
       }
       if (rating) {
         query.push({ $sort: { averageRating: rating } });
+      } else {
+        query.push({ $sort: { createdAt: -1 } });
       }
-
-      query.push({ $sort: { createdAt: -1 } });
 
       query.push(
         ...[
@@ -362,7 +362,8 @@ class GolistService {
         query,
         undefined,
         undefined,
-        { createdAt: -1 },
+        // { createdAt: -1 },
+        undefined,
         undefined,
         true,
         page,

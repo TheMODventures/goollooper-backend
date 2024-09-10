@@ -33,6 +33,7 @@ export const notificationSockets = (io: SocketIO.Server) => {
 
   const authorize = new Authorize();
   const notificationService = new NotificationService(io as Server);
+
   io.use(async (socket: CustomSocket, next) => {
     const token = socket.handshake.query.token;
     const result = await authorize.validateAuthSocket(token as string);
@@ -43,11 +44,19 @@ export const notificationSockets = (io: SocketIO.Server) => {
     } else next(new Error(result));
   });
 
-  io.on("connection", (socket: CustomSocket) => {
+  io.on("connection", async (socket: CustomSocket) => {
+    console.log(socket.user?.userId, "socket user");
+    // const result = await authorize.validateAuthSocket(token as string);
+    const count = await notificationService.getNotificationCount(
+      socket?.user?.userId
+    );
+    console.log("Notification Count: ", count);
+    io.emit("notification-event", count);
     console.log(`Socket Connected: ${socket.id}`);
     console.log(`User Connected: ${socket.user?.userId}`);
   });
 };
+
 class NotificationService {
   private notificationRepository: NotificationRepository;
   private userRepository: UserRepository;
@@ -153,9 +162,6 @@ class NotificationService {
         });
       }
 
-      if (this.io) {
-        const userId = this.io.emit("notification-event");
-      }
       return ResponseHelper.sendResponse(201, "Successfully sent");
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);
@@ -297,11 +303,12 @@ class NotificationService {
       tokens: fcmTokens,
       data,
     });
-    console.log("test", this.io);
+
     if (this.io) {
       const count = this.getNotificationCount(receiverId as string);
       this.io?.emit("notification-event", count);
     }
+
     return notification;
   };
 
