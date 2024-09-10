@@ -29,6 +29,7 @@ interface CustomSocket extends SocketIO.Socket {
 }
 
 export const notificationSockets = (io: SocketIO.Server) => {
+
   // console.log("Notification Socket Initialized");
   // const authorize = new Authorize();
   // const notificationService = new NotificationService(io as Server);
@@ -51,6 +52,7 @@ export const notificationSockets = (io: SocketIO.Server) => {
   //   console.log(`Socket Connected: ${socket.id}`);
   //   console.log(`User Connected: ${socket.user?.userId}`);
   // });
+
 };
 
 class NotificationService {

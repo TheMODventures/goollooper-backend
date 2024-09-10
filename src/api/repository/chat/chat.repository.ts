@@ -62,8 +62,6 @@ import { WalletRepository } from "../wallet/wallet.repository";
 import { SERVICE_INITIATION_FEE } from "../../../constant";
 import { TransactionRepository } from "../transaction/transaction.repository";
 import { ITransaction } from "../../../database/interfaces/transaction.interface";
-import { error } from "console";
-
 export class ChatRepository
   extends BaseRepository<IChat, IChatDoc>
   implements IChatRepository
@@ -733,8 +731,10 @@ export class ChatRepository
           // console.log("🚀 chat",chat);
 
           const tasks = await this.taskRepository.getById<ITask>(chat?.task);
+
           if (!tasks)
             return this.io?.emit(`error`, { error: "Task not found" });
+
           console.log("🚀 break_point 2", dataset);
 
           const findStandByServiceProvider = tasks.serviceProviders.find(
@@ -870,7 +870,8 @@ export class ChatRepository
               ),
             ]);
           }
-          // console.log("🚀 CASE 5", dataset);
+
+
           break;
         }
 
