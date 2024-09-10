@@ -185,7 +185,7 @@ class SubscriptionService {
           type: TransactionType.subscription,
           status: ETransactionStatus.completed,
           isCredit: false,
-          subscription: subscription.id,
+          // subscription: subscription.id as string,
           wallet: wallet._id as string,
           createdAt: new Date(),
           updatedAt: new Date(),
@@ -204,8 +204,8 @@ class SubscriptionService {
         "Subscription created successfully"
       );
     } catch (error) {
+      console.error("Error creating subscription:", error);
       await session.abortTransaction();
-      // console.error('Error creating subscription:', error);
       return ResponseHelper.sendResponse(500, (error as Error).message);
     } finally {
       session.endSession();

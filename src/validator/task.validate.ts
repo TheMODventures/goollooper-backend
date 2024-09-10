@@ -253,6 +253,7 @@ const toggleRequestRule = yup.object().shape({
           ETaskUserStatus.IDLE,
         ])
         .required(),
+      isRequestToBeAdded: yup.boolean().default(false).notRequired(),
       // type: yup.string().oneOf(["goList", "user"]).required(),
     })
     .noUnknown(),

@@ -2,7 +2,7 @@ import express, { Application } from "express";
 import cors from "cors";
 import morgan from "morgan";
 import { Server as SocketIOServer } from "socket.io";
-
+// import './database/seeders/admin.seeder'
 import { APP_HOST, APP_PORT } from "./config/environment.config";
 import { Database } from "./config/database.config";
 import AdminRoutes from "./api/routes/admin/admin.route";
@@ -46,10 +46,9 @@ class App {
   public start(): void {
     const appPort = Number(APP_PORT);
     const httpServer = this.app.listen(appPort, APP_HOST!, () => {
-      console.log(`Server running at http://${APP_HOST}:${appPort}/`);
+      console.log(`Server running at http://${APP_HOST}:${appPort}`);
     });
     this.io = new SocketIOServer(httpServer);
-    this.app.set("io", this.io);
     ChatService(this.io);
     notificationSockets(this.io);
   }
