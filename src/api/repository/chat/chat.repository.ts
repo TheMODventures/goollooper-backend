@@ -829,10 +829,7 @@ export class ChatRepository
             dataset.status === RequestStatus.SERVICE_PROVIDER_INVOICE_REQUEST;
 
           // Early return if amount is undefined and it's a service provider invoice request
-          if (
-            (amount === undefined || amount === null) &&
-            isServiceProviderInvoice
-          ) {
+          if (amount === undefined || amount === null) {
             this.io?.emit(`error`, { error: "Amount is required" });
             console.log("🚀 ELSE CASE: Amount is required and not provided.");
             return;
@@ -842,11 +839,12 @@ export class ChatRepository
 
           // Set initial message properties
           msg.type = MessageType.invoice;
-          msg.body = amount || "0";
+          msg.body = amount;
           if (dataset.mediaUrl) msg.mediaUrls = [dataset.mediaUrl];
 
           if (!taskId) {
             this.io?.emit(`error`, { error: "Task id is required" });
+            return;
             // return ResponseHelper.sendResponse(404, "Task id not found");
           }
 
