@@ -623,17 +623,45 @@ class TaskService {
 
   requestToAdded = async (_id: string, user: string) => {
     try {
-      const [isUserExistInTask, wallet] = await Promise.all([
-        this.taskRepository.exists({
-          _id: new mongoose.Types.ObjectId(_id),
-          "serviceProviders.user": new mongoose.Types.ObjectId(user),
-        }),
-        this.userWalletRepository.getOne<IWallet>({ user }),
-      ]);
 
-      if (isUserExistInTask)
+      const taskId = new mongoose.Types.ObjectId(_id);
+      const userId = new mongoose.Types.ObjectId(user);
+
+      // Perform all necessary checks and fetch the wallet in parallel
+      const [isPreviouslyRejected, isUserExistInTask, wallet] =
+        await Promise.all([
+          // Check if the user was previously rejected
+          this.taskRepository.exists({
+            _id: taskId,
+            "serviceProviders.user": userId,
+            "serviceProviders.status": ETaskUserStatus.REJECTED,
+          }),
+
+          // Check if the user exists in the task
+          this.taskRepository.exists({
+            _id: taskId,
+            "serviceProviders.user": userId,
+          }),
+
+          // Fetch the user's wallet
+          this.userWalletRepository.getOne<IWallet>({ user: userId }),
+        ]);
+
+      // Handle the case where the user was previously rejected
+      if (isPreviouslyRejected) {
+        return ResponseHelper.sendResponse(
+          422,
+          "You are previously rejected from this task and can't request again"
+        );
+      }
+
+
+      // Handle the case where the user is already in the task
+      if (isUserExistInTask) {
         return ResponseHelper.sendResponse(422, "You are already in this task");
+      }
 
+      // Handle the case where the wallet is not found
       if (!wallet) {
         return ResponseHelper.sendResponse(404, "Wallet not found");
       }
