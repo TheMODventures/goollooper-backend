@@ -32,6 +32,7 @@ import {
   EUserRole,
   MessageType,
   RequestStatus,
+  TransactionType,
 } from "../../../database/interfaces/enums";
 import { Chat } from "../../../database/models/chat.model";
 import { User } from "../../../database/models/user.model";
@@ -62,7 +63,10 @@ import { IWallet } from "../../../database/interfaces/wallet.interface";
 import { WalletRepository } from "../wallet/wallet.repository";
 import { SERVICE_INITIATION_FEE } from "../../../constant";
 import { TransactionRepository } from "../transaction/transaction.repository";
-import { ITransaction } from "../../../database/interfaces/transaction.interface";
+import {
+  ITransaction,
+  ITransactionDoc,
+} from "../../../database/interfaces/transaction.interface";
 export class ChatRepository
   extends BaseRepository<IChat, IChatDoc>
   implements IChatRepository
@@ -939,26 +943,37 @@ export class ChatRepository
             }
 
             // Fetch and validate user wallet
+            // Retrieve the sender's wallet
             const userWallet = await this.walletRepository.getOne<IWallet>({
               user: senderId,
             });
+
             if (!userWallet) {
               console.log("code stopped here 2");
               return ResponseHelper.sendResponse(404, "Wallet not found");
             }
+
             if (userWallet.balance < amount) {
               console.log("code stopped here");
               return ResponseHelper.sendResponse(404, "Insufficient balance");
             }
 
-            // Update user wallet balance and service provider balance using $inc
+            // Retrieve the service provider's ID
             const serviceProviderId = completedTask.serviceProviders.find(
               (sp) => sp.status === 4
             )?.user as string;
+
             console.log("🚀", serviceProviderId);
 
+            // Retrieve the service provider's wallet
+            const serviceProviderWallet =
+              await this.walletRepository.getOne<IWallet>({
+                user: serviceProviderId,
+              });
+
+            // Update both wallets and create transactions in parallel
             await Promise.all([
-              await this.walletRepository.updateByOne<IWallet>(
+              this.walletRepository.updateByOne<IWallet>(
                 { user: senderId },
                 {
                   $inc: {
@@ -969,20 +984,48 @@ export class ChatRepository
               ),
               this.walletRepository.updateBalance(serviceProviderId, +amount),
             ]);
+
+            // Create transactions for both the service provider and sender
+            await Promise.all([
+              this.transactionRepository.create<ITransaction>({
+                amount: amount,
+                user: serviceProviderId,
+                type: TransactionType.task,
+                wallet: serviceProviderWallet?._id as string,
+                status: ETransactionStatus.completed,
+                isCredit: true,
+              }),
+              this.transactionRepository.create<ITransaction>({
+                amount: SERVICE_INITIATION_FEE,
+                user: senderId,
+                type: TransactionType.serviceInitiationFee,
+                wallet: userWallet?._id as string,
+                status: ETransactionStatus.completed,
+                isCredit: true,
+              }),
+              this.transactionRepository.create<ITransaction>({
+                amount: amount,
+                user: senderId,
+                type: TransactionType.task,
+                wallet: userWallet?._id as string,
+                status: ETransactionStatus.completed,
+                isCredit: false,
+              }),
+            ]);
+
+            // Update task and calendar status
+            await Promise.all([
+              this.taskRepository.updateById<ITask>(chat?.task, {
+                status: ETaskStatus.completed,
+              }),
+              this.calendarRepository.updateMany<ICalendar>(
+                { task: new mongoose.Types.ObjectId(chat?.task) },
+                { isActive: false }
+              ),
+            ]);
+
+            console.log("🚀 CASE 6", dataset);
           }
-
-          // Update task and calendar status
-          await Promise.all([
-            this.taskRepository.updateById<ITask>(chat?.task, {
-              status: ETaskStatus.completed,
-            }),
-            this.calendarRepository.updateMany<ICalendar>(
-              { task: new mongoose.Types.ObjectId(chat?.task) },
-              { isActive: false }
-            ),
-          ]);
-
-          console.log("🚀 CASE 6", dataset);
           break;
         }
 
@@ -1064,20 +1107,15 @@ export class ChatRepository
           },
         } as NotificationParams);
       });
-      // newRequest?.participants
-      //   ?.filter((participant: IParticipant) => participant.user !== senderId)
-      //   .forEach((participant: IParticipant) => {
-      //     this.notificationService.createAndSendNotification({
-      //       ntitle: `${msg.body} Action Request`,
-      //       nbody: msg.body,
-      //       receiverId: participant.user,
-      //       type: ENOTIFICATION_TYPES.ACTION_REQUEST,
-      //       senderId: senderId as string,
-      //       data: {
-      //         task: chat?.task?.toString(),
-      //       },
-      //     } as NotificationParams);
-      //   });
+
+      if (dataset.type?.toString() === "3") {
+        this.createMessage(
+          chatId,
+          senderId,
+          "I think you are a good candidate for this task. I am looking forward in working with you on this task",
+          []
+        );
+      }
 
       return response;
     } catch (error) {
@@ -1085,7 +1123,7 @@ export class ChatRepository
         "🚀 ~ file: chat.repository.ts ~ line 566 ~ ChatRepository ~ sendRequest= ~ error",
         error
       );
-      this.io?.emit(`error`, { error: error as Error });
+      this.io?.emit(`error`, { error: "something went wrong" });
       return;
       // return ResponseHelper.sendResponse(500, (error as Error).message);
     }
