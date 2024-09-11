@@ -623,6 +623,7 @@ class TaskService {
 
   requestToAdded = async (_id: string, user: string) => {
     try {
+
       const taskId = new mongoose.Types.ObjectId(_id);
       const userId = new mongoose.Types.ObjectId(user);
 
@@ -653,6 +654,7 @@ class TaskService {
           "You are previously rejected from this task and can't request again"
         );
       }
+
 
       // Handle the case where the user is already in the task
       if (isUserExistInTask) {
