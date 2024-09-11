@@ -1104,7 +1104,10 @@ export class ChatRepository
           type: ENOTIFICATION_TYPES.ACTION_REQUEST,
           senderId: senderId as string,
           data: {
-            task: chat?.task?.toString(),
+            chatId: chatId,
+            chatType: chat.chatType,
+            groupName: chat?.groupName,
+            user: senderId,
           },
         } as NotificationParams);
       });
