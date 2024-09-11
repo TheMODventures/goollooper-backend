@@ -949,13 +949,14 @@ export class ChatRepository
             });
 
             if (!userWallet) {
-              console.log("code stopped here 2");
-              return ResponseHelper.sendResponse(404, "Wallet not found");
+              return this.io?.emit(`error`, { error: "Wallet not found" });
             }
 
             if (userWallet.balance < amount) {
               console.log("code stopped here");
-              return ResponseHelper.sendResponse(404, "Insufficient balance");
+              this.io?.emit(`error`, { error: "Insufficient balance" });
+              return;
+              // return ResponseHelper.sendResponse(404, "Insufficient balance");
             }
 
             // Retrieve the service provider's ID
@@ -1108,7 +1109,6 @@ export class ChatRepository
         } as NotificationParams);
       });
 
-
       if (dataset.type?.toString() === "3") {
         this.createMessage(
           chatId,
@@ -1117,7 +1117,6 @@ export class ChatRepository
           []
         );
       }
-
 
       return response;
     } catch (error) {
