@@ -20,6 +20,7 @@ import { IUser } from "../../../database/interfaces/user.interface";
 import { ITask } from "../../../database/interfaces/task.interface";
 import { ICalendar } from "../../../database/interfaces/calendar.interface";
 import {
+  ECALENDARTaskType,
   ECALLDEVICETYPE,
   EChatType,
   EMessageStatus,
@@ -808,18 +809,43 @@ export class ChatRepository
                 status: ETaskStatus.assigned,
               }
             );
-          if (taskUpdateResponse?.serviceProviders?.length) {
-            const calendarEntries = taskUpdateResponse.serviceProviders.map(
-              (provider: any) => ({
-                user: provider.user as string,
-                task: chat.task,
-                date: dataset.date
-                  ? dataset?.date.toISOString()
-                  : new Date().toISOString(),
-              })
+          console.log(
+            "🚀 ~ file: chat.repository.ts ~ line 566 ~ ChatRepository ~ sendRequest= ~ taskUpdateResponse",
+            dataset
+          );
+          const serviceProvider = taskUpdateResponse?.serviceProviders?.find(
+            (sp) => sp.status === 4
+          )?.user;
+          console.log(
+            "🚀 ~ file: chat.repository.ts ~ line 568 ~ ChatRepository ~ sendRequest= ~ serviceProvider",
+            serviceProvider
+          );
+
+          if (serviceProvider) {
+            const event = await this.calendarRepository.create<ICalendar>({
+              user: serviceProvider,
+              task: chat.task,
+              type: ECALENDARTaskType.accepted,
+              date: new Date().toISOString().slice(0, 10),
+            });
+            console.log(
+              "🚀 ~ file: chat.repository.ts ~ line 576 ~ ChatRepository ~ sendRequest= ~ event",
+              event
             );
-            await this.calendarRepository.createMany(calendarEntries);
           }
+
+          // if (taskUpdateResponse?.serviceProviders?.length) {
+          //   const calendarEntries = chat.serviceProviders.map(
+          //     (provider: any) => ({
+          //       user: provider.user as string,
+          //       task: chat.task,
+          //       date: dataset.date
+          //         ? dataset?.date.toISOString()
+          //         : new Date().toISOString(),
+          //     })
+          //   );
+          //   await this.calendarRepository.createMany(calendarEntries);
+          // }
           break;
 
         case "5": {
@@ -829,7 +855,10 @@ export class ChatRepository
             dataset.status === RequestStatus.SERVICE_PROVIDER_INVOICE_REQUEST;
 
           // Early return if amount is undefined and it's a service provider invoice request
-          if (amount === undefined || amount === null) {
+          if (
+            (amount === undefined || amount === null) &&
+            isServiceProviderInvoice
+          ) {
             this.io?.emit(`error`, { error: "Amount is required" });
             console.log("🚀 ELSE CASE: Amount is required and not provided.");
             return;
@@ -839,13 +868,12 @@ export class ChatRepository
 
           // Set initial message properties
           msg.type = MessageType.invoice;
-          msg.body = amount;
+          msg.body = isServiceProviderInvoice ? `invoice ${amount}` : "Invoice";
           if (dataset.mediaUrl) msg.mediaUrls = [dataset.mediaUrl];
 
           if (!taskId) {
             this.io?.emit(`error`, { error: "Task id is required" });
             return;
-            // return ResponseHelper.sendResponse(404, "Task id not found");
           }
 
           // Fetch the task associated with the chat
@@ -870,8 +898,6 @@ export class ChatRepository
               ),
             ]);
           }
-
-
           break;
         }
 
@@ -1011,6 +1037,11 @@ export class ChatRepository
           }
         }
       });
+      console.log(
+        "🚀 ~ file: chat.repository.ts ~ line 1011 ~ ChatRepository ~ sendRequest= ~ response",
+        userIds
+      );
+
       this.sendNotificationMsg({
         userIds,
         title: user?.firstName,
@@ -1020,20 +1051,32 @@ export class ChatRepository
         groupName: chat?.groupName,
       });
 
-      newRequest?.participants
-        ?.filter((participant: IParticipant) => participant.user !== senderId)
-        .forEach((participant: IParticipant) => {
-          this.notificationService.createAndSendNotification({
-            ntitle: `${msg.body} Action Request`,
-            nbody: msg.body,
-            receiverId: participant.user,
-            type: ENOTIFICATION_TYPES.ACTION_REQUEST,
-            senderId: senderId as string,
-            data: {
-              task: chat?.task?.toString(),
-            },
-          } as NotificationParams);
-        });
+      userIds.forEach(async (userId: string) => {
+        await this.notificationService.createAndSendNotification({
+          ntitle: `${msg.body} Action Request`,
+          nbody: msg.body,
+          receiverId: userId,
+          type: ENOTIFICATION_TYPES.ACTION_REQUEST,
+          senderId: senderId as string,
+          data: {
+            task: chat?.task?.toString(),
+          },
+        } as NotificationParams);
+      });
+      // newRequest?.participants
+      //   ?.filter((participant: IParticipant) => participant.user !== senderId)
+      //   .forEach((participant: IParticipant) => {
+      //     this.notificationService.createAndSendNotification({
+      //       ntitle: `${msg.body} Action Request`,
+      //       nbody: msg.body,
+      //       receiverId: participant.user,
+      //       type: ENOTIFICATION_TYPES.ACTION_REQUEST,
+      //       senderId: senderId as string,
+      //       data: {
+      //         task: chat?.task?.toString(),
+      //       },
+      //     } as NotificationParams);
+      //   });
 
       return response;
     } catch (error) {

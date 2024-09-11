@@ -626,7 +626,7 @@ class TaskService {
       const [isUserExistInTask, wallet] = await Promise.all([
         this.taskRepository.exists({
           _id: new mongoose.Types.ObjectId(_id),
-          "users.user": new mongoose.Types.ObjectId(user),
+          "serviceProviders.user": new mongoose.Types.ObjectId(user),
         }),
         this.userWalletRepository.getOne<IWallet>({ user }),
       ]);
@@ -728,6 +728,7 @@ class TaskService {
 
       const updateCount: any = { $inc: {} };
       const noOfServiceProvider = task?.noOfServiceProvider;
+      const originalStatus = status;
       const acceptedProvidersCount = task?.serviceProviders.filter(
         (provider) => provider.status === 4
       ).length;
@@ -767,7 +768,6 @@ class TaskService {
         "firstName"
       );
 
-      // Handle both ACCEPTED and REJECTED status cases
       const notificationType =
         status == ETaskUserStatus.ACCEPTED
           ? ENOTIFICATION_TYPES.TASK_ACCEPTED
@@ -776,18 +776,33 @@ class TaskService {
       const notificationTitle =
         status == ETaskUserStatus.ACCEPTED ? "Task Accepted" : "Task Rejected";
 
-      const notificationBody =
-        status === ETaskUserStatus.ACCEPTED
-          ? isRequestToBeAdded
+      const notificationBody = (() => {
+        if (isRequestToBeAdded && originalStatus === 4 && status === 3) {
+          // Case where status is changed from 4 to 3
+          return `${
+            (task.postedBy as unknown as IUser).firstName
+          } accepted your task request but the main queue is full, so you have been placed into standby.`;
+        }
+
+        // Handle normal ACCEPTED/REJECTED cases
+        if (
+          status === ETaskUserStatus.ACCEPTED ||
+          status === ETaskUserStatus.STANDBY
+        ) {
+          return isRequestToBeAdded
             ? `${
                 (task.postedBy as unknown as IUser).firstName
               } accepted your task request`
-            : `${userData?.firstName} accepted your task request`
-          : isRequestToBeAdded
-          ? `${
-              (task.postedBy as unknown as IUser).firstName
-            } rejected your task request`
-          : `${userData?.firstName} rejected your task request`;
+            : `${userData?.firstName} accepted your task request`;
+        } else {
+          return isRequestToBeAdded
+            ? `${
+                (task.postedBy as unknown as IUser).firstName
+              } rejected your task request`
+            : `${userData?.firstName} rejected your task request`;
+        }
+      })();
+
       // Create or delete calendar entry and chat if status is ACCEPTED
       let chatId;
       if (response && status == ETaskUserStatus.ACCEPTED) {
