@@ -20,8 +20,14 @@ class CalendarController {
       isDeleted: false,
       isActive: true, // this will only fetch those task which are active if the task is completed it will also turn this flag to false
     };
-    if (date !== "") filter.date = date;
-    // else filter.date = moment(new Date()).format("YYYY-MM-DD");
+    if (typeof date === "string" && date.trim() !== "") {
+      filter.date = moment(date).format("YYYY-MM-DD");
+    } else {
+      filter.date = moment().format("YYYY-MM-DD"); // Use the current date if 'date' is not a valid string
+    }
+
+    console.log("filter", filter);
+
     const response = await this.calendarService.index(
       Number(page),
       Number(limitNow),
