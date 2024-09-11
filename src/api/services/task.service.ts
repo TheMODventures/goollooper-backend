@@ -254,6 +254,17 @@ class TaskService {
             );
           }
         }
+        if (payload.commercial) {
+          if (!wallet) {
+            return ResponseHelper.sendResponse(404, "Wallet not found");
+          }
+          if (wallet.balance < SERVICE_INITIATION_FEE) {
+            return ResponseHelper.sendResponse(
+              400,
+              "Insufficient balance, can't create task "
+            );
+          }
+        }
         return null;
       };
 
@@ -404,12 +415,6 @@ class TaskService {
       }
       // in from data boolean value come in string format
       if (String(payload.commercial) == "true" && wallet) {
-        if (wallet?.balance < SERVICE_INITIATION_FEE) {
-          return ResponseHelper.sendResponse(
-            400,
-            "Insufficient balance, can't create task "
-          );
-        }
         await this.userWalletRepository.updateById(wallet?._id as string, {
           $inc: {
             balance: -SERVICE_INITIATION_FEE,
@@ -623,7 +628,6 @@ class TaskService {
 
   requestToAdded = async (_id: string, user: string) => {
     try {
-
       const taskId = new mongoose.Types.ObjectId(_id);
       const userId = new mongoose.Types.ObjectId(user);
 
@@ -654,7 +658,6 @@ class TaskService {
           "You are previously rejected from this task and can't request again"
         );
       }
-
 
       // Handle the case where the user is already in the task
       if (isUserExistInTask) {
