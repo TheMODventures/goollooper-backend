@@ -796,6 +796,7 @@ export class ChatRepository
 
           await this.updateById<IChat>(chat._id, {
             participants: updatedParticipants,
+            requests: [],
           });
           break;
 
