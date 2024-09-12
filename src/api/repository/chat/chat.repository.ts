@@ -478,6 +478,11 @@ export class ChatRepository
       }
       query.push(...remainingQuery);
       const result = await Chat.aggregate(query);
+      console.log(
+        "🚀 ~ file: chat.repository.ts ~ line 191 ~ ChatRepository ~ getChats ~ result",
+        result
+      );
+
       if (this.io) this.io?.emit(`getChats/${user}`, result);
       return result;
     } catch (error) {
@@ -1071,13 +1076,13 @@ export class ChatRepository
             this.io?.emit(`newRequest/${chatId}/${participant.user}`, {
               request: newRequest.requests[newRequest.requests.length - 1],
             });
-            // this.io?.emit(`newMessage/${chatId}/${participant.user}`, {
-            //   ...msg,
-            //   senderId: user?._id,
-            //   firstName: user?.firstName,
-            //   lastName: user?.lastName,
-            //   createdAt: new Date(),
-            // });
+            this.io?.emit(`newMessage/${chatId}/${participant.user}`, {
+              ...msg,
+              senderId: user?._id,
+              firstName: user?.firstName,
+              lastName: user?.lastName,
+              createdAt: new Date(),
+            });
             await this.getChats(participant.user.toString());
           }
         }
@@ -1112,14 +1117,14 @@ export class ChatRepository
         } as NotificationParams);
       });
 
-      if (dataset.type?.toString() === "3") {
-        this.createMessage(
-          chatId,
-          senderId,
-          "I think you are a good candidate for this task. I am looking forward in working with you on this task",
-          []
-        );
-      }
+      // if (dataset.type?.toString() === "3") {
+      //   this.createMessage(
+      //     chatId,
+      //     senderId,
+      //     "I think you are a good candidate for this task. I am looking forward in working with you on this task",
+      //     []
+      //   );
+      // }
 
       return response;
     } catch (error) {
