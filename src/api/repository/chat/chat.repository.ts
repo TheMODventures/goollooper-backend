@@ -1076,13 +1076,13 @@ export class ChatRepository
             this.io?.emit(`newRequest/${chatId}/${participant.user}`, {
               request: newRequest.requests[newRequest.requests.length - 1],
             });
-            // this.io?.emit(`newMessage/${chatId}/${participant.user}`, {
-            //   ...msg,
-            //   senderId: user?._id,
-            //   firstName: user?.firstName,
-            //   lastName: user?.lastName,
-            //   createdAt: new Date(),
-            // });
+             this.io?.emit(`newMessage/${chatId}/${participant.user}`, {
+               ...msg,
+               senderId: user?._id,
+               firstName: user?.firstName,
+               lastName: user?.lastName,
+               createdAt: new Date(),
+             });
             await this.getChats(participant.user.toString());
           }
         }
