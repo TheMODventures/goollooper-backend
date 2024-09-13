@@ -819,43 +819,25 @@ export class ChatRepository
                 status: ETaskStatus.assigned,
               }
             );
-          console.log(
-            "🚀 ~ file: chat.repository.ts ~ line 566 ~ ChatRepository ~ sendRequest= ~ taskUpdateResponse",
-            dataset
-          );
+
           const serviceProvider = taskUpdateResponse?.serviceProviders?.find(
             (sp) => sp.status === 4
           )?.user;
-          console.log(
-            "🚀 ~ file: chat.repository.ts ~ line 568 ~ ChatRepository ~ sendRequest= ~ serviceProvider",
-            serviceProvider
-          );
 
           if (serviceProvider) {
             const event = await this.calendarRepository.create<ICalendar>({
               user: serviceProvider,
               task: chat.task,
               type: ECALENDARTaskType.accepted,
-              date: new Date().toISOString().slice(0, 10),
+              date: taskUpdateResponse.date,
             });
+
             console.log(
-              "🚀 ~ file: chat.repository.ts ~ line 576 ~ ChatRepository ~ sendRequest= ~ event",
+              "🚀 ~ file: chat.repository.ts ~ line 366 ~ ChatRepository ~ sendRequest= ~ event",
               event
             );
           }
 
-          // if (taskUpdateResponse?.serviceProviders?.length) {
-          //   const calendarEntries = chat.serviceProviders.map(
-          //     (provider: any) => ({
-          //       user: provider.user as string,
-          //       task: chat.task,
-          //       date: dataset.date
-          //         ? dataset?.date.toISOString()
-          //         : new Date().toISOString(),
-          //     })
-          //   );
-          //   await this.calendarRepository.createMany(calendarEntries);
-          // }
           break;
 
         case "5": {
@@ -1076,13 +1058,13 @@ export class ChatRepository
             this.io?.emit(`newRequest/${chatId}/${participant.user}`, {
               request: newRequest.requests[newRequest.requests.length - 1],
             });
-             this.io?.emit(`newMessage/${chatId}/${participant.user}`, {
-               ...msg,
-               senderId: user?._id,
-               firstName: user?.firstName,
-               lastName: user?.lastName,
-               createdAt: new Date(),
-             });
+            this.io?.emit(`newMessage/${chatId}/${participant.user}`, {
+              ...msg,
+              senderId: user?._id,
+              firstName: user?.firstName,
+              lastName: user?.lastName,
+              createdAt: new Date(),
+            });
             await this.getChats(participant.user.toString());
           }
         }
@@ -1117,7 +1099,6 @@ export class ChatRepository
         } as NotificationParams);
       });
 
-
       // if (dataset.type?.toString() === "3") {
       //   this.createMessage(
       //     chatId,
@@ -1126,7 +1107,6 @@ export class ChatRepository
       //     []
       //   );
       // }
-
 
       return response;
     } catch (error) {

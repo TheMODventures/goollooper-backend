@@ -254,7 +254,7 @@ class TaskService {
             );
           }
         }
-        if (payload.commercial) {
+        if (String(payload.commercial) == "true") {
           if (!wallet) {
             return ResponseHelper.sendResponse(404, "Wallet not found");
           }
@@ -433,7 +433,7 @@ class TaskService {
         } as ITransaction);
       }
 
-      await this.calendarRepository.create({
+      await this.calendarRepository.create<ICalendar>({
         user: payload.postedBy as string,
         task: data._id,
         date: data.date,
