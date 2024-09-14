@@ -47,7 +47,7 @@ class App {
   }
   public start(): void {
     const appPort = Number(APP_PORT);
-    const httpServer = this.app.listen(appPort, APP_HOST!, () => {
+    const httpServer = this.app.listen(appPort, () => {
       console.log(`Server running at http://${APP_HOST}:${appPort}`);
     });
     this.io = new SocketIOServer(httpServer);
