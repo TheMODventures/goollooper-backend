@@ -11,7 +11,6 @@ import {
 import { ISchedule } from "../../database/interfaces/schedule.interface";
 import { UserRepository } from "../repository/user/user.repository";
 import { ScheduleRepository } from "../repository/schedule/schedule.repository";
-import { SubscriptionRepository } from "../repository/subscription/subscription.repository";
 import {
   SUCCESS_DATA_DELETION_PASSED,
   SUCCESS_DATA_INSERTION_PASSED,
@@ -23,18 +22,20 @@ import { ResponseHelper } from "../helpers/reponseapi.helper";
 import { UploadHelper } from "../helpers/upload.helper";
 import TokenService from "./token.service";
 import { stripeHelper } from "../helpers/stripe.helper";
+import { RatingRepository } from "../repository/rating/rating.repository";
 
 class UserService {
   private userRepository: UserRepository;
   private scheduleRepository: ScheduleRepository;
   private uploadHelper: UploadHelper;
   private tokenService: TokenService;
-
+  private ratingRepository: RatingRepository;
   constructor() {
     this.userRepository = new UserRepository();
     this.scheduleRepository = new ScheduleRepository();
     this.uploadHelper = new UploadHelper("user");
     this.tokenService = new TokenService();
+    this.ratingRepository = new RatingRepository();
   }
 
   getByFilter = async (filter: FilterQuery<IUser>): Promise<ApiResponse> => {
@@ -157,10 +158,6 @@ class UserService {
           model: "Service",
           select: "title type parent",
         },
-        // {
-        //   path: "subscription.subscription",
-        //   model: "Subscription",
-        // },
       ]);
 
       if (response === null) {
@@ -171,7 +168,21 @@ class UserService {
         user: _id,
         isDeleted: false,
       });
-      const res = { ...response, schedule: schedules };
+      const rating = await this.ratingRepository.getAll(
+        { to: _id },
+        "",
+        "",
+        { createdAt: "desc" },
+        {
+          path: "by",
+          model: "Users",
+          select: "firstName lastName profileImage username email",
+        },
+        true,
+        1,
+        2
+      );
+      const res = { ...response, schedule: schedules, rating: rating };
       return ResponseHelper.sendSuccessResponse(SUCCESS_DATA_SHOW_PASSED, res);
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);

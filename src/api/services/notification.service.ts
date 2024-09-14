@@ -22,40 +22,43 @@ import {
 } from "../../database/interfaces/enums";
 import { NotificationHelper } from "../helpers/notification.helper";
 import { Authorize } from "../../middleware/authorize.middleware";
+import { Server } from "socket.io";
 
 interface CustomSocket extends SocketIO.Socket {
   user?: any;
 }
 
 export const notificationSockets = (io: SocketIO.Server) => {
-  console.log("Notification Socket Initialized");
-
-  const authorize = new Authorize();
-  const notificationService = new NotificationService();
-  io.use(async (socket: CustomSocket, next) => {
-    const token = socket.handshake.query.token;
-    const result = await authorize.validateAuthSocket(token as string);
-
-    if (result?.userId) {
-      socket.user = result;
-      next();
-    } else next(new Error(result));
-  });
-
-  io.on("connection", async (socket: CustomSocket) => {
-    socket.on("notification-event", async () => {
-      const count = await notificationService.getNotificationCount(
-        socket.user.userId
-      );
-      io.emit("notification-event", count);
-    });
-  });
+  // console.log("Notification Socket Initialized");
+  // const authorize = new Authorize();
+  // const notificationService = new NotificationService(io as Server);
+  // io.use(async (socket: CustomSocket, next) => {
+  //   const token = socket.handshake.query.token;
+  //   const result = await authorize.validateAuthSocket(token as string);
+  //   if (result?.userId) {
+  //     socket.user = result;
+  //     next();
+  //   } else next(new Error(result));
+  // });
+  // io.on("connection", async (socket: CustomSocket) => {
+  //   console.log(socket.user?.userId, "socket user");
+  //   // const result = await authorize.validateAuthSocket(token as string);
+  //   const count = await notificationService.getNotificationCount(
+  //     socket?.user?.userId
+  //   );
+  //   console.log("Notification Count: ", count);
+  //   io.emit("notification-event", count);
+  //   console.log(`Socket Connected: ${socket.id}`);
+  //   console.log(`User Connected: ${socket.user?.userId}`);
+  // });
 };
+
 class NotificationService {
   private notificationRepository: NotificationRepository;
   private userRepository: UserRepository;
-
-  constructor() {
+  private io?: Server;
+  constructor(io?: Server) {
+    this.io = io;
     this.notificationRepository = new NotificationRepository();
     this.userRepository = new UserRepository();
   }
@@ -154,6 +157,7 @@ class NotificationService {
             });
         });
       }
+
       return ResponseHelper.sendResponse(201, "Successfully sent");
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);

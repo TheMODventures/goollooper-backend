@@ -20,6 +20,7 @@ import { IUser } from "../../../database/interfaces/user.interface";
 import { ITask } from "../../../database/interfaces/task.interface";
 import { ICalendar } from "../../../database/interfaces/calendar.interface";
 import {
+  ECALENDARTaskType,
   ECALLDEVICETYPE,
   EChatType,
   EMessageStatus,
@@ -27,9 +28,11 @@ import {
   EParticipantStatus,
   ETICKET_STATUS,
   ETaskStatus,
+  ETransactionStatus,
   EUserRole,
   MessageType,
   RequestStatus,
+  TransactionType,
 } from "../../../database/interfaces/enums";
 import { Chat } from "../../../database/models/chat.model";
 import { User } from "../../../database/models/user.model";
@@ -59,7 +62,11 @@ import { CalendarRepository } from "../calendar/calendar.repository";
 import { IWallet } from "../../../database/interfaces/wallet.interface";
 import { WalletRepository } from "../wallet/wallet.repository";
 import { SERVICE_INITIATION_FEE } from "../../../constant";
-
+import { TransactionRepository } from "../transaction/transaction.repository";
+import {
+  ITransaction,
+  ITransactionDoc,
+} from "../../../database/interfaces/transaction.interface";
 export class ChatRepository
   extends BaseRepository<IChat, IChatDoc>
   implements IChatRepository
@@ -70,6 +77,7 @@ export class ChatRepository
   private notificationService: NotificationService;
   private calendarRepository: CalendarRepository;
   private walletRepository: WalletRepository;
+  private transactionRepository: TransactionRepository;
   protected app: Application;
 
   constructor(io?: Server) {
@@ -80,6 +88,8 @@ export class ChatRepository
     this.taskRepository = new TaskRepository();
     this.calendarRepository = new CalendarRepository();
     this.walletRepository = new WalletRepository();
+    this.notificationService = new NotificationService();
+    this.transactionRepository = new TransactionRepository();
   }
 
   deleteChat = async (chatId: string) => {
@@ -153,6 +163,8 @@ export class ChatRepository
                   lastName: 1,
                   email: 1,
                   profileImage: 1,
+                  selectedLocation: 1,
+                  subscription: 1,
                 },
               },
             ],
@@ -466,6 +478,11 @@ export class ChatRepository
       }
       query.push(...remainingQuery);
       const result = await Chat.aggregate(query);
+      console.log(
+        "🚀 ~ file: chat.repository.ts ~ line 191 ~ ChatRepository ~ getChats ~ result",
+        result
+      );
+
       if (this.io) this.io?.emit(`getChats/${user}`, result);
       return result;
     } catch (error) {
@@ -685,7 +702,8 @@ export class ChatRepository
       const newRequest: IChat | any = await Chat.findById(chatId);
 
       if (!requestId || !newRequest) {
-        return ResponseHelper.sendResponse(404);
+        this.io?.emit(`error`, { error: "Chat not found" });
+        return;
       }
 
       const newRequestId =
@@ -719,9 +737,15 @@ export class ChatRepository
         case "3":
           msg.body = "Relieve";
           msg.type = MessageType.relieve;
+          console.log("🚀 break_point", dataset);
+          // console.log("🚀 chat",chat);
 
           const tasks = await this.taskRepository.getById<ITask>(chat?.task);
-          if (!tasks) return ResponseHelper.sendResponse(404, "Task not found");
+
+          if (!tasks)
+            return this.io?.emit(`error`, { error: "Task not found" });
+
+          console.log("🚀 break_point 2", dataset);
 
           const findStandByServiceProvider = tasks.serviceProviders.find(
             (sp) => sp.status === 3
@@ -744,12 +768,17 @@ export class ChatRepository
             // Return the service provider unchanged if no conditions match
             return sp;
           });
+          console.log("🚀 break_point 3", dataset);
+          console.log(
+            "🚀 findStandByServiceProvider",
+            findStandByServiceProvider
+          );
 
           if (findStandByServiceProvider) {
             await this.notificationService.createAndSendNotification({
               ntitle: "your request has been accepted",
               nbody: "Relieve Action Request",
-              receiverId: findStandByServiceProvider?.user,
+              receiverId: findStandByServiceProvider?.user as string,
               type: ENOTIFICATION_TYPES.ACTION_REQUEST,
               senderId: senderId as string,
               data: {
@@ -758,7 +787,7 @@ export class ChatRepository
             } as NotificationParams);
           }
 
-          console.log(updatedServiceProviders, "updatedServiceProviders");
+          // console.log(updatedServiceProviders, "updatedServiceProviders");
           await this.taskRepository.updateById<ITask>(chat?.task, {
             serviceProviders: updatedServiceProviders,
           });
@@ -776,8 +805,8 @@ export class ChatRepository
 
           await this.updateById<IChat>(chat._id, {
             participants: updatedParticipants,
+            requests: [],
           });
-
           break;
 
         case "4":
@@ -790,42 +819,58 @@ export class ChatRepository
                 status: ETaskStatus.assigned,
               }
             );
-          if (taskUpdateResponse?.serviceProviders?.length) {
-            const calendarEntries = taskUpdateResponse.serviceProviders.map(
-              (provider: any) => ({
-                user: provider.user as string,
-                task: chat.task,
-                date: dataset.date
-                  ? dataset?.date.toISOString()
-                  : new Date().toISOString(),
-              })
+
+          const serviceProvider = taskUpdateResponse?.serviceProviders?.find(
+            (sp) => sp.status === 4
+          )?.user;
+
+          if (serviceProvider) {
+            const event = await this.calendarRepository.create<ICalendar>({
+              user: serviceProvider,
+              task: chat.task,
+              type: ECALENDARTaskType.accepted,
+              date: taskUpdateResponse.date,
+            });
+
+            console.log(
+              "🚀 ~ file: chat.repository.ts ~ line 366 ~ ChatRepository ~ sendRequest= ~ event",
+              event
             );
-            await this.calendarRepository.createMany(calendarEntries);
           }
+
           break;
 
         case "5": {
           const taskId = chat?.task;
-          const amount = dataset.amount || "0";
+          const amount = dataset.amount;
           const isServiceProviderInvoice =
             dataset.status === RequestStatus.SERVICE_PROVIDER_INVOICE_REQUEST;
 
-          // Early return if amount is required but not provided
-          if (!amount && isServiceProviderInvoice) {
-            return ResponseHelper.sendResponse(404, "Amount is required");
+          // Early return if amount is undefined and it's a service provider invoice request
+          if (
+            (amount === undefined || amount === null) &&
+            isServiceProviderInvoice
+          ) {
+            this.io?.emit(`error`, { error: "Amount is required" });
+            console.log("🚀 ELSE CASE: Amount is required and not provided.");
+            return;
           }
+
+          console.log("🚀 CASE 5", dataset);
 
           // Set initial message properties
           msg.type = MessageType.invoice;
-          msg.body = amount;
+          msg.body = isServiceProviderInvoice ? `invoice ${amount}` : "Invoice";
           if (dataset.mediaUrl) msg.mediaUrls = [dataset.mediaUrl];
 
-          if (!taskId)
-            return ResponseHelper.sendResponse(404, "Task id not found");
+          if (!taskId) {
+            this.io?.emit(`error`, { error: "Task id is required" });
+            return;
+          }
 
           // Fetch the task associated with the chat
           const task: ITask | null = await this.taskRepository.getById(taskId);
-          if (!task) return ResponseHelper.sendResponse(404, "Task not found");
+          if (!task) return this.io?.emit(`error`, { error: "Task not found" });
 
           if (task.commercial) {
             // Update invoice amount for commercial tasks
@@ -845,18 +890,19 @@ export class ChatRepository
               ),
             ]);
           }
-
           break;
         }
 
         case "6": {
           msg.body = "Completed";
           msg.type = MessageType.complete;
+          console.log("🚀 CASE 6", dataset);
 
           // Validate amount
           const amount = Number(dataset.amount);
           if (isNaN(amount) || amount <= 0) {
-            return ResponseHelper.sendResponse(404, "Amount is required");
+            console.log("🚀 error amount is less");
+            return this.io?.emit(`error`, { error: "Amount is required" });
           }
 
           // Fetch the completed task
@@ -864,37 +910,58 @@ export class ChatRepository
             chat?.task
           );
           if (!completedTask) {
-            return ResponseHelper.sendResponse(404, "Task not found");
+            return this.io?.emit(`error`, { error: "Task not found" });
+            // return ResponseHelper.sendResponse(404, "Task not found");
           }
-
+          console.log("🚀🚀🚀🚀🚀 ");
           // Check if the task is commercial and validate the invoice amount
           if (completedTask.commercial) {
             if (
               completedTask.invoiceAmount === undefined ||
-              amount <= completedTask.invoiceAmount
+              amount < completedTask.invoiceAmount
             ) {
-              return ResponseHelper.sendResponse(
-                404,
-                "Amount should be greater than the invoice amount"
-              );
+              this.io?.emit(`error`, {
+                error: "Amount should be greater than the invoice amount",
+              });
+              // return ResponseHelper.sendResponse(
+              //   404,
+              //   "Amount should be greater than the invoice amount"
+              // );
             }
 
             // Fetch and validate user wallet
+            // Retrieve the sender's wallet
             const userWallet = await this.walletRepository.getOne<IWallet>({
               user: senderId,
             });
+
             if (!userWallet) {
-              return ResponseHelper.sendResponse(404, "Wallet not found");
-            }
-            if (userWallet.balance < amount) {
-              return ResponseHelper.sendResponse(404, "Insufficient balance");
+              return this.io?.emit(`error`, { error: "Wallet not found" });
             }
 
-            // Update user wallet balance and service provider balance using $inc
-            const serviceProviderId = completedTask.serviceProviders[0]
-              .user as string;
+            if (userWallet.balance < amount) {
+              console.log("code stopped here");
+              this.io?.emit(`error`, { error: "Insufficient balance" });
+              return;
+              // return ResponseHelper.sendResponse(404, "Insufficient balance");
+            }
+
+            // Retrieve the service provider's ID
+            const serviceProviderId = completedTask.serviceProviders.find(
+              (sp) => sp.status === 4
+            )?.user as string;
+
+            console.log("🚀", serviceProviderId);
+
+            // Retrieve the service provider's wallet
+            const serviceProviderWallet =
+              await this.walletRepository.getOne<IWallet>({
+                user: serviceProviderId,
+              });
+
+            // Update both wallets and create transactions in parallel
             await Promise.all([
-              await this.walletRepository.updateByOne<IWallet>(
+              this.walletRepository.updateByOne<IWallet>(
                 { user: senderId },
                 {
                   $inc: {
@@ -905,19 +972,48 @@ export class ChatRepository
               ),
               this.walletRepository.updateBalance(serviceProviderId, +amount),
             ]);
+
+            // Create transactions for both the service provider and sender
+            await Promise.all([
+              this.transactionRepository.create<ITransaction>({
+                amount: amount,
+                user: serviceProviderId,
+                type: TransactionType.task,
+                wallet: serviceProviderWallet?._id as string,
+                status: ETransactionStatus.completed,
+                isCredit: true,
+              }),
+              this.transactionRepository.create<ITransaction>({
+                amount: SERVICE_INITIATION_FEE,
+                user: senderId,
+                type: TransactionType.serviceInitiationFee,
+                wallet: userWallet?._id as string,
+                status: ETransactionStatus.completed,
+                isCredit: true,
+              }),
+              this.transactionRepository.create<ITransaction>({
+                amount: amount,
+                user: senderId,
+                type: TransactionType.task,
+                wallet: userWallet?._id as string,
+                status: ETransactionStatus.completed,
+                isCredit: false,
+              }),
+            ]);
+
+            // Update task and calendar status
+            await Promise.all([
+              this.taskRepository.updateById<ITask>(chat?.task, {
+                status: ETaskStatus.completed,
+              }),
+              this.calendarRepository.updateMany<ICalendar>(
+                { task: new mongoose.Types.ObjectId(chat?.task) },
+                { isActive: false }
+              ),
+            ]);
+
+            console.log("🚀 CASE 6", dataset);
           }
-
-          // Update task and calendar status
-          await Promise.all([
-            this.taskRepository.updateById<ITask>(chat?.task, {
-              status: ETaskStatus.completed,
-            }),
-            this.calendarRepository.updateMany<ICalendar>(
-              { task: new mongoose.Types.ObjectId(chat?.task) },
-              { isActive: false }
-            ),
-          ]);
-
           break;
         }
 
@@ -926,17 +1022,20 @@ export class ChatRepository
           if (
             (!dataset?.date || !dataset?.slot) &&
             dataset.status === RequestStatus.CLIENT_TOUR_REQUEST_ACCEPT
-          )
-            return ResponseHelper.sendResponse(
-              400,
-              "Date and Time is required"
-            );
+          ) {
+            return this.io?.emit(`error`, {
+              error: "Date and slot are required",
+            });
+          }
           msg.body = "Tour Request";
+          console.log("🚀 CASE 7", dataset);
+
           break;
 
         case "8":
           msg.type = MessageType.reschedule;
           msg.body = "Task Rescheduled";
+          console.log("🚀 CASE 8", dataset);
           break;
 
         default:
@@ -970,6 +1069,11 @@ export class ChatRepository
           }
         }
       });
+      console.log(
+        "🚀 ~ file: chat.repository.ts ~ line 1011 ~ ChatRepository ~ sendRequest= ~ response",
+        userIds
+      );
+
       this.sendNotificationMsg({
         userIds,
         title: user?.firstName,
@@ -979,24 +1083,40 @@ export class ChatRepository
         groupName: chat?.groupName,
       });
 
-      newRequest?.participants
-        ?.filter((participant: IParticipant) => participant.user !== senderId)
-        .forEach((participant: IParticipant) => {
-          this.notificationService.createAndSendNotification({
-            ntitle: `${msg.body} Action Request`,
-            nbody: msg.body,
-            receiverId: participant.user,
-            type: ENOTIFICATION_TYPES.ACTION_REQUEST,
-            senderId: senderId as string,
-            data: {
-              task: chat?.task?.toString(),
-            },
-          } as NotificationParams);
-        });
+      userIds.forEach(async (userId: string) => {
+        await this.notificationService.createAndSendNotification({
+          ntitle: `${msg.body} Action Request`,
+          nbody: msg.body,
+          receiverId: userId,
+          type: ENOTIFICATION_TYPES.ACTION_REQUEST,
+          senderId: senderId as string,
+          data: {
+            chatId: chatId,
+            chatType: chat.chatType,
+            groupName: chat?.groupName,
+            user: senderId,
+          },
+        } as NotificationParams);
+      });
+
+      // if (dataset.type?.toString() === "3") {
+      //   this.createMessage(
+      //     chatId,
+      //     senderId,
+      //     "I think you are a good candidate for this task. I am looking forward in working with you on this task",
+      //     []
+      //   );
+      // }
 
       return response;
     } catch (error) {
-      return ResponseHelper.sendResponse(500, (error as Error).message);
+      console.log(
+        "🚀 ~ file: chat.repository.ts ~ line 566 ~ ChatRepository ~ sendRequest= ~ error",
+        error
+      );
+      this.io?.emit(`error`, { error: "something went wrong" });
+      return;
+      // return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   };
 
@@ -2030,7 +2150,7 @@ export class ChatRepository
       } else {
         payload.chatType = EChatType.GROUP;
         let msg: IMessage = {
-          body: `Hey, I think you guys are good candidates for this task. I am looking forward in working with you all this task.`,
+          body: `Hey, I think you guys are good candidates for this task. I am looking forward in working with you all on this task.`,
           sentBy: payload.user,
           receivedBy: [
             {

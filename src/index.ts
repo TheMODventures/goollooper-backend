@@ -2,7 +2,7 @@ import express, { Application } from "express";
 import cors from "cors";
 import morgan from "morgan";
 import { Server as SocketIOServer } from "socket.io";
-
+// import './database/seeders/admin.seeder'
 import { APP_HOST, APP_PORT } from "./config/environment.config";
 import { Database } from "./config/database.config";
 import AdminRoutes from "./api/routes/admin/admin.route";
@@ -37,19 +37,20 @@ class App {
     this.app.use(morgan("dev"));
     this.app.use(express.json());
     this.app.use(express.urlencoded({ extended: true, limit: "100mb" }));
+
     this.app.get("/", (req, res) =>
       res.json({ message: "Welcome to the goollooper" })
     );
+
     this.app.use("/api/admin", this.adminRoutes.router);
     this.app.use("/api", this.userRoutes.router);
   }
   public start(): void {
     const appPort = Number(APP_PORT);
-    const httpServer = this.app.listen(appPort, APP_HOST!, () => {
-      console.log(`Server running at http://${APP_HOST}:${appPort}/`);
+    const httpServer = this.app.listen(appPort, () => {
+      console.log(`Server running at http://${APP_HOST}:${appPort}`);
     });
     this.io = new SocketIOServer(httpServer);
-    this.app.set("io", this.io);
     ChatService(this.io);
     notificationSockets(this.io);
   }

@@ -50,6 +50,7 @@ export default (io: SocketIO.Server) => {
 
   io.use(async (socket: CustomSocket, next) => {
     const token = socket.handshake.query.token;
+
     const result = await authorize.validateAuthSocket(token as string);
     if (result?.userId) {
       socket.user = result;
@@ -103,11 +104,6 @@ export default (io: SocketIO.Server) => {
         name: string;
       }) => {
         try {
-          //   const validator = await validation(
-          //     chatValidation,
-          //     true
-          //   )({ body: data });
-          //   if (validator) {
           await chatRepository.createMessage(
             data.chatId,
             data.userId,
@@ -115,7 +111,6 @@ export default (io: SocketIO.Server) => {
             data.mediaUrls,
             data.name
           );
-          //   } else throw validator;
         } catch (error) {
           console.error("Error while sending chat:", error);
           socket.emit(

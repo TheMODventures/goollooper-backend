@@ -254,6 +254,17 @@ class TaskService {
             );
           }
         }
+        if (String(payload.commercial) == "true") {
+          if (!wallet) {
+            return ResponseHelper.sendResponse(404, "Wallet not found");
+          }
+          if (wallet.balance < SERVICE_INITIATION_FEE) {
+            return ResponseHelper.sendResponse(
+              400,
+              "Insufficient balance, can't create task "
+            );
+          }
+        }
         return null;
       };
 
@@ -404,12 +415,6 @@ class TaskService {
       }
       // in from data boolean value come in string format
       if (String(payload.commercial) == "true" && wallet) {
-        if (wallet?.balance < SERVICE_INITIATION_FEE) {
-          return ResponseHelper.sendResponse(
-            400,
-            "Insufficient balance, can't create task "
-          );
-        }
         await this.userWalletRepository.updateById(wallet?._id as string, {
           $inc: {
             balance: -SERVICE_INITIATION_FEE,
@@ -428,7 +433,7 @@ class TaskService {
         } as ITransaction);
       }
 
-      await this.calendarRepository.create({
+      await this.calendarRepository.create<ICalendar>({
         user: payload.postedBy as string,
         task: data._id,
         date: data.date,
@@ -623,17 +628,43 @@ class TaskService {
 
   requestToAdded = async (_id: string, user: string) => {
     try {
-      const [isUserExistInTask, wallet] = await Promise.all([
-        this.taskRepository.exists({
-          _id: new mongoose.Types.ObjectId(_id),
-          "users.user": new mongoose.Types.ObjectId(user),
-        }),
-        this.userWalletRepository.getOne<IWallet>({ user }),
-      ]);
+      const taskId = new mongoose.Types.ObjectId(_id);
+      const userId = new mongoose.Types.ObjectId(user);
 
-      if (isUserExistInTask)
+      // Perform all necessary checks and fetch the wallet in parallel
+      const [isPreviouslyRejected, isUserExistInTask, wallet] =
+        await Promise.all([
+          // Check if the user was previously rejected
+          this.taskRepository.exists({
+            _id: taskId,
+            "serviceProviders.user": userId,
+            "serviceProviders.status": ETaskUserStatus.REJECTED,
+          }),
+
+          // Check if the user exists in the task
+          this.taskRepository.exists({
+            _id: taskId,
+            "serviceProviders.user": userId,
+          }),
+
+          // Fetch the user's wallet
+          this.userWalletRepository.getOne<IWallet>({ user: userId }),
+        ]);
+
+      // Handle the case where the user was previously rejected
+      if (isPreviouslyRejected) {
+        return ResponseHelper.sendResponse(
+          422,
+          "You are previously rejected from this task and can't request again"
+        );
+      }
+
+      // Handle the case where the user is already in the task
+      if (isUserExistInTask) {
         return ResponseHelper.sendResponse(422, "You are already in this task");
+      }
 
+      // Handle the case where the wallet is not found
       if (!wallet) {
         return ResponseHelper.sendResponse(404, "Wallet not found");
       }
@@ -702,7 +733,8 @@ class TaskService {
     _id: string,
     loggedInUser: string,
     user: string,
-    status: number
+    status: number,
+    isRequestToBeAdded: boolean
   ) => {
     try {
       const isExist = await this.taskRepository.exists({
@@ -712,17 +744,22 @@ class TaskService {
         },
       });
 
-      if (isExist)
+      if (isExist) {
         return ResponseHelper.sendResponse(422, `Status is already ${status}`);
-
-      const task = await this.taskRepository.getById<ITask>(_id);
-
-      if (!task) {
-        return ResponseHelper.sendResponse(404, "Task not found");
       }
-      const updateCount: any = { $inc: {} };
 
+      const task = await this.taskRepository.getById<ITask>(_id, "", "", {
+        path: "postedBy",
+        select: "firstName lastName",
+        model: "Users",
+      });
+      console.log("~ task", task);
+
+      if (!task) return ResponseHelper.sendResponse(404, "Task not found");
+
+      const updateCount: any = { $inc: {} };
       const noOfServiceProvider = task?.noOfServiceProvider;
+      const originalStatus = status;
       const acceptedProvidersCount = task?.serviceProviders.filter(
         (provider) => provider.status === 4
       ).length;
@@ -731,17 +768,13 @@ class TaskService {
         status === ETaskUserStatus.ACCEPTED &&
         acceptedProvidersCount >= noOfServiceProvider
       ) {
-        // If the number of needed service providers is full, put the new service provider on standby
-        status = 3; // Set status to standby
-        // Do not increase the accepted count, handle only standby count
+        status = 3; // Standby if service providers are full
       } else if (status === ETaskUserStatus.ACCEPTED) {
-        // If the service provider can be accepted, increase the accepted count
         updateCount["$inc"].acceptedCount = 1;
         updateCount["$inc"].idleCount = -1;
       }
 
       if (status === ETaskUserStatus.ACCEPTED || status === 3) {
-        // Status 3 is for standby
         updateCount["$inc"].idleCount = -1;
       }
 
@@ -758,14 +791,52 @@ class TaskService {
         }
       );
 
-      let userData: IUser | null = await this.userRepository.getById(
+      if (!response) return ResponseHelper.sendResponse(404);
+
+      const userData: IUser | null = await this.userRepository.getById(
         user,
         undefined,
         "firstName"
       );
+
+      const notificationType =
+        status == ETaskUserStatus.ACCEPTED
+          ? ENOTIFICATION_TYPES.TASK_ACCEPTED
+          : ENOTIFICATION_TYPES.TASK_REJECTED;
+
+      const notificationTitle =
+        status == ETaskUserStatus.ACCEPTED ? "Task Accepted" : "Task Rejected";
+
+      const notificationBody = (() => {
+        if (isRequestToBeAdded && originalStatus === 4 && status === 3) {
+          // Case where status is changed from 4 to 3
+          return `${
+            (task.postedBy as unknown as IUser).firstName
+          } accepted your task request but the main queue is full, so you have been placed into standby.`;
+        }
+
+        // Handle normal ACCEPTED/REJECTED cases
+        if (
+          status === ETaskUserStatus.ACCEPTED ||
+          status === ETaskUserStatus.STANDBY
+        ) {
+          return isRequestToBeAdded
+            ? `${
+                (task.postedBy as unknown as IUser).firstName
+              } accepted your task request`
+            : `${userData?.firstName} accepted your task request`;
+        } else {
+          return isRequestToBeAdded
+            ? `${
+                (task.postedBy as unknown as IUser).firstName
+              } rejected your task request`
+            : `${userData?.firstName} rejected your task request`;
+        }
+      })();
+
+      // Create or delete calendar entry and chat if status is ACCEPTED
       let chatId;
       if (response && status == ETaskUserStatus.ACCEPTED) {
-        // for none commercial event will be created on after accepting
         if (!response.commercial) {
           await this.calendarRepository.create({
             user,
@@ -775,22 +846,10 @@ class TaskService {
           } as ICalendar);
         }
 
-        const addUserToServiceProviderArray =
-          await this.taskRepository.updateById(_id, {
-            $addToSet: { serviceProviders: { user, status } },
-          });
+        await this.taskRepository.updateById(_id, {
+          $addToSet: { serviceProviders: { user, status } },
+        });
 
-        if (!addUserToServiceProviderArray) {
-          return ResponseHelper.sendResponse(404);
-        }
-        this.notificationService.createAndSendNotification({
-          senderId: user,
-          receiverId: response.postedBy,
-          type: ENOTIFICATION_TYPES.TASK_ACCEPTED,
-          data: { task: response._id?.toString() },
-          ntitle: "Task Accepted",
-          nbody: `${userData?.firstName} accepted your task request`,
-        } as NotificationParams);
         chatId = await this.chatRepository.addChatForTask({
           user: response?.postedBy,
           task: _id as string,
@@ -798,24 +857,26 @@ class TaskService {
           groupName: response?.title,
           noOfServiceProvider: response.noOfServiceProvider,
         });
-      } else if (response && status == ETaskUserStatus.REJECTED) {
+      }
+
+      // Handle REJECTED status
+      if (response && status == ETaskUserStatus.REJECTED) {
         await this.calendarRepository.deleteMany({
           user: new mongoose.Types.ObjectId(user),
           task: response._id,
         });
-        this.notificationService.createAndSendNotification({
-          senderId: user,
-          receiverId: response.postedBy,
-          type: ENOTIFICATION_TYPES.TASK_REJECTED,
-          data: { task: response._id?.toString() },
-          ntitle: "Task Rejected",
-          nbody: `${userData?.firstName} rejected your task request`,
-        } as NotificationParams);
       }
 
-      if (response === null) {
-        return ResponseHelper.sendResponse(404);
-      }
+      // Send Notification
+      this.notificationService.createAndSendNotification({
+        senderId: isRequestToBeAdded ? response.postedBy : user,
+        receiverId: isRequestToBeAdded ? user : response.postedBy,
+        type: notificationType,
+        data: { task: response._id?.toString() },
+        ntitle: notificationTitle,
+        nbody: notificationBody,
+      } as NotificationParams);
+
       return ResponseHelper.sendSuccessResponse(SUCCESS_DATA_UPDATION_PASSED, {
         response,
         chat: chatId,
