@@ -427,7 +427,7 @@ class TaskService {
           user: userId,
           type: TransactionType.serviceInitiationFee,
           isCredit: false,
-          status: ETransactionStatus.pending,
+          status: ETransactionStatus.completed,
           wallet: wallet?._id as string,
           task: data._id,
         } as ITransaction);

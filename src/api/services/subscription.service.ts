@@ -183,7 +183,7 @@ class SubscriptionService {
           user: userId,
           amount: payload.price,
           type: TransactionType.subscription,
-          status: ETransactionStatus.completed,
+          status: ETransactionStatus.pending,
           isCredit: false,
           // subscription: subscription.id as string,
           wallet: wallet._id as string,
