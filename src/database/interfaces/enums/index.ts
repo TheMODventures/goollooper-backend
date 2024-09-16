@@ -120,6 +120,8 @@ export enum MessageType {
   system = "system",
   tour = "tour",
   reschedule = "reschedule",
+  bill = "bill",
+  pay = "pay",
 }
 
 export enum EChatType {

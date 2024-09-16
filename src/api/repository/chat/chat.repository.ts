@@ -61,7 +61,7 @@ import NotificationService, {
 import { CalendarRepository } from "../calendar/calendar.repository";
 import { IWallet } from "../../../database/interfaces/wallet.interface";
 import { WalletRepository } from "../wallet/wallet.repository";
-import { SERVICE_INITIATION_FEE } from "../../../constant";
+import { ERROR_NOTFOUND, SERVICE_INITIATION_FEE } from "../../../constant";
 import { TransactionRepository } from "../transaction/transaction.repository";
 import {
   ITransaction,
@@ -717,6 +717,7 @@ export class ChatRepository
           status: EMessageStatus.SENT,
         })),
       };
+
       switch (dataset.type?.toString()) {
         case "1":
           msg.type = MessageType.request;
@@ -1027,15 +1028,148 @@ export class ChatRepository
               error: "Date and slot are required",
             });
           }
-          msg.body = "Tour Request";
-          console.log("🚀 CASE 7", dataset);
-
+          msg.body = "Tour";
           break;
 
         case "8":
           msg.type = MessageType.reschedule;
           msg.body = "Task Rescheduled";
           console.log("🚀 CASE 8", dataset);
+          break;
+
+        case "9":
+          msg.type = MessageType.bill;
+          msg.body = "Bill";
+
+          if (!dataset.amount) {
+            return this.io?.emit(`error`, { error: "Amount is required" });
+          }
+
+          const task = await this.taskRepository.getById<ITask>(chat?.task);
+          if (!task) {
+            return this.io?.emit(`error`, { error: ERROR_NOTFOUND });
+          }
+
+          const updatedTask = await this.taskRepository.updateById<ITask>(
+            chat?.task,
+            {
+              invoiceAmount: dataset.amount,
+            }
+          );
+
+          if (!updatedTask) {
+            return this.io?.emit(`error`, { error: ERROR_NOTFOUND });
+          }
+
+          break;
+        case "10":
+          msg.type = MessageType.pay;
+          msg.body = "Pay";
+          console.log("🚀 CASE 10", dataset);
+
+          // Validate dataset.amount
+          const amount = Number(dataset.amount);
+          if (isNaN(amount) || amount <= 0) {
+            return this.io?.emit(`error`, {
+              error: "A valid amount is required",
+            });
+          }
+
+          // Validate paymentRecipients array
+          const paymentRecipients = dataset.paymentRecipients;
+          if (
+            !Array.isArray(paymentRecipients) ||
+            paymentRecipients.length === 0
+          ) {
+            return this.io?.emit(`error`, {
+              error: "Payment recipients are required",
+            });
+          }
+
+          // Calculate total amount to be paid
+          const totalAmount = amount * paymentRecipients.length;
+
+          // Fetch the sender's wallet
+          const userWallet = await this.walletRepository.getOne<IWallet>({
+            user: senderId,
+          });
+          if (!userWallet) {
+            return this.io?.emit(`error`, { error: "Wallet not found" });
+          }
+
+          // Check if user has sufficient balance
+          if (userWallet.balance < totalAmount) {
+            return this.io?.emit(`error`, { error: "Insufficient balance" });
+          }
+
+          try {
+            // Process each payment recipient
+            const transactions = await Promise.all(
+              paymentRecipients.map(async (recipientId: string) => {
+                const recipientWallet =
+                  await this.walletRepository.getOne<IWallet>({
+                    user: recipientId,
+                  });
+                if (!recipientWallet) {
+                  this.io?.emit(`error`, {
+                    error: `Recipient wallet not found for user ${recipientId}`,
+                  });
+                  return null;
+                }
+
+                // Create a transaction for the recipient
+                await this.transactionRepository.create<ITransaction>({
+                  amount,
+                  user: recipientId,
+                  type: TransactionType.task,
+                  wallet: recipientWallet._id as string,
+                  status: ETransactionStatus.completed,
+                  isCredit: true,
+                });
+
+                // Update the recipient's wallet balance by adding the amount
+                await this.walletRepository.updateById<IWallet>(
+                  recipientWallet._id as string,
+                  {
+                    balance: recipientWallet.balance + amount,
+                  }
+                );
+
+                return recipientWallet;
+              })
+            );
+
+            // Filter out failed transactions
+            const successfulTransactions = transactions.filter(
+              (t) => t !== null
+            );
+
+            // Deduct total amount from sender's wallet after successful transactions
+            if (successfulTransactions.length > 0) {
+              await this.walletRepository.updateById<IWallet>(
+                userWallet._id as string,
+                {
+                  balance: userWallet.balance - totalAmount,
+                }
+              );
+
+              await this.transactionRepository.create<ITransaction>({
+                amount: totalAmount,
+                user: senderId,
+                type: TransactionType.task,
+                wallet: userWallet._id as string,
+                status: ETransactionStatus.completed,
+                isCredit: false,
+              });
+            } else {
+              this.io?.emit(`error`, {
+                error: "No transactions were successful",
+              });
+            }
+          } catch (error) {
+            this.io?.emit(`error`, { error: "Payment process failed" });
+          }
+
           break;
 
         default:
@@ -1069,10 +1203,6 @@ export class ChatRepository
           }
         }
       });
-      console.log(
-        "🚀 ~ file: chat.repository.ts ~ line 1011 ~ ChatRepository ~ sendRequest= ~ response",
-        userIds
-      );
 
       this.sendNotificationMsg({
         userIds,

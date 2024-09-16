@@ -48,6 +48,7 @@ export interface IRequest {
   title?: string;
   mediaUrl?: string;
   amount?: string;
+  paymentRecipients?: string[];
   date?: Date;
   slot?: Slot;
   type: Request;
