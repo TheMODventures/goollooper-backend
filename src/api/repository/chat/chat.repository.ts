@@ -2609,10 +2609,12 @@ export class ChatRepository
                   android: { priority: "high" },
                   registration_ids: [v.callToken],
                 };
-                NotificationHelper.sendNotification({
+                const noti = NotificationHelper.sendNotification({
                   data: message.data,
                   tokens: message.registration_ids,
                 } as PushNotification);
+                console.log("notification", noti);
+
                 // fcm.send(message, function (err, res) {
                 //   if (err) {
                 //     console.log("Error: " + err);
