@@ -187,6 +187,12 @@ const chatSchema = new Schema(
         },
       },
     ],
+    workers: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "Worker",
+      },
+    ],
     ...deleteFields,
   },
   {

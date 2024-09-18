@@ -53,6 +53,7 @@ export interface IRequest {
   slot?: Slot;
   type: Request;
   status: RequestStatus;
+  workers?: string[];
   createdBy?: string | Types.ObjectId;
   createdAt?: Date;
 }
@@ -70,6 +71,7 @@ export interface IChat extends Document {
   task: string | Types.ObjectId;
   requests: IRequest[];
   deleted: boolean;
+  workers: string[];
   deletedAt?: Date;
 }
 

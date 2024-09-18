@@ -1171,7 +1171,35 @@ export class ChatRepository
           }
 
           break;
+        case "11":
+          msg.type = MessageType.addWorkers;
+          msg.body = "Workers Added";
 
+          const workers = dataset.workers;
+          if (!Array.isArray(workers) || workers.length === 0) {
+            return this.io?.emit("error", { error: "Workers are required" });
+          }
+
+          const findChat = await this.updateById<IChat>(chatId, {
+            $addToSet: { workers: { $each: workers } },
+          });
+
+          break;
+        case "12":
+          msg.type = MessageType.removeWorkers;
+          msg.body = "Workers Removed";
+
+          const workersToRemove = dataset.workers;
+
+          if (!Array.isArray(workersToRemove) || workersToRemove.length === 0) {
+            return this.io?.emit("error", { error: "Workers are required" });
+          }
+
+          const updatedChatRemove = await this.updateById<IChat>(chatId, {
+            $pull: { workers: { $in: workersToRemove } },
+          });
+
+          break;
         default:
           break;
       }
@@ -1249,7 +1277,29 @@ export class ChatRepository
       // return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   };
+  // async addParticipants(chatId: string, userId:string, participants: string[]) {
 
+  //   const isChatExist = await this.getById(chatId);
+  //   if(!isChatExist){
+  //     this.io?.emit(`error`, { error: "Chat not found" });
+  //   }
+
+  //   console.log(`~~~addParticipants/${chatId}`, participants);
+
+  //   if(this.io){
+  //     this.io?.emit(`addParticipants/${chatId}`, "participants added");
+  //   }
+  //   return;
+  // }
+  // async removeParticipants(chatId: string, userId:string, participants: string[]) {
+
+  //   console.log(`~~~removeParticipants/${chatId}`, participants);
+
+  //   if(this.io){
+  //     this.io?.emit(`removeParticipants/${chatId}`, "participants removed");
+  //   }
+  //   return;
+  // }
   // Mark all messages as read for a user
   async readAllMessages(chatId: string, user: string) {
     try {
@@ -1401,197 +1451,197 @@ export class ChatRepository
   }
 
   // Add participants to a chat
-  async addParticipants(
-    chatId: string,
-    user: string,
-    participantIds: string[]
-  ) {
-    try {
-      // console.log({ chatId, participantIds });
-      const filter = { _id: chatId };
-      const participantsToAdd: any[] = await this.userRepository.getAll(
-        { _id: participantIds },
-        undefined,
-        ModelHelper.userSelect,
-        undefined,
-        undefined,
-        true,
-        1,
-        200
-      );
-      let username = "";
-      participantsToAdd.map(
-        (e: IUser) => (username += `${e.firstName ?? ""} ${e.lastName ?? ""}, `)
-      );
+  // async addParticipants(
+  //   chatId: string,
+  //   user: string,
+  //   participantIds: string[]
+  // ) {
+  //   try {
+  //     // console.log({ chatId, participantIds });
+  //     const filter = { _id: chatId };
+  //     const participantsToAdd: any[] = await this.userRepository.getAll(
+  //       { _id: participantIds },
+  //       undefined,
+  //       ModelHelper.userSelect,
+  //       undefined,
+  //       undefined,
+  //       true,
+  //       1,
+  //       200
+  //     );
+  //     let username = "";
+  //     participantsToAdd.map(
+  //       (e: IUser) => (username += `${e.firstName ?? ""} ${e.lastName ?? ""}, `)
+  //     );
 
-      const update = {
-        $addToSet: {
-          participants: {
-            $each: participantIds.map((user) => ({
-              user,
-              status: EParticipantStatus.ACTIVE,
-            })),
-          },
-        },
-      };
+  //     const update = {
+  //       $addToSet: {
+  //         participants: {
+  //           $each: participantIds.map((user) => ({
+  //             user,
+  //             status: EParticipantStatus.ACTIVE,
+  //           })),
+  //         },
+  //       },
+  //     };
 
-      let result: any = await Chat.findOneAndUpdate(filter, update)
-        .select("-messages")
-        .populate({
-          path: "participants.user",
-          select: "username firstName lastName _id profileImage",
-        });
+  //     let result: any = await Chat.findOneAndUpdate(filter, update)
+  //       .select("-messages")
+  //       .populate({
+  //         path: "participants.user",
+  //         select: "username firstName lastName _id profileImage",
+  //       });
 
-      const msg = {
-        _id: new mongoose.Types.ObjectId(),
-        body: `${username}joined the group`,
-        addedUsers: participantIds,
-        groupName: result.groupName,
-        sentBy: null,
-        receivedBy: result.participants.map((e: IParticipant) => ({
-          user: e.user,
-          status: EMessageStatus.SEEN,
-        })),
-      };
+  //     const msg = {
+  //       _id: new mongoose.Types.ObjectId(),
+  //       body: `${username}joined the group`,
+  //       addedUsers: participantIds,
+  //       groupName: result.groupName,
+  //       sentBy: null,
+  //       receivedBy: result.participants.map((e: IParticipant) => ({
+  //         user: e.user,
+  //         status: EMessageStatus.SEEN,
+  //       })),
+  //     };
 
-      await result.update({
-        $push: {
-          messages: msg,
-        },
-      });
+  //     await result.update({
+  //       $push: {
+  //         messages: msg,
+  //       },
+  //     });
 
-      await result.save();
+  //     await result.save();
 
-      if (this.io) {
-        result.participants.forEach(async (participant: any) => {
-          if (participant.status == EParticipantStatus.ACTIVE) {
-            this.io?.emit(
-              `newMessage/${chatId}/${participant.user._id.toString()}`,
-              msg
-            );
-            // this.io?.emit(
-            //   `getChats/${participant.user._id}`, await this.getChats(participant.user)
-            // );
-            await this.getChats(participant.user);
-          }
-        });
+  //     if (this.io) {
+  //       result.participants.forEach(async (participant: any) => {
+  //         if (participant.status == EParticipantStatus.ACTIVE) {
+  //           this.io?.emit(
+  //             `newMessage/${chatId}/${participant.user._id.toString()}`,
+  //             msg
+  //           );
+  //           // this.io?.emit(
+  //           //   `getChats/${participant.user._id}`, await this.getChats(participant.user)
+  //           // );
+  //           await this.getChats(participant.user);
+  //         }
+  //       });
 
-        this.io?.emit(`addParticipants/${chatId}`, {
-          message: "added participants",
-          result,
-        });
-      }
+  //       this.io?.emit(`addParticipants/${chatId}`, {
+  //         message: "added participants",
+  //         result,
+  //       });
+  //     }
 
-      return result;
-    } catch (error) {
-      // console.error("Error adding participants:", error);
-      throw error;
-    }
-  }
+  //     return result;
+  //   } catch (error) {
+  //     // console.error("Error adding participants:", error);
+  //     throw error;
+  //   }
+  // }
 
-  // Remove participants from a chat
-  async removeParticipants(chatId: string, /*user,*/ participantIds: string[]) {
-    try {
-      // console.log({ chatId, participantIds });
-      const filter = { _id: chatId /*admins: user*/ };
-      const u: any[] = await this.userRepository.getAll(
-        { _id: participantIds },
-        undefined,
-        ModelHelper.userSelect,
-        undefined,
-        undefined,
-        true,
-        1,
-        200
-      );
-      let username = "";
-      u.map(
-        (e: IUser) => (username += `${e.firstName ?? ""} ${e.lastName ?? ""}, `)
-      );
-      // // console.log(username)
-      const update = {
-        $pull: { participants: { user: { $in: participantIds } } },
-      };
-      let result: any = await Chat.findOneAndUpdate(filter, update)
-        .select("-messages")
-        .populate({
-          path: "participants.user",
-          select: "username firstName lastName _id  profileImage",
-        });
-      // // console.log(result)
-      const msg = {
-        _id: new mongoose.Types.ObjectId(),
-        body: `${username}leave the group`,
-        removedUsers: participantIds,
-        groupName: result.groupName,
-        sentBy: null,
-        receivedBy: result.participants.map((e: IParticipant) => ({
-          user: e.user,
-          status: EMessageStatus.SEEN,
-        })),
-      };
-      await result.update({
-        $push: {
-          messages: msg,
-        },
-      });
-      const userIds: string[] = [];
-      // // console.log(result)
-      await result.save();
-      if (participantIds.includes(result.createdBy.toString()))
-        result = await Chat.findOneAndUpdate(filter, {
-          createdBy: result.participants[0].user._id,
-        }).populate({
-          path: "participants.user",
-          select: "username firstName lastName _id  profileImage status",
-        });
-      // // console.log(result.participants);
-      if (this.io) {
-        result.participants.forEach(async (participant: any) => {
-          if (participant.status == EParticipantStatus.ACTIVE) {
-            // // console.log(participant.user._id.toString())
-            if (
-              participantIds[0] !== participant.user._id &&
-              !participant.isMuted
-            )
-              userIds.push(participant.user._id);
-            // // console.log(`newMessage/${chatId}/${participant.user}`)
-            // if (this.io) {
-            this.io?.emit(
-              `newMessage/${chatId}/${participant.user._id.toString()}`,
-              msg
-            );
-            // this.io?.emit(
-            //   `getChats/${participant.user._id}`, await this.getChats(participant.user)
-            // );
-            await this.getChats(participant.user);
-            // }
-          }
-        });
-        this.io?.emit(`removeParticipants/${chatId}`, {
-          message:
-            result == null
-              ? "you are not allowed to remove participants"
-              : "removed participants",
-          result,
-        });
-      }
-      this.sendNotificationMsg(
-        {
-          userIds,
-          title: result.groupName,
-          body: `${username}leave the group`,
-          chatId,
-        },
-        result
-      );
+  // // Remove participants from a chat
+  // async removeParticipants(chatId: string, /*user,*/ participantIds: string[]) {
+  //   try {
+  //     // console.log({ chatId, participantIds });
+  //     const filter = { _id: chatId /*admins: user*/ };
+  //     const u: any[] = await this.userRepository.getAll(
+  //       { _id: participantIds },
+  //       undefined,
+  //       ModelHelper.userSelect,
+  //       undefined,
+  //       undefined,
+  //       true,
+  //       1,
+  //       200
+  //     );
+  //     let username = "";
+  //     u.map(
+  //       (e: IUser) => (username += `${e.firstName ?? ""} ${e.lastName ?? ""}, `)
+  //     );
+  //     // // console.log(username)
+  //     const update = {
+  //       $pull: { participants: { user: { $in: participantIds } } },
+  //     };
+  //     let result: any = await Chat.findOneAndUpdate(filter, update)
+  //       .select("-messages")
+  //       .populate({
+  //         path: "participants.user",
+  //         select: "username firstName lastName _id  profileImage",
+  //       });
+  //     // // console.log(result)
+  //     const msg = {
+  //       _id: new mongoose.Types.ObjectId(),
+  //       body: `${username}leave the group`,
+  //       removedUsers: participantIds,
+  //       groupName: result.groupName,
+  //       sentBy: null,
+  //       receivedBy: result.participants.map((e: IParticipant) => ({
+  //         user: e.user,
+  //         status: EMessageStatus.SEEN,
+  //       })),
+  //     };
+  //     await result.update({
+  //       $push: {
+  //         messages: msg,
+  //       },
+  //     });
+  //     const userIds: string[] = [];
+  //     // // console.log(result)
+  //     await result.save();
+  //     if (participantIds.includes(result.createdBy.toString()))
+  //       result = await Chat.findOneAndUpdate(filter, {
+  //         createdBy: result.participants[0].user._id,
+  //       }).populate({
+  //         path: "participants.user",
+  //         select: "username firstName lastName _id  profileImage status",
+  //       });
+  //     // // console.log(result.participants);
+  //     if (this.io) {
+  //       result.participants.forEach(async (participant: any) => {
+  //         if (participant.status == EParticipantStatus.ACTIVE) {
+  //           // // console.log(participant.user._id.toString())
+  //           if (
+  //             participantIds[0] !== participant.user._id &&
+  //             !participant.isMuted
+  //           )
+  //             userIds.push(participant.user._id);
+  //           // // console.log(`newMessage/${chatId}/${participant.user}`)
+  //           // if (this.io) {
+  //           this.io?.emit(
+  //             `newMessage/${chatId}/${participant.user._id.toString()}`,
+  //             msg
+  //           );
+  //           // this.io?.emit(
+  //           //   `getChats/${participant.user._id}`, await this.getChats(participant.user)
+  //           // );
+  //           await this.getChats(participant.user);
+  //           // }
+  //         }
+  //       });
+  //       this.io?.emit(`removeParticipants/${chatId}`, {
+  //         message:
+  //           result == null
+  //             ? "you are not allowed to remove participants"
+  //             : "removed participants",
+  //         result,
+  //       });
+  //     }
+  //     this.sendNotificationMsg(
+  //       {
+  //         userIds,
+  //         title: result.groupName,
+  //         body: `${username}leave the group`,
+  //         chatId,
+  //       },
+  //       result
+  //     );
 
-      return result;
-    } catch (error) {
-      // console.error("Error removing participants:", error);
-      throw error;
-    }
-  }
+  //     return result;
+  //   } catch (error) {
+  //     // console.error("Error removing participants:", error);
+  //     throw error;
+  //   }
+  // }
 
   //   // Add admins to a group chat
   //   async addAdmins(chatId: string, user: string, adminIds: string[]) {
