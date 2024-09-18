@@ -26,6 +26,7 @@ jobs:
             git pull origin dev
             npm install
             echo '${{secrets.SERVICE_ACCOUNT}}' > src/api/helpers/goollooper-service.json
+            echo '${{secrets.AUTH_FILE_P8}}' > src/api/helpers/AuthKey_KPDRMQKZUB.p8
             npm run build
             pm2 restart apis-goollooper
             pm2 list
