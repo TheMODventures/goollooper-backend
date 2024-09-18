@@ -34,6 +34,12 @@ class WorkerRoutes extends BaseRoutes {
       this.validateRequest,
       this.workerController.create
     );
+
+    this.router.post(
+      "/create-multiple",
+      this.validateRequest,
+      this.workerController.createMultiple
+    );
   }
 }
 

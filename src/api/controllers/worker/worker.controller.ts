@@ -30,6 +30,15 @@ class WorkerController {
     const response = await this.workerService.update(id, req.body, req);
     return res.status(response.code).json(response);
   };
+
+  createMultiple = async (req: Request, res: Response) => {
+    const payload = req.body;
+    const response = await this.workerService.createMultiple(
+      payload.workers,
+      req
+    );
+    return res.status(response.code).json(response);
+  };
 }
 
 export default WorkerController;

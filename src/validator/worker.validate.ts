@@ -19,6 +19,23 @@ const createRule = yup.object().shape({
   }),
 });
 
+const createMultipleRule = yup.object().shape({
+  params: yup.object().noUnknown(),
+  body: yup.object().shape({
+    workers: yup
+      .array()
+      .of(
+        yup.object().shape({
+          firstName: yup.string().required(),
+          lastName: yup.string().required(),
+          profileImage: yup.string().required(),
+          employer: yup.string().required(),
+        })
+      )
+      .required(),
+  }),
+});
+
 const indexRule = yup.object().shape({
   params: yup.object().noUnknown(),
   body: yup.object().shape({}).noUnknown(),
@@ -45,4 +62,5 @@ export = {
   "/create": createRule,
   "/update": updateRule,
   "/delete": deleteRule,
+  "/create-multiple": createMultipleRule,
 };

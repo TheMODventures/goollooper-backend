@@ -51,6 +51,27 @@ export class WorkerService {
     }
   };
 
+  createMultiple = async (
+    payload: IWorker[],
+    req: Request
+  ): Promise<ApiResponse> => {
+    try {
+      const getCount = await this.workerRepository.getCount({
+        employer: req.locals.auth?.userId,
+        isDeleted: false,
+      });
+      if (getCount + payload.length > 10)
+        return ResponseHelper.sendResponse(400, "Maximum worker limit reached");
+      const workers = await this.workerRepository.createMany<IWorker>(payload);
+      return ResponseHelper.sendSuccessResponse(
+        SUCCESS_DATA_INSERTION_PASSED,
+        workers
+      );
+    } catch (error) {
+      return ResponseHelper.sendResponse(500, (error as Error).message);
+    }
+  };
+
   update = async (
     id: string,
     payload: IWorker,
