@@ -10,6 +10,8 @@ package-lock.json
 .env
 my.txt
 src/api/helpers/goollooper-service.json
+src/api/helpers/AuthKey_KPDRMQKZUB.p8
+
 .prod.env
 test.js
 .prod-env

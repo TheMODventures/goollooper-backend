@@ -2407,6 +2407,7 @@ export class ChatRepository
         privilegeExpiredTs
       );
       // const tokenA = "";
+      console.log("BODYYYY", req.body);
 
       console.log("Token with integer number Uid: " + tokenA);
       const chat = await Chat.findById(channelName).select("-messages");
