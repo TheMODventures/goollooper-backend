@@ -2565,6 +2565,16 @@ export class ChatRepository
                   },
                   production: false,
                 };
+                const message = {
+                  data: { info },
+                  ios: { priority: "high" },
+                  registration_ids: [v.callToken],
+                };
+
+                NotificationHelper.sendNotification({
+                  data: message.data,
+                  tokens: message.registration_ids,
+                } as PushNotification);
 
                 var apnProvider = new apn.Provider({ ...options });
 
