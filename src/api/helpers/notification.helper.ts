@@ -18,6 +18,7 @@ class NotificationHelperC {
           body: notification.body,
         },
         android: { data },
+
         data,
       };
 

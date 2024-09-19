@@ -5,7 +5,6 @@ import { RtcRole, RtcTokenBuilder } from "agora-access-token";
 import { uuid } from "uuidv4";
 import express, { Application, Request } from "express";
 import * as apn from "apn";
-
 import {
   IChat,
   IChatDoc,
@@ -2416,11 +2415,12 @@ export class ChatRepository
           calleeID?.forEach((calleeID: string) => {
             this.userRepository.getCallToken(calleeID).then(async (v: any) => {
               if (v) {
-                const isInCall = await this.checkInChannelStatus(
-                  convertTo32BitInt(calleeID),
-                  channelName as string
-                );
-                if (!isInCall)
+                // const isInCall = await this.checkInChannelStatus(
+                //   convertTo32BitInt(calleeID),
+                //   channelName as string
+                // );
+
+                if (true)
                   this.userRepository
                     .getById(userId)
                     .then(({ firstName, lastName }: any) => {
@@ -2476,6 +2476,9 @@ export class ChatRepository
                         };
                         // note.pushType = "voip";
                         note.topic = "org.goollooper.app.voip";
+                        console.log("CALL TOKEN", v.callToken);
+                        console.log("NOTE", note);
+
                         apnProvider
                           .send(note, v.callToken)
                           .then((result: any) => {
@@ -2565,16 +2568,16 @@ export class ChatRepository
                   },
                   production: false,
                 };
-                const message = {
-                  data: { info },
-                  ios: { priority: "high" },
-                  registration_ids: [v.callToken],
-                };
+                // const message = {
+                //   data: { info },
+                //   ios: { priority: "high" },
+                //   registration_ids: [v.callToken],
+                // };
 
-                NotificationHelper.sendNotification({
-                  data: message.data,
-                  tokens: message.registration_ids,
-                } as PushNotification);
+                // NotificationHelper.sendNotification({
+                //   data: message.data,
+                //   tokens: message.registration_ids,
+                // } as PushNotification);
 
                 var apnProvider = new apn.Provider({ ...options });
 
@@ -2598,6 +2601,8 @@ export class ChatRepository
                 };
                 // note.pushType = "voip";
                 note.topic = "org.goollooper.app.voip";
+                console.log("CALL TOKEN", v.callToken);
+
                 apnProvider.send(note, v.callToken).then((result) => {
                   console.log("RESULT", result);
                   if (result.failed && result.failed.length > 0) {
