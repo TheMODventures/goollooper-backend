@@ -18,7 +18,6 @@ class NotificationHelperC {
           body: notification.body,
         },
         android: { data },
-        apns: { payload: { aps: { alert: notification.body } } },
         data,
       };
 
