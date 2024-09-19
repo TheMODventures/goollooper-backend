@@ -20,88 +20,53 @@ class ServiceService {
   index = async (
     page: number,
     limit = 10,
-    filter: FilterQuery<IService>
+    search: string,
+    filter: FilterQuery<IService>,
+    parent?: string // Optional parent parameter
   ): Promise<ApiResponse> => {
     try {
-      const getDocCount = await this.serviceRepository.getCount(filter);
-      const pipeline: PipelineStage[] = [
-        { $match: filter },
-        {
-          $lookup: {
-            from: "services",
-            localField: "_id",
-            foreignField: "parent",
-            as: "subServices",
-          },
-        },
-        {
-          $addFields: {
-            subServices: {
-              $filter: {
-                input: "$subServices",
-                as: "child",
-                cond: { $ne: ["$$child._id", "$_id"] },
-              },
+      const keyWords = search.split(" ").filter(Boolean);
+      const pipeline: PipelineStage[] = [];
+
+      // Determine whether to filter by parent or not
+      pipeline.push({ $match: { isDeleted: false } });
+      if (parent) {
+        // If a parent ID is provided, fetch only the subcategories for that parent
+        pipeline.push({
+          $match: { parent: new mongoose.Types.ObjectId(parent) },
+        });
+      } else {
+        pipeline.push({ $match: { parent: null } });
+
+        if (keyWords.length > 0) {
+          pipeline.push({
+            $match: {
+              keyWords: { $in: keyWords },
             },
-          },
+          });
+        }
+      }
+
+      pipeline.push({
+        $lookup: {
+          from: "services",
+          localField: "_id",
+          foreignField: "parent",
+          as: "subCategories",
         },
-        {
-          $unwind: {
-            path: "$subServices",
-            preserveNullAndEmptyArrays: true,
-          },
+      });
+
+      pipeline.push({
+        $addFields: {
+          hasSubCategory: { $gt: [{ $size: "$subCategories" }, 0] },
         },
-        {
-          $group: {
-            _id: "$_id",
-            title: { $first: "$title" },
-            type: { $first: "$type" },
-            parent: { $first: "$parent" },
-            subServices: { $push: "$subServices" },
-            matchedServices: {
-              $addToSet: {
-                $cond: {
-                  if: { $ne: ["$_id", "$subServices._id"] },
-                  then: "$_id",
-                  else: null,
-                },
-              },
-            },
-          },
+      });
+
+      pipeline.push({
+        $project: {
+          subCategories: 0,
         },
-        {
-          $match: {
-            subServices: { $ne: [] },
-            matchedServices: { $ne: null },
-          },
-        },
-        {
-          $unwind: "$matchedServices",
-        },
-        {
-          $project: {
-            title: 1,
-            type: 1,
-            parent: 1,
-            subServices: {
-              $map: {
-                input: "$subServices",
-                as: "child",
-                in: {
-                  _id: "$$child._id",
-                  title: "$$child.title",
-                  parent: "$$child.parent",
-                },
-              },
-            },
-          },
-        },
-        {
-          $match: {
-            parent: null,
-          },
-        },
-      ];
+      });
 
       const response =
         await this.serviceRepository.getAllWithAggregatePagination<IService>(
@@ -116,10 +81,10 @@ class ServiceService {
           page,
           limit
         );
+
       return ResponseHelper.sendSuccessResponse(
         SUCCESS_DATA_LIST_PASSED,
-        response,
-        getDocCount
+        response
       );
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);
@@ -254,49 +219,85 @@ class ServiceService {
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   };
-
-  // populateAllData = async (
-  //   payload: { title: string; type: string; subServices: string[] }[]
-  // ) => {
-  //   try {
-  //     for (let i = 0; i < payload?.length; i++) {
-  //       let element = payload[i];
-  //       const exists = await this.serviceRepository.getOne<IService>({
-  //         title: element?.title,
-  //         type: element?.type,
-  //       });
-  //       let data: IService | null = exists;
-
-  //       // if service not exists create
-  //       if (!exists) {
-  //         const payloadObj: any = {
-  //           title: element?.title,
-  //           type: element?.type,
-  //         };
-  //         data = await this.serviceRepository.create<IService>(payloadObj);
-  //       }
-
-  //       element?.subServices?.forEach(async (field: any) => {
-  //         const subServiceExists =
-  //           await this.serviceRepository.getOne<IService>({
-  //             title: field?.title,
-  //             type: element?.type,
-  //           });
-  //         if (!subServiceExists) {
-  //           const cityPayload: any = {
-  //             title: field?.title,
-  //             type: element?.type,
-  //             parent: data?._id,
-  //           };
-  //           this.serviceRepository.create<IService>(cityPayload);
-  //         }
-  //       });
-  //     }
-  //     return ResponseHelper.sendResponse(201);
-  //   } catch (error) {
-  //     return ResponseHelper.sendResponse(500, (error as Error).message);
-  //   }
-  // };
 }
 
 export default ServiceService;
+
+// const pipeline: PipelineStage[] = [
+//   { $match: filter },
+//   {
+//     $lookup: {
+//       from: "services",
+//       localField: "_id",
+//       foreignField: "parent",
+//       as: "subServices",
+//     },
+//   },
+//   {
+//     $addFields: {
+//       subServices: {
+//         $filter: {
+//           input: "$subServices",
+//           as: "child",
+//           cond: { $ne: ["$$child._id", "$_id"] },
+//         },
+//       },
+//     },
+//   },
+//   {
+//     $unwind: {
+//       path: "$subServices",
+//       preserveNullAndEmptyArrays: true,
+//     },
+//   },
+//   {
+//     $group: {
+//       _id: "$_id",
+//       title: { $first: "$title" },
+//       type: { $first: "$type" },
+//       parent: { $first: "$parent" },
+//       subServices: { $push: "$subServices" },
+//       matchedServices: {
+//         $addToSet: {
+//           $cond: {
+//             if: { $ne: ["$_id", "$subServices._id"] },
+//             then: "$_id",
+//             else: null,
+//           },
+//         },
+//       },
+//     },
+//   },
+//   {
+//     $match: {
+//       subServices: { $ne: [] },
+//       matchedServices: { $ne: null },
+//     },
+//   },
+//   {
+//     $unwind: "$matchedServices",
+//   },
+//   {
+//     $project: {
+//       title: 1,
+//       type: 1,
+//       parent: 1,
+//       subServices: {
+//         $map: {
+//           input: "$subServices",
+//           as: "child",
+//           in: {
+//             _id: "$$child._id",
+//             title: "$$child.title",
+//             parent: "$$child.parent",
+//           },
+//         },
+//       },
+//     },
+//   },
+//   {
+//     $match: {
+//       parent: null,
+//     },
+//   },
+// ];

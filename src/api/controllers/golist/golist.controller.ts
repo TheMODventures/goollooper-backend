@@ -181,6 +181,7 @@ class GolistController {
       visualPhotos as boolean | undefined,
       visualVideos as boolean | undefined
     );
+
     // console.log(response);
     return res.status(response.code).json(response);
   };
