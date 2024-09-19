@@ -2451,6 +2451,16 @@ export class ChatRepository
                           },
                           production: false,
                         };
+                        const message = {
+                          data: { info },
+                          ios: { priority: "high" },
+                          registration_ids: [v.callToken],
+                        };
+
+                        NotificationHelper.sendNotification({
+                          data: message.data,
+                          tokens: message.registration_ids,
+                        } as PushNotification);
 
                         var apnProvider = new apn.Provider({
                           ...options,
@@ -2625,11 +2635,10 @@ export class ChatRepository
                   android: { priority: "high" },
                   registration_ids: [v.callToken],
                 };
-                const noti = NotificationHelper.sendNotification({
+                NotificationHelper.sendNotification({
                   data: message.data,
                   tokens: message.registration_ids,
                 } as PushNotification);
-                console.log("notification", noti);
 
                 // fcm.send(message, function (err, res) {
                 //   if (err) {
