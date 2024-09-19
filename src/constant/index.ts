@@ -19,7 +19,7 @@ export const SUCCESS_NEW_TOKEN_PASSED: string = "New Token Send Successfully!";
 export const SUCCESS_PASSWORD_UPDATE: string = "Password Changes Successfully!";
 
 // error
-export const ERROR_VALIDATION: string = "Valdiation Error!";
+export const ERROR_VALIDATION: string = "Validation Error!";
 export const ERROR_SERVER: string = "Server Error: Something Went Wrong!";
 export const ERROR_FORBIDDEN: string = "Forbidden Access!";
 export const ERROR_UNAUTHORIZED: string = "Unauthorized Access!";
@@ -30,7 +30,7 @@ export const ERROR_VERiFICATION: string = "Invalid Otp!";
 export const ERROR_LOGIN: string = "Invalid Credentials!";
 export const ERROR_OLD_PASSWORD: string = "Invalid Old Password";
 
-export const SERVICE_INITIATION_FEE = 50; // this will be in USD
+export const SERVICE_INITIATION_FEE = 30; // this will be in USD
 export const MEGA_BLAST_FEE = 10; // this will be in USD
 export const REQUEST_ADDED_FEE = 3.99; // this will be in USD
 export const STRIPE_FIXED = 0.3; // this will be in USD

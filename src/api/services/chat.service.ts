@@ -25,11 +25,17 @@ import { ResponseHelper } from "../helpers/reponseapi.helper";
 import { UploadHelper } from "../helpers/upload.helper";
 import {
   EMessageStatus,
+  ENOTIFICATION_TYPES,
   ETaskStatus,
   MessageType,
   RequestStatus,
 } from "../../database/interfaces/enums";
 import { IWallet } from "../../database/interfaces/wallet.interface";
+import { NotificationRepository } from "../repository/notification/notification.repository";
+import NotificationService, {
+  NotificationParams,
+} from "./notification.service";
+import { IUser } from "../../database/interfaces/user.interface";
 
 interface CustomSocket extends SocketIO.Socket {
   user?: any; // Adjust the type according to your user structure
@@ -44,6 +50,7 @@ export default (io: SocketIO.Server) => {
 
   io.use(async (socket: CustomSocket, next) => {
     const token = socket.handshake.query.token;
+
     const result = await authorize.validateAuthSocket(token as string);
     if (result?.userId) {
       socket.user = result;
@@ -97,11 +104,6 @@ export default (io: SocketIO.Server) => {
         name: string;
       }) => {
         try {
-          //   const validator = await validation(
-          //     chatValidation,
-          //     true
-          //   )({ body: data });
-          //   if (validator) {
           await chatRepository.createMessage(
             data.chatId,
             data.userId,
@@ -109,7 +111,6 @@ export default (io: SocketIO.Server) => {
             data.mediaUrls,
             data.name
           );
-          //   } else throw validator;
         } catch (error) {
           console.error("Error while sending chat:", error);
           socket.emit(
@@ -236,12 +237,14 @@ export class ChatService {
   private calendarRepository: CalendarRepository;
   private uploadHelper: UploadHelper;
   private walletRepository: WalletRepository;
+  private notificationService: NotificationService;
   constructor() {
     this.chatRepository = new ChatRepository();
     this.taskRepository = new TaskRepository();
     this.calendarRepository = new CalendarRepository();
     this.uploadHelper = new UploadHelper("chat");
     this.walletRepository = new WalletRepository();
+    this.notificationService = new NotificationService();
   }
 
   addRequest = async (
@@ -300,9 +303,10 @@ export class ChatService {
 
         case "2":
           msg.body = "Pause";
-          const task = await this.taskRepository.updateById<ITask>(chat?.task, {
+          await this.taskRepository.updateById<ITask>(chat?.task, {
             status: ETaskStatus.pause,
           });
+
           msg.type = MessageType.pause;
           break;
 
@@ -313,10 +317,42 @@ export class ChatService {
           const tasks = await this.taskRepository.getById<ITask>(chat?.task);
           if (!tasks) return ResponseHelper.sendResponse(404, "Task not found");
 
-          const updatedServiceProviders = tasks.serviceProviders.map((sp) =>
-            sp.status === 4 ? { ...sp, status: 5 } : sp
+          const findStandByServiceProvider = tasks.serviceProviders.find(
+            (sp) => sp.status === 3
           );
 
+          const updatedServiceProviders = tasks.serviceProviders.map((sp) => {
+            // First, change the status from 4 to 5
+            if (sp.status === 4) {
+              return { ...sp, status: 5 };
+            }
+
+            // Then, if sp matches the found standby service provider, change status from 3 to 4
+            if (
+              findStandByServiceProvider &&
+              sp.user.toString() === findStandByServiceProvider.user.toString()
+            ) {
+              return { ...sp, status: 4 }; // Move from standby (3) to active (4)
+            }
+
+            // Return the service provider unchanged if no conditions match
+            return sp;
+          });
+
+          if (findStandByServiceProvider) {
+            await this.notificationService.createAndSendNotification({
+              ntitle: "your request has been accepted",
+              nbody: "Relieve Action Request",
+              receiverId: findStandByServiceProvider?.user,
+              type: ENOTIFICATION_TYPES.ACTION_REQUEST,
+              senderId: userId as string,
+              data: {
+                task: chat?.task?.toString(),
+              },
+            } as NotificationParams);
+          }
+
+          console.log(updatedServiceProviders, "updatedServiceProviders");
           await this.taskRepository.updateById<ITask>(chat?.task, {
             serviceProviders: updatedServiceProviders,
           });
@@ -327,10 +363,15 @@ export class ChatService {
             (participant: IParticipant) =>
               participant.user.toString() === creatorId
           );
+          updatedParticipants.push({
+            user: findStandByServiceProvider?.user,
+            status: "active",
+          });
 
           await this.chatRepository.updateById<IChat>(chat._id, {
             participants: updatedParticipants,
           });
+
           break;
 
         case "4":
@@ -476,6 +517,19 @@ export class ChatService {
         default:
           break;
       }
+
+      newRequest?.participants?.forEach((participant: IParticipant) => {
+        this.notificationService.createAndSendNotification({
+          ntitle: `${msg.body} Action Request`,
+          nbody: msg.body,
+          receiverId: participant.user,
+          type: ENOTIFICATION_TYPES.ACTION_REQUEST,
+          senderId: userId as string,
+          data: {
+            task: chat?.task?.toString(),
+          },
+        } as NotificationParams);
+      });
 
       const response = await this.chatRepository.subDocAction<IChat>(
         { _id },

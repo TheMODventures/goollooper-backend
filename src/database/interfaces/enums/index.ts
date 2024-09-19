@@ -120,6 +120,10 @@ export enum MessageType {
   system = "system",
   tour = "tour",
   reschedule = "reschedule",
+  bill = "bill",
+  pay = "pay",
+  addWorkers = "workers-added",
+  removeWorkers = "workers-removed",
 }
 
 export enum EChatType {
@@ -146,6 +150,8 @@ export enum ENOTIFICATION_TYPES {
   ANNOUNCEMENT = 5,
   TASK_REQUEST = 6,
   TASK_REJECTED = 7,
+  ACTION_REQUEST = 8,
+  TASK_CANCELLED = 9,
 }
 
 export enum EGUIDELINE {
@@ -168,6 +174,7 @@ export enum TransactionType {
   withdraw = "Withdraw",
   task = "Task Completed",
   applicationFee = "Application Fee",
+  serviceInitiationFee = "Service Initiation Fee",
 }
 
 export enum ETransactionStatus {

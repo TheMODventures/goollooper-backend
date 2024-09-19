@@ -3,7 +3,6 @@ import { FilterQuery } from "mongoose";
 import {
   SUCCESS_DATA_LIST_PASSED,
   SUCCESS_DATA_SHOW_PASSED,
-  SUCCESS_DATA_UPDATION_PASSED,
   SUCCESS_DATA_DELETION_PASSED,
 } from "../../constant";
 import {
@@ -26,17 +25,19 @@ class TransactionService {
     filter: FilterQuery<ITransaction>
   ): Promise<ApiResponse> => {
     try {
-      const getDocCount = await this.transactionRepository.getCount(filter);
-
-      const response = await this.transactionRepository.getAll<ITransactionDoc>(
+      const response = await this.transactionRepository.getAllWithPagination(
         filter,
         "",
         "",
         {
           createdAt: "desc",
         },
-        undefined,
-        false,
+        {
+          path: "user",
+          model: "Users",
+          select: "firstName lastName userName email",
+        },
+        true,
         page,
         limit
       );
@@ -47,8 +48,7 @@ class TransactionService {
 
       return ResponseHelper.sendSuccessResponse(
         SUCCESS_DATA_LIST_PASSED,
-        response,
-        getDocCount
+        response
       );
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);

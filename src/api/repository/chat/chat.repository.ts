@@ -3,7 +3,7 @@ import axios, { AxiosResponse } from "axios";
 import { Server } from "socket.io";
 import { RtcRole, RtcTokenBuilder } from "agora-access-token";
 import { uuid } from "uuidv4";
-import { Request } from "express";
+import express, { Application, Request } from "express";
 import * as apn from "apn";
 
 import {
@@ -20,15 +20,19 @@ import { IUser } from "../../../database/interfaces/user.interface";
 import { ITask } from "../../../database/interfaces/task.interface";
 import { ICalendar } from "../../../database/interfaces/calendar.interface";
 import {
+  ECALENDARTaskType,
   ECALLDEVICETYPE,
   EChatType,
   EMessageStatus,
+  ENOTIFICATION_TYPES,
   EParticipantStatus,
   ETICKET_STATUS,
   ETaskStatus,
+  ETransactionStatus,
   EUserRole,
   MessageType,
   RequestStatus,
+  TransactionType,
 } from "../../../database/interfaces/enums";
 import { Chat } from "../../../database/models/chat.model";
 import { User } from "../../../database/models/user.model";
@@ -50,19 +54,47 @@ import {
   IOS_KEY_ID,
   IOS_TEAM_ID,
 } from "../../../config/environment.config";
-
+import { TaskRepository } from "../task/task.repository";
+import NotificationService, {
+  NotificationParams,
+} from "../../services/notification.service";
+import { CalendarRepository } from "../calendar/calendar.repository";
+import { IWallet } from "../../../database/interfaces/wallet.interface";
+import { WalletRepository } from "../wallet/wallet.repository";
+import { ERROR_NOTFOUND, SERVICE_INITIATION_FEE } from "../../../constant";
+import { TransactionRepository } from "../transaction/transaction.repository";
+import {
+  ITransaction,
+  ITransactionDoc,
+} from "../../../database/interfaces/transaction.interface";
 export class ChatRepository
   extends BaseRepository<IChat, IChatDoc>
   implements IChatRepository
 {
   private io?: Server;
   private userRepository: UserRepository;
+  private taskRepository: TaskRepository;
+  private notificationService: NotificationService;
+  private calendarRepository: CalendarRepository;
+  private walletRepository: WalletRepository;
+  private transactionRepository: TransactionRepository;
+  protected app: Application;
 
   constructor(io?: Server) {
     super(Chat);
+    this.app = express();
     this.io = io;
     this.userRepository = new UserRepository();
+    this.taskRepository = new TaskRepository();
+    this.calendarRepository = new CalendarRepository();
+    this.walletRepository = new WalletRepository();
+    this.notificationService = new NotificationService();
+    this.transactionRepository = new TransactionRepository();
   }
+
+  deleteChat = async (chatId: string) => {
+    this.io?.emit(`deleteChat/${chatId}`, { chatId, deleted: true });
+  };
 
   async getChats(
     user: string,
@@ -77,6 +109,7 @@ export class ChatRepository
       const currentUserId = new mongoose.Types.ObjectId(user);
       const chatSupportPip: any = {
         isChatSupport: chatSupport == true,
+        deleted: false,
       };
       if (chatId) chatSupportPip._id = new mongoose.Types.ObjectId(chatId);
       const query: any = [
@@ -130,6 +163,8 @@ export class ChatRepository
                   lastName: 1,
                   email: 1,
                   profileImage: 1,
+                  selectedLocation: 1,
+                  subscription: 1,
                 },
               },
             ],
@@ -443,6 +478,11 @@ export class ChatRepository
       }
       query.push(...remainingQuery);
       const result = await Chat.aggregate(query);
+      console.log(
+        "🚀 ~ file: chat.repository.ts ~ line 191 ~ ChatRepository ~ getChats ~ result",
+        result
+      );
+
       if (this.io) this.io?.emit(`getChats/${user}`, result);
       return result;
     } catch (error) {
@@ -662,7 +702,8 @@ export class ChatRepository
       const newRequest: IChat | any = await Chat.findById(chatId);
 
       if (!requestId || !newRequest) {
-        return ResponseHelper.sendResponse(404);
+        this.io?.emit(`error`, { error: "Chat not found" });
+        return;
       }
 
       const newRequestId =
@@ -676,6 +717,7 @@ export class ChatRepository
           status: EMessageStatus.SENT,
         })),
       };
+
       switch (dataset.type?.toString()) {
         case "1":
           msg.type = MessageType.request;
@@ -688,91 +730,476 @@ export class ChatRepository
         case "2":
           msg.body = "Pause";
           msg.type = MessageType.pause;
+          await this.taskRepository.updateById<ITask>(chat?.task, {
+            status: ETaskStatus.pause,
+          });
           break;
 
         case "3":
           msg.body = "Relieve";
           msg.type = MessageType.relieve;
+          console.log("🚀 break_point", dataset);
+          // console.log("🚀 chat",chat);
+
+          const tasks = await this.taskRepository.getById<ITask>(chat?.task);
+
+          if (!tasks)
+            return this.io?.emit(`error`, { error: "Task not found" });
+
+          console.log("🚀 break_point 2", dataset);
+
+          const findStandByServiceProvider = tasks.serviceProviders.find(
+            (sp) => sp.status === 3
+          );
+
+          const updatedServiceProviders = tasks.serviceProviders.map((sp) => {
+            // First, change the status from 4 to 5
+            if (sp.status === 4) {
+              return { ...sp, status: 5 };
+            }
+
+            // Then, if sp matches the found standby service provider, change status from 3 to 4
+            if (
+              findStandByServiceProvider &&
+              sp.user.toString() === findStandByServiceProvider.user.toString()
+            ) {
+              return { ...sp, status: 4 }; // Move from standby (3) to active (4)
+            }
+
+            // Return the service provider unchanged if no conditions match
+            return sp;
+          });
+          console.log("🚀 break_point 3", dataset);
+          console.log(
+            "🚀 findStandByServiceProvider",
+            findStandByServiceProvider
+          );
+
+          if (findStandByServiceProvider) {
+            await this.notificationService.createAndSendNotification({
+              ntitle: "your request has been accepted",
+              nbody: "Relieve Action Request",
+              receiverId: findStandByServiceProvider?.user as string,
+              type: ENOTIFICATION_TYPES.ACTION_REQUEST,
+              senderId: senderId as string,
+              data: {
+                task: chat?.task?.toString(),
+              },
+            } as NotificationParams);
+          }
+
+          // console.log(updatedServiceProviders, "updatedServiceProviders");
+          await this.taskRepository.updateById<ITask>(chat?.task, {
+            serviceProviders: updatedServiceProviders,
+          });
+
+          const creatorId = chat.createdBy ? chat.createdBy.toString() : "";
+
+          const updatedParticipants = chat.participants.filter(
+            (participant: IParticipant) =>
+              participant.user.toString() === creatorId
+          );
+          updatedParticipants.push({
+            user: findStandByServiceProvider?.user,
+            status: "active",
+          });
+
+          await this.updateById<IChat>(chat._id, {
+            participants: updatedParticipants,
+            requests: [],
+          });
           break;
 
         case "4":
           msg.body = "Proceed";
           msg.type = MessageType.proceed;
-          await Task.updateOne<ITask>(
-            { _id: chat?.task },
-            {
-              status: ETaskStatus.assigned,
-            }
-          );
-          break;
-
-        case "5":
-          msg.type = MessageType.invoice;
-          if (
-            !dataset.amount &&
-            dataset.status === RequestStatus.SERVICE_PROVIDER_INVOICE_REQUEST
-          )
-            return ResponseHelper.sendResponse(400, "Amount is required");
-          msg.body = dataset?.amount || "0";
-          if (dataset.mediaUrl) {
-            msg.mediaUrls = [dataset.mediaUrl];
-          }
-          let task: ITask | null = await Task.findById(chat?.task);
-          if (task && !task?.commercial) {
-            msg.type = MessageType.complete;
-            await Task.updateOne<ITask>(
+          const taskUpdateResponse =
+            await this.taskRepository.updateByOne<ITask>(
               { _id: chat?.task },
               {
-                status: ETaskStatus.completed,
+                status: ETaskStatus.assigned,
               }
             );
-            await Calendar.updateMany<ICalendar>(
-              { task: new mongoose.Types.ObjectId(chat?.task) },
-              {
-                isActive: false,
-              }
+
+          const serviceProvider = taskUpdateResponse?.serviceProviders?.find(
+            (sp) => sp.status === 4
+          )?.user;
+
+          if (serviceProvider) {
+            const event = await this.calendarRepository.create<ICalendar>({
+              user: serviceProvider,
+              task: chat.task,
+              type: ECALENDARTaskType.accepted,
+              date: taskUpdateResponse.date,
+            });
+
+            console.log(
+              "🚀 ~ file: chat.repository.ts ~ line 366 ~ ChatRepository ~ sendRequest= ~ event",
+              event
             );
           }
+
           break;
 
-        case "6":
+        case "5": {
+          const taskId = chat?.task;
+          const amount = dataset.amount;
+          const isServiceProviderInvoice =
+            dataset.status === RequestStatus.SERVICE_PROVIDER_INVOICE_REQUEST;
+
+          // Early return if amount is undefined and it's a service provider invoice request
+          if (
+            (amount === undefined || amount === null) &&
+            isServiceProviderInvoice
+          ) {
+            this.io?.emit(`error`, { error: "Amount is required" });
+            console.log("🚀 ELSE CASE: Amount is required and not provided.");
+            return;
+          }
+
+          console.log("🚀 CASE 5", dataset);
+
+          // Set initial message properties
+          msg.type = MessageType.invoice;
+          msg.body = isServiceProviderInvoice ? `invoice ${amount}` : "Invoice";
+          if (dataset.mediaUrl) msg.mediaUrls = [dataset.mediaUrl];
+
+          if (!taskId) {
+            this.io?.emit(`error`, { error: "Task id is required" });
+            return;
+          }
+
+          // Fetch the task associated with the chat
+          const task: ITask | null = await this.taskRepository.getById(taskId);
+          if (!task) return this.io?.emit(`error`, { error: "Task not found" });
+
+          if (task.commercial) {
+            // Update invoice amount for commercial tasks
+            await this.taskRepository.updateById<ITask>(taskId, {
+              invoiceAmount: amount,
+            });
+          } else {
+            // Mark non-commercial task as completed and update calendar
+            msg.type = MessageType.complete;
+            await Promise.all([
+              this.taskRepository.updateById<ITask>(taskId, {
+                status: ETaskStatus.completed,
+              }),
+              this.calendarRepository.updateMany<ICalendar>(
+                { task: new mongoose.Types.ObjectId(taskId) },
+                { isActive: false }
+              ),
+            ]);
+          }
+          break;
+        }
+
+        case "6": {
           msg.body = "Completed";
           msg.type = MessageType.complete;
-          if (!dataset.amount)
-            return ResponseHelper.sendResponse(400, "Amount is required");
-          msg.body = dataset?.amount;
-          await Task.updateOne<ITask>(
-            { _id: chat?.task },
-            {
-              status: ETaskStatus.completed,
-            }
+          console.log("🚀 CASE 6", dataset);
+
+          // Validate amount
+          const amount = Number(dataset.amount);
+          if (isNaN(amount) || amount <= 0) {
+            console.log("🚀 error amount is less");
+            return this.io?.emit(`error`, { error: "Amount is required" });
+          }
+
+          // Fetch the completed task
+          const completedTask = await this.taskRepository.getById<ITask>(
+            chat?.task
           );
-          await Calendar.updateMany<ICalendar>(
-            { task: new mongoose.Types.ObjectId(chat?.task) },
-            {
-              isActive: false,
+          if (!completedTask) {
+            return this.io?.emit(`error`, { error: "Task not found" });
+            // return ResponseHelper.sendResponse(404, "Task not found");
+          }
+          console.log("🚀🚀🚀🚀🚀 ");
+          // Check if the task is commercial and validate the invoice amount
+          if (completedTask.commercial) {
+            if (
+              completedTask.invoiceAmount === undefined ||
+              amount < completedTask.invoiceAmount
+            ) {
+              this.io?.emit(`error`, {
+                error: "Amount should be greater than the invoice amount",
+              });
+              // return ResponseHelper.sendResponse(
+              //   404,
+              //   "Amount should be greater than the invoice amount"
+              // );
             }
-          );
+
+            // Fetch and validate user wallet
+            // Retrieve the sender's wallet
+            const userWallet = await this.walletRepository.getOne<IWallet>({
+              user: senderId,
+            });
+
+            if (!userWallet) {
+              return this.io?.emit(`error`, { error: "Wallet not found" });
+            }
+
+            if (userWallet.balance < amount) {
+              console.log("code stopped here");
+              this.io?.emit(`error`, { error: "Insufficient balance" });
+              return;
+              // return ResponseHelper.sendResponse(404, "Insufficient balance");
+            }
+
+            // Retrieve the service provider's ID
+            const serviceProviderId = completedTask.serviceProviders.find(
+              (sp) => sp.status === 4
+            )?.user as string;
+
+            console.log("🚀", serviceProviderId);
+
+            // Retrieve the service provider's wallet
+            const serviceProviderWallet =
+              await this.walletRepository.getOne<IWallet>({
+                user: serviceProviderId,
+              });
+
+            // Update both wallets and create transactions in parallel
+            await Promise.all([
+              this.walletRepository.updateByOne<IWallet>(
+                { user: senderId },
+                {
+                  $inc: {
+                    amountHeld: -SERVICE_INITIATION_FEE,
+                    balance: -(amount - SERVICE_INITIATION_FEE),
+                  },
+                }
+              ),
+              this.walletRepository.updateBalance(serviceProviderId, +amount),
+            ]);
+
+            // Create transactions for both the service provider and sender
+            await Promise.all([
+              this.transactionRepository.create<ITransaction>({
+                amount: amount,
+                user: serviceProviderId,
+                type: TransactionType.task,
+                wallet: serviceProviderWallet?._id as string,
+                status: ETransactionStatus.completed,
+                isCredit: true,
+              }),
+              this.transactionRepository.create<ITransaction>({
+                amount: SERVICE_INITIATION_FEE,
+                user: senderId,
+                type: TransactionType.serviceInitiationFee,
+                wallet: userWallet?._id as string,
+                status: ETransactionStatus.completed,
+                isCredit: true,
+              }),
+              this.transactionRepository.create<ITransaction>({
+                amount: amount,
+                user: senderId,
+                type: TransactionType.task,
+                wallet: userWallet?._id as string,
+                status: ETransactionStatus.completed,
+                isCredit: false,
+              }),
+            ]);
+
+            // Update task and calendar status
+            await Promise.all([
+              this.taskRepository.updateById<ITask>(chat?.task, {
+                status: ETaskStatus.completed,
+              }),
+              this.calendarRepository.updateMany<ICalendar>(
+                { task: new mongoose.Types.ObjectId(chat?.task) },
+                { isActive: false }
+              ),
+            ]);
+
+            console.log("🚀 CASE 6", dataset);
+          }
           break;
+        }
 
         case "7":
           msg.type = MessageType.tour;
           if (
             (!dataset?.date || !dataset?.slot) &&
             dataset.status === RequestStatus.CLIENT_TOUR_REQUEST_ACCEPT
-          )
-            return ResponseHelper.sendResponse(
-              400,
-              "Date and Time is required"
-            );
-          msg.body = "Tour Request";
+          ) {
+            return this.io?.emit(`error`, {
+              error: "Date and slot are required",
+            });
+          }
+          msg.body = "Tour";
           break;
 
         case "8":
           msg.type = MessageType.reschedule;
           msg.body = "Task Rescheduled";
+          console.log("🚀 CASE 8", dataset);
           break;
 
+        case "9":
+          msg.type = MessageType.bill;
+          msg.body = "Bill";
+
+          if (!dataset.amount) {
+            return this.io?.emit(`error`, { error: "Amount is required" });
+          }
+
+          const task = await this.taskRepository.getById<ITask>(chat?.task);
+          if (!task) {
+            return this.io?.emit(`error`, { error: ERROR_NOTFOUND });
+          }
+
+          const updatedTask = await this.taskRepository.updateById<ITask>(
+            chat?.task,
+            {
+              invoiceAmount: dataset.amount,
+            }
+          );
+
+          if (!updatedTask) {
+            return this.io?.emit(`error`, { error: ERROR_NOTFOUND });
+          }
+
+          break;
+        case "10":
+          msg.type = MessageType.pay;
+          msg.body = "Pay";
+          console.log("🚀 CASE 10", dataset);
+
+          // Validate dataset.amount
+          const amount = Number(dataset.amount);
+          if (isNaN(amount) || amount <= 0) {
+            return this.io?.emit(`error`, {
+              error: "A valid amount is required",
+            });
+          }
+
+          // Validate paymentRecipients array
+          const paymentRecipients = dataset.paymentRecipients;
+          if (
+            !Array.isArray(paymentRecipients) ||
+            paymentRecipients.length === 0
+          ) {
+            return this.io?.emit(`error`, {
+              error: "Payment recipients are required",
+            });
+          }
+
+          // Calculate total amount to be paid
+          const totalAmount = amount * paymentRecipients.length;
+
+          // Fetch the sender's wallet
+          const userWallet = await this.walletRepository.getOne<IWallet>({
+            user: senderId,
+          });
+          if (!userWallet) {
+            return this.io?.emit(`error`, { error: "Wallet not found" });
+          }
+
+          // Check if user has sufficient balance
+          if (userWallet.balance < totalAmount) {
+            return this.io?.emit(`error`, { error: "Insufficient balance" });
+          }
+
+          try {
+            // Process each payment recipient
+            const transactions = await Promise.all(
+              paymentRecipients.map(async (recipientId: string) => {
+                const recipientWallet =
+                  await this.walletRepository.getOne<IWallet>({
+                    user: recipientId,
+                  });
+                if (!recipientWallet) {
+                  this.io?.emit(`error`, {
+                    error: `Recipient wallet not found for user ${recipientId}`,
+                  });
+                  return null;
+                }
+
+                // Create a transaction for the recipient
+                await this.transactionRepository.create<ITransaction>({
+                  amount,
+                  user: recipientId,
+                  type: TransactionType.task,
+                  wallet: recipientWallet._id as string,
+                  status: ETransactionStatus.completed,
+                  isCredit: true,
+                });
+
+                // Update the recipient's wallet balance by adding the amount
+                await this.walletRepository.updateById<IWallet>(
+                  recipientWallet._id as string,
+                  {
+                    balance: recipientWallet.balance + amount,
+                  }
+                );
+
+                return recipientWallet;
+              })
+            );
+
+            // Filter out failed transactions
+            const successfulTransactions = transactions.filter(
+              (t) => t !== null
+            );
+
+            // Deduct total amount from sender's wallet after successful transactions
+            if (successfulTransactions.length > 0) {
+              await this.walletRepository.updateById<IWallet>(
+                userWallet._id as string,
+                {
+                  balance: userWallet.balance - totalAmount,
+                }
+              );
+
+              await this.transactionRepository.create<ITransaction>({
+                amount: totalAmount,
+                user: senderId,
+                type: TransactionType.task,
+                wallet: userWallet._id as string,
+                status: ETransactionStatus.completed,
+                isCredit: false,
+              });
+            } else {
+              this.io?.emit(`error`, {
+                error: "No transactions were successful",
+              });
+            }
+          } catch (error) {
+            this.io?.emit(`error`, { error: "Payment process failed" });
+          }
+
+          break;
+        case "11":
+          msg.type = MessageType.addWorkers;
+          msg.body = "Workers Added";
+
+          const workers = dataset.workers;
+          if (!Array.isArray(workers) || workers.length === 0) {
+            return this.io?.emit("error", { error: "Workers are required" });
+          }
+
+          const findChat = await this.updateById<IChat>(chatId, {
+            $addToSet: { workers: { $each: workers } },
+          });
+
+          break;
+        case "12":
+          msg.type = MessageType.removeWorkers;
+          msg.body = "Workers Removed";
+
+          const workersToRemove = dataset.workers;
+
+          if (!Array.isArray(workersToRemove) || workersToRemove.length === 0) {
+            return this.io?.emit("error", { error: "Workers are required" });
+          }
+
+          const updatedChatRemove = await this.updateById<IChat>(chatId, {
+            $pull: { workers: { $in: workersToRemove } },
+          });
+
+          break;
         default:
           break;
       }
@@ -804,6 +1231,7 @@ export class ChatRepository
           }
         }
       });
+
       this.sendNotificationMsg({
         userIds,
         title: user?.firstName,
@@ -813,12 +1241,65 @@ export class ChatRepository
         groupName: chat?.groupName,
       });
 
+      userIds.forEach(async (userId: string) => {
+        await this.notificationService.createAndSendNotification({
+          ntitle: `${msg.body} Action Request`,
+          nbody: msg.body,
+          receiverId: userId,
+          type: ENOTIFICATION_TYPES.ACTION_REQUEST,
+          senderId: senderId as string,
+          data: {
+            chatId: chatId,
+            chatType: chat.chatType,
+            groupName: chat?.groupName,
+            user: senderId,
+          },
+        } as NotificationParams);
+      });
+
+      // if (dataset.type?.toString() === "3") {
+      //   this.createMessage(
+      //     chatId,
+      //     senderId,
+      //     "I think you are a good candidate for this task. I am looking forward in working with you on this task",
+      //     []
+      //   );
+      // }
+
       return response;
     } catch (error) {
-      return ResponseHelper.sendResponse(500, (error as Error).message);
+      console.log(
+        "🚀 ~ file: chat.repository.ts ~ line 566 ~ ChatRepository ~ sendRequest= ~ error",
+        error
+      );
+      this.io?.emit(`error`, { error: "something went wrong" });
+      return;
+      // return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   };
+  // async addParticipants(chatId: string, userId:string, participants: string[]) {
 
+  //   const isChatExist = await this.getById(chatId);
+  //   if(!isChatExist){
+  //     this.io?.emit(`error`, { error: "Chat not found" });
+  //   }
+
+  //   console.log(`~~~addParticipants/${chatId}`, participants);
+
+  //   if(this.io){
+  //     this.io?.emit(`addParticipants/${chatId}`, "participants added");
+  //   }
+  //   return;
+  // }
+  // async removeParticipants(chatId: string, userId:string, participants: string[]) {
+
+  //   console.log(`~~~removeParticipants/${chatId}`, participants);
+
+  //   if(this.io){
+  //     this.io?.emit(`removeParticipants/${chatId}`, "participants removed");
+  //   }
+  //   return;
+  // }
   // Mark all messages as read for a user
   async readAllMessages(chatId: string, user: string) {
     try {
@@ -970,197 +1451,197 @@ export class ChatRepository
   }
 
   // Add participants to a chat
-  async addParticipants(
-    chatId: string,
-    user: string,
-    participantIds: string[]
-  ) {
-    try {
-      // console.log({ chatId, participantIds });
-      const filter = { _id: chatId };
-      const participantsToAdd: any[] = await this.userRepository.getAll(
-        { _id: participantIds },
-        undefined,
-        ModelHelper.userSelect,
-        undefined,
-        undefined,
-        true,
-        1,
-        200
-      );
-      let username = "";
-      participantsToAdd.map(
-        (e: IUser) => (username += `${e.firstName ?? ""} ${e.lastName ?? ""}, `)
-      );
+  // async addParticipants(
+  //   chatId: string,
+  //   user: string,
+  //   participantIds: string[]
+  // ) {
+  //   try {
+  //     // console.log({ chatId, participantIds });
+  //     const filter = { _id: chatId };
+  //     const participantsToAdd: any[] = await this.userRepository.getAll(
+  //       { _id: participantIds },
+  //       undefined,
+  //       ModelHelper.userSelect,
+  //       undefined,
+  //       undefined,
+  //       true,
+  //       1,
+  //       200
+  //     );
+  //     let username = "";
+  //     participantsToAdd.map(
+  //       (e: IUser) => (username += `${e.firstName ?? ""} ${e.lastName ?? ""}, `)
+  //     );
 
-      const update = {
-        $addToSet: {
-          participants: {
-            $each: participantIds.map((user) => ({
-              user,
-              status: EParticipantStatus.ACTIVE,
-            })),
-          },
-        },
-      };
+  //     const update = {
+  //       $addToSet: {
+  //         participants: {
+  //           $each: participantIds.map((user) => ({
+  //             user,
+  //             status: EParticipantStatus.ACTIVE,
+  //           })),
+  //         },
+  //       },
+  //     };
 
-      let result: any = await Chat.findOneAndUpdate(filter, update)
-        .select("-messages")
-        .populate({
-          path: "participants.user",
-          select: "username firstName lastName _id profileImage",
-        });
+  //     let result: any = await Chat.findOneAndUpdate(filter, update)
+  //       .select("-messages")
+  //       .populate({
+  //         path: "participants.user",
+  //         select: "username firstName lastName _id profileImage",
+  //       });
 
-      const msg = {
-        _id: new mongoose.Types.ObjectId(),
-        body: `${username}joined the group`,
-        addedUsers: participantIds,
-        groupName: result.groupName,
-        sentBy: null,
-        receivedBy: result.participants.map((e: IParticipant) => ({
-          user: e.user,
-          status: EMessageStatus.SEEN,
-        })),
-      };
+  //     const msg = {
+  //       _id: new mongoose.Types.ObjectId(),
+  //       body: `${username}joined the group`,
+  //       addedUsers: participantIds,
+  //       groupName: result.groupName,
+  //       sentBy: null,
+  //       receivedBy: result.participants.map((e: IParticipant) => ({
+  //         user: e.user,
+  //         status: EMessageStatus.SEEN,
+  //       })),
+  //     };
 
-      await result.update({
-        $push: {
-          messages: msg,
-        },
-      });
+  //     await result.update({
+  //       $push: {
+  //         messages: msg,
+  //       },
+  //     });
 
-      await result.save();
+  //     await result.save();
 
-      if (this.io) {
-        result.participants.forEach(async (participant: any) => {
-          if (participant.status == EParticipantStatus.ACTIVE) {
-            this.io?.emit(
-              `newMessage/${chatId}/${participant.user._id.toString()}`,
-              msg
-            );
-            // this.io?.emit(
-            //   `getChats/${participant.user._id}`, await this.getChats(participant.user)
-            // );
-            await this.getChats(participant.user);
-          }
-        });
+  //     if (this.io) {
+  //       result.participants.forEach(async (participant: any) => {
+  //         if (participant.status == EParticipantStatus.ACTIVE) {
+  //           this.io?.emit(
+  //             `newMessage/${chatId}/${participant.user._id.toString()}`,
+  //             msg
+  //           );
+  //           // this.io?.emit(
+  //           //   `getChats/${participant.user._id}`, await this.getChats(participant.user)
+  //           // );
+  //           await this.getChats(participant.user);
+  //         }
+  //       });
 
-        this.io?.emit(`addParticipants/${chatId}`, {
-          message: "added participants",
-          result,
-        });
-      }
+  //       this.io?.emit(`addParticipants/${chatId}`, {
+  //         message: "added participants",
+  //         result,
+  //       });
+  //     }
 
-      return result;
-    } catch (error) {
-      // console.error("Error adding participants:", error);
-      throw error;
-    }
-  }
+  //     return result;
+  //   } catch (error) {
+  //     // console.error("Error adding participants:", error);
+  //     throw error;
+  //   }
+  // }
 
-  // Remove participants from a chat
-  async removeParticipants(chatId: string, /*user,*/ participantIds: string[]) {
-    try {
-      // console.log({ chatId, participantIds });
-      const filter = { _id: chatId /*admins: user*/ };
-      const u: any[] = await this.userRepository.getAll(
-        { _id: participantIds },
-        undefined,
-        ModelHelper.userSelect,
-        undefined,
-        undefined,
-        true,
-        1,
-        200
-      );
-      let username = "";
-      u.map(
-        (e: IUser) => (username += `${e.firstName ?? ""} ${e.lastName ?? ""}, `)
-      );
-      // // console.log(username)
-      const update = {
-        $pull: { participants: { user: { $in: participantIds } } },
-      };
-      let result: any = await Chat.findOneAndUpdate(filter, update)
-        .select("-messages")
-        .populate({
-          path: "participants.user",
-          select: "username firstName lastName _id  profileImage",
-        });
-      // // console.log(result)
-      const msg = {
-        _id: new mongoose.Types.ObjectId(),
-        body: `${username}leave the group`,
-        removedUsers: participantIds,
-        groupName: result.groupName,
-        sentBy: null,
-        receivedBy: result.participants.map((e: IParticipant) => ({
-          user: e.user,
-          status: EMessageStatus.SEEN,
-        })),
-      };
-      await result.update({
-        $push: {
-          messages: msg,
-        },
-      });
-      const userIds: string[] = [];
-      // // console.log(result)
-      await result.save();
-      if (participantIds.includes(result.createdBy.toString()))
-        result = await Chat.findOneAndUpdate(filter, {
-          createdBy: result.participants[0].user._id,
-        }).populate({
-          path: "participants.user",
-          select: "username firstName lastName _id  profileImage status",
-        });
-      // // console.log(result.participants);
-      if (this.io) {
-        result.participants.forEach(async (participant: any) => {
-          if (participant.status == EParticipantStatus.ACTIVE) {
-            // // console.log(participant.user._id.toString())
-            if (
-              participantIds[0] !== participant.user._id &&
-              !participant.isMuted
-            )
-              userIds.push(participant.user._id);
-            // // console.log(`newMessage/${chatId}/${participant.user}`)
-            // if (this.io) {
-            this.io?.emit(
-              `newMessage/${chatId}/${participant.user._id.toString()}`,
-              msg
-            );
-            // this.io?.emit(
-            //   `getChats/${participant.user._id}`, await this.getChats(participant.user)
-            // );
-            await this.getChats(participant.user);
-            // }
-          }
-        });
-        this.io?.emit(`removeParticipants/${chatId}`, {
-          message:
-            result == null
-              ? "you are not allowed to remove participants"
-              : "removed participants",
-          result,
-        });
-      }
-      this.sendNotificationMsg(
-        {
-          userIds,
-          title: result.groupName,
-          body: `${username}leave the group`,
-          chatId,
-        },
-        result
-      );
+  // // Remove participants from a chat
+  // async removeParticipants(chatId: string, /*user,*/ participantIds: string[]) {
+  //   try {
+  //     // console.log({ chatId, participantIds });
+  //     const filter = { _id: chatId /*admins: user*/ };
+  //     const u: any[] = await this.userRepository.getAll(
+  //       { _id: participantIds },
+  //       undefined,
+  //       ModelHelper.userSelect,
+  //       undefined,
+  //       undefined,
+  //       true,
+  //       1,
+  //       200
+  //     );
+  //     let username = "";
+  //     u.map(
+  //       (e: IUser) => (username += `${e.firstName ?? ""} ${e.lastName ?? ""}, `)
+  //     );
+  //     // // console.log(username)
+  //     const update = {
+  //       $pull: { participants: { user: { $in: participantIds } } },
+  //     };
+  //     let result: any = await Chat.findOneAndUpdate(filter, update)
+  //       .select("-messages")
+  //       .populate({
+  //         path: "participants.user",
+  //         select: "username firstName lastName _id  profileImage",
+  //       });
+  //     // // console.log(result)
+  //     const msg = {
+  //       _id: new mongoose.Types.ObjectId(),
+  //       body: `${username}leave the group`,
+  //       removedUsers: participantIds,
+  //       groupName: result.groupName,
+  //       sentBy: null,
+  //       receivedBy: result.participants.map((e: IParticipant) => ({
+  //         user: e.user,
+  //         status: EMessageStatus.SEEN,
+  //       })),
+  //     };
+  //     await result.update({
+  //       $push: {
+  //         messages: msg,
+  //       },
+  //     });
+  //     const userIds: string[] = [];
+  //     // // console.log(result)
+  //     await result.save();
+  //     if (participantIds.includes(result.createdBy.toString()))
+  //       result = await Chat.findOneAndUpdate(filter, {
+  //         createdBy: result.participants[0].user._id,
+  //       }).populate({
+  //         path: "participants.user",
+  //         select: "username firstName lastName _id  profileImage status",
+  //       });
+  //     // // console.log(result.participants);
+  //     if (this.io) {
+  //       result.participants.forEach(async (participant: any) => {
+  //         if (participant.status == EParticipantStatus.ACTIVE) {
+  //           // // console.log(participant.user._id.toString())
+  //           if (
+  //             participantIds[0] !== participant.user._id &&
+  //             !participant.isMuted
+  //           )
+  //             userIds.push(participant.user._id);
+  //           // // console.log(`newMessage/${chatId}/${participant.user}`)
+  //           // if (this.io) {
+  //           this.io?.emit(
+  //             `newMessage/${chatId}/${participant.user._id.toString()}`,
+  //             msg
+  //           );
+  //           // this.io?.emit(
+  //           //   `getChats/${participant.user._id}`, await this.getChats(participant.user)
+  //           // );
+  //           await this.getChats(participant.user);
+  //           // }
+  //         }
+  //       });
+  //       this.io?.emit(`removeParticipants/${chatId}`, {
+  //         message:
+  //           result == null
+  //             ? "you are not allowed to remove participants"
+  //             : "removed participants",
+  //         result,
+  //       });
+  //     }
+  //     this.sendNotificationMsg(
+  //       {
+  //         userIds,
+  //         title: result.groupName,
+  //         body: `${username}leave the group`,
+  //         chatId,
+  //       },
+  //       result
+  //     );
 
-      return result;
-    } catch (error) {
-      // console.error("Error removing participants:", error);
-      throw error;
-    }
-  }
+  //     return result;
+  //   } catch (error) {
+  //     // console.error("Error removing participants:", error);
+  //     throw error;
+  //   }
+  // }
 
   //   // Add admins to a group chat
   //   async addAdmins(chatId: string, user: string, adminIds: string[]) {
@@ -1461,6 +1942,7 @@ export class ChatRepository
       const currentUserId = new mongoose.Types.ObjectId(user);
       const chatSupportPip: any = {
         isChatSupport: chatSupport == true,
+        deleted: false,
       };
       if (chatId) chatSupportPip._id = new mongoose.Types.ObjectId(chatId);
       const query: any = [
@@ -1848,7 +2330,7 @@ export class ChatRepository
       } else {
         payload.chatType = EChatType.GROUP;
         let msg: IMessage = {
-          body: `Hey, I think you guys are good candidates for this task. I am looking forward in working with you all this task.`,
+          body: `Hey, I think you guys are good candidates for this task. I am looking forward in working with you all on this task.`,
           sentBy: payload.user,
           receivedBy: [
             {
@@ -2427,27 +2909,6 @@ function convertTo32BitInt(hexValue: string): Number {
     console.error("Error converting to 32-bit integer:", error);
     return NaN; // Indicate an error by returning NaN
   }
-}
-
-function processChatMessages(messages: IMessage[]) {
-  let processedMessages = [];
-
-  for (let i = 0; i < messages.length; i++) {
-    const currentMessage = { ...messages[i] };
-    {
-      if (
-        currentMessage.createdAt &&
-        messages[i - 1]?.createdAt &&
-        currentMessage.createdAt.toISOString().slice(0, 16) ===
-          messages[i - 1]?.createdAt?.toISOString().slice(0, 16)
-      ) {
-        delete currentMessage.createdAt;
-      }
-    }
-
-    processedMessages.push(currentMessage);
-  }
-  return processedMessages;
 }
 
 function findUserpipeline(match: any) {

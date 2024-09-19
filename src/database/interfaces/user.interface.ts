@@ -57,6 +57,7 @@ export interface IUser {
   location?: Location[];
   taskLocation?: Location[];
   selectedLocation?: Location;
+  taskSelectedLocation?: Location;
   zipCode?: ZipCode[];
   visuals?: string[];
   visualFiles?: string[];

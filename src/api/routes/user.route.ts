@@ -18,6 +18,8 @@ import StripeRoutes from "./stripe.route";
 import WalletRoutes from "./wallet.route";
 import ScheduleRoutes from "./schedule.route";
 import IndustryRoute from "./industry.route";
+import WorkerRoutes from "./worker.route";
+
 
 class UserRoutes extends BaseRoutes {
   private authRoutes: AuthRoutes;
@@ -39,6 +41,8 @@ class UserRoutes extends BaseRoutes {
   private walletRoutes: WalletRoutes;
   private scheduleRoutes: ScheduleRoutes;
   private industryRoutes: IndustryRoute;
+  private workerRoutes: WorkerRoutes;
+
   constructor() {
     super();
     this.authRoutes = new AuthRoutes();
@@ -60,29 +64,33 @@ class UserRoutes extends BaseRoutes {
     this.walletRoutes = new WalletRoutes();
     this.scheduleRoutes = new ScheduleRoutes();
     this.industryRoutes = new IndustryRoute();
+    this.workerRoutes = new WorkerRoutes();
     this.initializeRoutes();
   }
 
   protected routes(): void {
     this.router.use("/auth", this.authRoutes.router);
     this.router.use("/guideline", this.guidelineRoutes.router);
+    this.router.use("/transaction", this.transactionRoutes.router);
+    this.router.use(this.authorize.validateAuth);
     this.router.use("/service", this.serviceRoutes.router);
     this.router.use(this.authorize.validateAuth);
     this.router.use("/subscription", this.subscriptionRoutes.router);
     this.router.use("/user", this.profileRoutes.router);
     this.router.use("/location-data", this.stateRoutes.router);
     this.router.use("/list", this.golistRoutes.router);
+    this.router.use("/stripe", this.stripeRoutes.router);
     this.router.use("/notification", this.notificationRoutes.router);
     this.router.use("/task", this.taskRoutes.router);
     this.router.use("/rating", this.ratingRoutes.router);
     this.router.use("/calendar", this.calendarRoutes.router);
     this.router.use("/chat", this.chatRoutes.router);
     this.router.use("/media", this.mediaRoutes.router);
-    this.router.use("/transaction", this.transactionRoutes.router);
-    this.router.use("/stripe", this.stripeRoutes.router);
     this.router.use("/wallet", this.walletRoutes.router);
     this.router.use("/schedule", this.scheduleRoutes.router);
     this.router.use("/industry", this.industryRoutes.router);
+    this.router.use("/worker", this.workerRoutes.router);
+
   }
 }
 

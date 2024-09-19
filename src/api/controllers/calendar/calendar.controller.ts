@@ -18,10 +18,10 @@ class CalendarController {
     const filter: FilterQuery<ICalendar> = {
       user: req.locals.auth?.userId,
       isDeleted: false,
-      isActive: true, // this will only fetch those task which are active if the task is completed it will also turn this flag to false
+      isActive: true,
     };
     if (date !== "") filter.date = date;
-    // else filter.date = moment(new Date()).format("YYYY-MM-DD");
+
     const response = await this.calendarService.index(
       Number(page),
       Number(limitNow),

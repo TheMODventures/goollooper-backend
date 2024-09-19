@@ -40,7 +40,7 @@ class StripeRoutes extends BaseRoutes {
     );
 
     this.router.post(
-      "/payout/:source",
+      "/payout",
       this.validateRequest,
       this.stripeController.payout
     );
@@ -59,6 +59,11 @@ class StripeRoutes extends BaseRoutes {
       "/toggle-withdraw-request/:id",
       this.validateRequest,
       this.stripeController.toggleWithdrawRequest
+    );
+
+    this.router.get(
+      "/goollooper-balance",
+      this.stripeController.goollooperBalance
     );
   }
 }

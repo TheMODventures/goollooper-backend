@@ -6,6 +6,7 @@ export interface ICalendar {
   date: string;
   isActive?: boolean;
   user: string | mongoose.Types.ObjectId;
+  type?: string;
   task: string | mongoose.Types.ObjectId;
   createdAt?: Date | Moment;
   updatedAt?: Date | Moment;

@@ -122,7 +122,13 @@ class TokenService {
     userId && (tokenFilter.userId = userId);
     accessToken && (tokenFilter.accessToken = accessToken);
     refreshToken && (tokenFilter.refreshToken = refreshToken);
-    const response = await this.tokenRepository.getOne<ITokenDoc>(tokenFilter);
+    // console.log("TOKEN FILTER",tokenFilter);
+    // console.log(typeof userId,typeof accessToken,typeof refreshToken);
+
+    const response = await this.tokenRepository.getOne<ITokenDoc>({
+      userId: new mongoose.Types.ObjectId(tokenFilter.userId),
+      accessToken: tokenFilter.accessToken,
+    });
     return response;
   };
 }

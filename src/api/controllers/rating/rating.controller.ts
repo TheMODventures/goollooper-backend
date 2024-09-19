@@ -27,20 +27,7 @@ class RatingController {
       Number(page),
       Number(limitNow),
       filter,
-      [
-        ModelHelper.populateData("by", ModelHelper.userSelect, "Users"),
-        // ModelHelper.populateData(
-        //   "data.serviceProvider",
-        //   ModelHelper.userSelect,
-        //   "Users",
-        //   [
-        //     ModelHelper.populateData(
-        //       "subscription.subscription",
-        //       ModelHelper.subscriptionSelect
-        //     ),
-        //   ]
-        // ),
-      ]
+      [ModelHelper.populateData("by", ModelHelper.userSelect, "Users")]
     );
     return res.status(response.code).json(response);
   };

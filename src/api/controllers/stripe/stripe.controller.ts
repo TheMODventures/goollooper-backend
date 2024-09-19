@@ -54,6 +54,10 @@ class StripeController {
     const response = await this.stripeService.toggleWithdrawRequest(req);
     return res.status(response.code).json(response);
   };
+  goollooperBalance = async (req: Request, res: Response) => {
+    const response = await this.stripeService.goollooperBalance(req);
+    return res.status(response.code).json(response);
+  };
 }
 
 export default StripeController;

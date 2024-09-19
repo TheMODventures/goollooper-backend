@@ -15,7 +15,7 @@ const paramRule = {
 const showRule = yup.object().shape({
   params: yup.object().shape(paramRule).noUnknown(),
   body: yup.object().shape({}).noUnknown(),
-  query: yup.object().noUnknown(),
+  query: yup.object({}).noUnknown(),
 });
 
 const indexRule = yup.object().shape({
@@ -253,6 +253,7 @@ const toggleRequestRule = yup.object().shape({
           ETaskUserStatus.IDLE,
         ])
         .required(),
+      isRequestToBeAdded: yup.boolean().default(false).notRequired(),
       // type: yup.string().oneOf(["goList", "user"]).required(),
     })
     .noUnknown(),
@@ -262,7 +263,11 @@ const toggleRequestRule = yup.object().shape({
 const cancelTask = yup.object().shape({
   params: yup.object().shape(paramRule).noUnknown(),
   body: yup.object().shape({}).noUnknown(),
-  query: yup.object().noUnknown(),
+  query: yup
+    .object({
+      chatId: yup.string().required(),
+    })
+    .noUnknown(),
 });
 
 export = {

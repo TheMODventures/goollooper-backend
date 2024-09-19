@@ -6,7 +6,7 @@ build/**/*.ejs
 /json_data
 yarn.lock
 dbconfig.js
-# package-lock.json
+package-lock.json
 .env
 my.txt
 src/api/helpers/goollooper-service.json
