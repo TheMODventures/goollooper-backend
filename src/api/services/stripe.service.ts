@@ -627,6 +627,54 @@ class StripeService {
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   };
+  goollooperBalance = async (req: Request): Promise<ApiResponse> => {
+    try {
+      // Define the transaction types to filter by
+      const transactionTypes = [
+        "Subscription",
+        "Task Add Request",
+        "Megablast",
+        "Application Fee",
+      ];
+
+      // Define the aggregation pipeline
+      const transactionResponse =
+        await this.transactionRepository.getAllWithAggregatePagination<ITransaction>(
+          [
+            {
+              $match: {
+                type: { $in: transactionTypes },
+                status: ETransactionStatus.pending,
+              },
+            },
+            {
+              $group: {
+                _id: null,
+                totalAmount: { $sum: "$amount" },
+              },
+            },
+          ]
+        );
+
+      // Check if the response has valid data
+      if (
+        !transactionResponse ||
+        !transactionResponse.data ||
+        transactionResponse.data.length === 0
+      ) {
+        return ResponseHelper.sendResponse(404, "Transaction not found");
+      }
+
+      // Extract totalAmount from the first item in the data array
+      const balance = transactionResponse.data[0]?.totalAmount || 0;
+
+      return ResponseHelper.sendResponse(200, {
+        balance,
+      });
+    } catch (error) {
+      return ResponseHelper.sendResponse(500, (error as Error).message);
+    }
+  };
 }
 
 export default StripeService;

@@ -60,7 +60,7 @@ import NotificationService, {
 import { CalendarRepository } from "../calendar/calendar.repository";
 import { IWallet } from "../../../database/interfaces/wallet.interface";
 import { WalletRepository } from "../wallet/wallet.repository";
-import { SERVICE_INITIATION_FEE } from "../../../constant";
+import { ERROR_NOTFOUND, SERVICE_INITIATION_FEE } from "../../../constant";
 import { TransactionRepository } from "../transaction/transaction.repository";
 import {
   ITransaction,
@@ -716,6 +716,7 @@ export class ChatRepository
           status: EMessageStatus.SENT,
         })),
       };
+
       switch (dataset.type?.toString()) {
         case "1":
           msg.type = MessageType.request;
@@ -1026,9 +1027,7 @@ export class ChatRepository
               error: "Date and slot are required",
             });
           }
-          msg.body = "Tour Request";
-          console.log("🚀 CASE 7", dataset);
-
+          msg.body = "Tour";
           break;
 
         case "8":
@@ -1037,6 +1036,169 @@ export class ChatRepository
           console.log("🚀 CASE 8", dataset);
           break;
 
+        case "9":
+          msg.type = MessageType.bill;
+          msg.body = "Bill";
+
+          if (!dataset.amount) {
+            return this.io?.emit(`error`, { error: "Amount is required" });
+          }
+
+          const task = await this.taskRepository.getById<ITask>(chat?.task);
+          if (!task) {
+            return this.io?.emit(`error`, { error: ERROR_NOTFOUND });
+          }
+
+          const updatedTask = await this.taskRepository.updateById<ITask>(
+            chat?.task,
+            {
+              invoiceAmount: dataset.amount,
+            }
+          );
+
+          if (!updatedTask) {
+            return this.io?.emit(`error`, { error: ERROR_NOTFOUND });
+          }
+
+          break;
+        case "10":
+          msg.type = MessageType.pay;
+          msg.body = "Pay";
+          console.log("🚀 CASE 10", dataset);
+
+          // Validate dataset.amount
+          const amount = Number(dataset.amount);
+          if (isNaN(amount) || amount <= 0) {
+            return this.io?.emit(`error`, {
+              error: "A valid amount is required",
+            });
+          }
+
+          // Validate paymentRecipients array
+          const paymentRecipients = dataset.paymentRecipients;
+          if (
+            !Array.isArray(paymentRecipients) ||
+            paymentRecipients.length === 0
+          ) {
+            return this.io?.emit(`error`, {
+              error: "Payment recipients are required",
+            });
+          }
+
+          // Calculate total amount to be paid
+          const totalAmount = amount * paymentRecipients.length;
+
+          // Fetch the sender's wallet
+          const userWallet = await this.walletRepository.getOne<IWallet>({
+            user: senderId,
+          });
+          if (!userWallet) {
+            return this.io?.emit(`error`, { error: "Wallet not found" });
+          }
+
+          // Check if user has sufficient balance
+          if (userWallet.balance < totalAmount) {
+            return this.io?.emit(`error`, { error: "Insufficient balance" });
+          }
+
+          try {
+            // Process each payment recipient
+            const transactions = await Promise.all(
+              paymentRecipients.map(async (recipientId: string) => {
+                const recipientWallet =
+                  await this.walletRepository.getOne<IWallet>({
+                    user: recipientId,
+                  });
+                if (!recipientWallet) {
+                  this.io?.emit(`error`, {
+                    error: `Recipient wallet not found for user ${recipientId}`,
+                  });
+                  return null;
+                }
+
+                // Create a transaction for the recipient
+                await this.transactionRepository.create<ITransaction>({
+                  amount,
+                  user: recipientId,
+                  type: TransactionType.task,
+                  wallet: recipientWallet._id as string,
+                  status: ETransactionStatus.completed,
+                  isCredit: true,
+                });
+
+                // Update the recipient's wallet balance by adding the amount
+                await this.walletRepository.updateById<IWallet>(
+                  recipientWallet._id as string,
+                  {
+                    balance: recipientWallet.balance + amount,
+                  }
+                );
+
+                return recipientWallet;
+              })
+            );
+
+            // Filter out failed transactions
+            const successfulTransactions = transactions.filter(
+              (t) => t !== null
+            );
+
+            // Deduct total amount from sender's wallet after successful transactions
+            if (successfulTransactions.length > 0) {
+              await this.walletRepository.updateById<IWallet>(
+                userWallet._id as string,
+                {
+                  balance: userWallet.balance - totalAmount,
+                }
+              );
+
+              await this.transactionRepository.create<ITransaction>({
+                amount: totalAmount,
+                user: senderId,
+                type: TransactionType.task,
+                wallet: userWallet._id as string,
+                status: ETransactionStatus.completed,
+                isCredit: false,
+              });
+            } else {
+              this.io?.emit(`error`, {
+                error: "No transactions were successful",
+              });
+            }
+          } catch (error) {
+            this.io?.emit(`error`, { error: "Payment process failed" });
+          }
+
+          break;
+        case "11":
+          msg.type = MessageType.addWorkers;
+          msg.body = "Workers Added";
+
+          const workers = dataset.workers;
+          if (!Array.isArray(workers) || workers.length === 0) {
+            return this.io?.emit("error", { error: "Workers are required" });
+          }
+
+          const findChat = await this.updateById<IChat>(chatId, {
+            $addToSet: { workers: { $each: workers } },
+          });
+
+          break;
+        case "12":
+          msg.type = MessageType.removeWorkers;
+          msg.body = "Workers Removed";
+
+          const workersToRemove = dataset.workers;
+
+          if (!Array.isArray(workersToRemove) || workersToRemove.length === 0) {
+            return this.io?.emit("error", { error: "Workers are required" });
+          }
+
+          const updatedChatRemove = await this.updateById<IChat>(chatId, {
+            $pull: { workers: { $in: workersToRemove } },
+          });
+
+          break;
         default:
           break;
       }
@@ -1068,10 +1230,6 @@ export class ChatRepository
           }
         }
       });
-      console.log(
-        "🚀 ~ file: chat.repository.ts ~ line 1011 ~ ChatRepository ~ sendRequest= ~ response",
-        userIds
-      );
 
       this.sendNotificationMsg({
         userIds,
@@ -1118,7 +1276,29 @@ export class ChatRepository
       // return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   };
+  // async addParticipants(chatId: string, userId:string, participants: string[]) {
 
+  //   const isChatExist = await this.getById(chatId);
+  //   if(!isChatExist){
+  //     this.io?.emit(`error`, { error: "Chat not found" });
+  //   }
+
+  //   console.log(`~~~addParticipants/${chatId}`, participants);
+
+  //   if(this.io){
+  //     this.io?.emit(`addParticipants/${chatId}`, "participants added");
+  //   }
+  //   return;
+  // }
+  // async removeParticipants(chatId: string, userId:string, participants: string[]) {
+
+  //   console.log(`~~~removeParticipants/${chatId}`, participants);
+
+  //   if(this.io){
+  //     this.io?.emit(`removeParticipants/${chatId}`, "participants removed");
+  //   }
+  //   return;
+  // }
   // Mark all messages as read for a user
   async readAllMessages(chatId: string, user: string) {
     try {
@@ -1270,197 +1450,197 @@ export class ChatRepository
   }
 
   // Add participants to a chat
-  async addParticipants(
-    chatId: string,
-    user: string,
-    participantIds: string[]
-  ) {
-    try {
-      // console.log({ chatId, participantIds });
-      const filter = { _id: chatId };
-      const participantsToAdd: any[] = await this.userRepository.getAll(
-        { _id: participantIds },
-        undefined,
-        ModelHelper.userSelect,
-        undefined,
-        undefined,
-        true,
-        1,
-        200
-      );
-      let username = "";
-      participantsToAdd.map(
-        (e: IUser) => (username += `${e.firstName ?? ""} ${e.lastName ?? ""}, `)
-      );
+  // async addParticipants(
+  //   chatId: string,
+  //   user: string,
+  //   participantIds: string[]
+  // ) {
+  //   try {
+  //     // console.log({ chatId, participantIds });
+  //     const filter = { _id: chatId };
+  //     const participantsToAdd: any[] = await this.userRepository.getAll(
+  //       { _id: participantIds },
+  //       undefined,
+  //       ModelHelper.userSelect,
+  //       undefined,
+  //       undefined,
+  //       true,
+  //       1,
+  //       200
+  //     );
+  //     let username = "";
+  //     participantsToAdd.map(
+  //       (e: IUser) => (username += `${e.firstName ?? ""} ${e.lastName ?? ""}, `)
+  //     );
 
-      const update = {
-        $addToSet: {
-          participants: {
-            $each: participantIds.map((user) => ({
-              user,
-              status: EParticipantStatus.ACTIVE,
-            })),
-          },
-        },
-      };
+  //     const update = {
+  //       $addToSet: {
+  //         participants: {
+  //           $each: participantIds.map((user) => ({
+  //             user,
+  //             status: EParticipantStatus.ACTIVE,
+  //           })),
+  //         },
+  //       },
+  //     };
 
-      let result: any = await Chat.findOneAndUpdate(filter, update)
-        .select("-messages")
-        .populate({
-          path: "participants.user",
-          select: "username firstName lastName _id profileImage",
-        });
+  //     let result: any = await Chat.findOneAndUpdate(filter, update)
+  //       .select("-messages")
+  //       .populate({
+  //         path: "participants.user",
+  //         select: "username firstName lastName _id profileImage",
+  //       });
 
-      const msg = {
-        _id: new mongoose.Types.ObjectId(),
-        body: `${username}joined the group`,
-        addedUsers: participantIds,
-        groupName: result.groupName,
-        sentBy: null,
-        receivedBy: result.participants.map((e: IParticipant) => ({
-          user: e.user,
-          status: EMessageStatus.SEEN,
-        })),
-      };
+  //     const msg = {
+  //       _id: new mongoose.Types.ObjectId(),
+  //       body: `${username}joined the group`,
+  //       addedUsers: participantIds,
+  //       groupName: result.groupName,
+  //       sentBy: null,
+  //       receivedBy: result.participants.map((e: IParticipant) => ({
+  //         user: e.user,
+  //         status: EMessageStatus.SEEN,
+  //       })),
+  //     };
 
-      await result.update({
-        $push: {
-          messages: msg,
-        },
-      });
+  //     await result.update({
+  //       $push: {
+  //         messages: msg,
+  //       },
+  //     });
 
-      await result.save();
+  //     await result.save();
 
-      if (this.io) {
-        result.participants.forEach(async (participant: any) => {
-          if (participant.status == EParticipantStatus.ACTIVE) {
-            this.io?.emit(
-              `newMessage/${chatId}/${participant.user._id.toString()}`,
-              msg
-            );
-            // this.io?.emit(
-            //   `getChats/${participant.user._id}`, await this.getChats(participant.user)
-            // );
-            await this.getChats(participant.user);
-          }
-        });
+  //     if (this.io) {
+  //       result.participants.forEach(async (participant: any) => {
+  //         if (participant.status == EParticipantStatus.ACTIVE) {
+  //           this.io?.emit(
+  //             `newMessage/${chatId}/${participant.user._id.toString()}`,
+  //             msg
+  //           );
+  //           // this.io?.emit(
+  //           //   `getChats/${participant.user._id}`, await this.getChats(participant.user)
+  //           // );
+  //           await this.getChats(participant.user);
+  //         }
+  //       });
 
-        this.io?.emit(`addParticipants/${chatId}`, {
-          message: "added participants",
-          result,
-        });
-      }
+  //       this.io?.emit(`addParticipants/${chatId}`, {
+  //         message: "added participants",
+  //         result,
+  //       });
+  //     }
 
-      return result;
-    } catch (error) {
-      // console.error("Error adding participants:", error);
-      throw error;
-    }
-  }
+  //     return result;
+  //   } catch (error) {
+  //     // console.error("Error adding participants:", error);
+  //     throw error;
+  //   }
+  // }
 
-  // Remove participants from a chat
-  async removeParticipants(chatId: string, /*user,*/ participantIds: string[]) {
-    try {
-      // console.log({ chatId, participantIds });
-      const filter = { _id: chatId /*admins: user*/ };
-      const u: any[] = await this.userRepository.getAll(
-        { _id: participantIds },
-        undefined,
-        ModelHelper.userSelect,
-        undefined,
-        undefined,
-        true,
-        1,
-        200
-      );
-      let username = "";
-      u.map(
-        (e: IUser) => (username += `${e.firstName ?? ""} ${e.lastName ?? ""}, `)
-      );
-      // // console.log(username)
-      const update = {
-        $pull: { participants: { user: { $in: participantIds } } },
-      };
-      let result: any = await Chat.findOneAndUpdate(filter, update)
-        .select("-messages")
-        .populate({
-          path: "participants.user",
-          select: "username firstName lastName _id  profileImage",
-        });
-      // // console.log(result)
-      const msg = {
-        _id: new mongoose.Types.ObjectId(),
-        body: `${username}leave the group`,
-        removedUsers: participantIds,
-        groupName: result.groupName,
-        sentBy: null,
-        receivedBy: result.participants.map((e: IParticipant) => ({
-          user: e.user,
-          status: EMessageStatus.SEEN,
-        })),
-      };
-      await result.update({
-        $push: {
-          messages: msg,
-        },
-      });
-      const userIds: string[] = [];
-      // // console.log(result)
-      await result.save();
-      if (participantIds.includes(result.createdBy.toString()))
-        result = await Chat.findOneAndUpdate(filter, {
-          createdBy: result.participants[0].user._id,
-        }).populate({
-          path: "participants.user",
-          select: "username firstName lastName _id  profileImage status",
-        });
-      // // console.log(result.participants);
-      if (this.io) {
-        result.participants.forEach(async (participant: any) => {
-          if (participant.status == EParticipantStatus.ACTIVE) {
-            // // console.log(participant.user._id.toString())
-            if (
-              participantIds[0] !== participant.user._id &&
-              !participant.isMuted
-            )
-              userIds.push(participant.user._id);
-            // // console.log(`newMessage/${chatId}/${participant.user}`)
-            // if (this.io) {
-            this.io?.emit(
-              `newMessage/${chatId}/${participant.user._id.toString()}`,
-              msg
-            );
-            // this.io?.emit(
-            //   `getChats/${participant.user._id}`, await this.getChats(participant.user)
-            // );
-            await this.getChats(participant.user);
-            // }
-          }
-        });
-        this.io?.emit(`removeParticipants/${chatId}`, {
-          message:
-            result == null
-              ? "you are not allowed to remove participants"
-              : "removed participants",
-          result,
-        });
-      }
-      this.sendNotificationMsg(
-        {
-          userIds,
-          title: result.groupName,
-          body: `${username}leave the group`,
-          chatId,
-        },
-        result
-      );
+  // // Remove participants from a chat
+  // async removeParticipants(chatId: string, /*user,*/ participantIds: string[]) {
+  //   try {
+  //     // console.log({ chatId, participantIds });
+  //     const filter = { _id: chatId /*admins: user*/ };
+  //     const u: any[] = await this.userRepository.getAll(
+  //       { _id: participantIds },
+  //       undefined,
+  //       ModelHelper.userSelect,
+  //       undefined,
+  //       undefined,
+  //       true,
+  //       1,
+  //       200
+  //     );
+  //     let username = "";
+  //     u.map(
+  //       (e: IUser) => (username += `${e.firstName ?? ""} ${e.lastName ?? ""}, `)
+  //     );
+  //     // // console.log(username)
+  //     const update = {
+  //       $pull: { participants: { user: { $in: participantIds } } },
+  //     };
+  //     let result: any = await Chat.findOneAndUpdate(filter, update)
+  //       .select("-messages")
+  //       .populate({
+  //         path: "participants.user",
+  //         select: "username firstName lastName _id  profileImage",
+  //       });
+  //     // // console.log(result)
+  //     const msg = {
+  //       _id: new mongoose.Types.ObjectId(),
+  //       body: `${username}leave the group`,
+  //       removedUsers: participantIds,
+  //       groupName: result.groupName,
+  //       sentBy: null,
+  //       receivedBy: result.participants.map((e: IParticipant) => ({
+  //         user: e.user,
+  //         status: EMessageStatus.SEEN,
+  //       })),
+  //     };
+  //     await result.update({
+  //       $push: {
+  //         messages: msg,
+  //       },
+  //     });
+  //     const userIds: string[] = [];
+  //     // // console.log(result)
+  //     await result.save();
+  //     if (participantIds.includes(result.createdBy.toString()))
+  //       result = await Chat.findOneAndUpdate(filter, {
+  //         createdBy: result.participants[0].user._id,
+  //       }).populate({
+  //         path: "participants.user",
+  //         select: "username firstName lastName _id  profileImage status",
+  //       });
+  //     // // console.log(result.participants);
+  //     if (this.io) {
+  //       result.participants.forEach(async (participant: any) => {
+  //         if (participant.status == EParticipantStatus.ACTIVE) {
+  //           // // console.log(participant.user._id.toString())
+  //           if (
+  //             participantIds[0] !== participant.user._id &&
+  //             !participant.isMuted
+  //           )
+  //             userIds.push(participant.user._id);
+  //           // // console.log(`newMessage/${chatId}/${participant.user}`)
+  //           // if (this.io) {
+  //           this.io?.emit(
+  //             `newMessage/${chatId}/${participant.user._id.toString()}`,
+  //             msg
+  //           );
+  //           // this.io?.emit(
+  //           //   `getChats/${participant.user._id}`, await this.getChats(participant.user)
+  //           // );
+  //           await this.getChats(participant.user);
+  //           // }
+  //         }
+  //       });
+  //       this.io?.emit(`removeParticipants/${chatId}`, {
+  //         message:
+  //           result == null
+  //             ? "you are not allowed to remove participants"
+  //             : "removed participants",
+  //         result,
+  //       });
+  //     }
+  //     this.sendNotificationMsg(
+  //       {
+  //         userIds,
+  //         title: result.groupName,
+  //         body: `${username}leave the group`,
+  //         chatId,
+  //       },
+  //       result
+  //     );
 
-      return result;
-    } catch (error) {
-      // console.error("Error removing participants:", error);
-      throw error;
-    }
-  }
+  //     return result;
+  //   } catch (error) {
+  //     // console.error("Error removing participants:", error);
+  //     throw error;
+  //   }
+  // }
 
   //   // Add admins to a group chat
   //   async addAdmins(chatId: string, user: string, adminIds: string[]) {

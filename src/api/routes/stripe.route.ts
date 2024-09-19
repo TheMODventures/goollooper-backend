@@ -60,6 +60,11 @@ class StripeRoutes extends BaseRoutes {
       this.validateRequest,
       this.stripeController.toggleWithdrawRequest
     );
+
+    this.router.get(
+      "/goollooper-balance",
+      this.stripeController.goollooperBalance
+    );
   }
 }
 

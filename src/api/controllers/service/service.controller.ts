@@ -12,7 +12,14 @@ class ServiceController {
   }
 
   index = async (req: Request, res: Response) => {
-    const { limit, page, title = "", type = "" } = req.query;
+    const {
+      limit,
+      page,
+      title = "",
+      type = "",
+      search = "",
+      parent = "",
+    } = req.query;
     const limitNow = limit ? limit : 10;
     const filter: FilterQuery<IService> = {
       title: { $regex: title, $options: "i" },
@@ -22,7 +29,9 @@ class ServiceController {
     const response = await this.serviceService.index(
       Number(page),
       Number(limitNow),
-      filter
+      String(search).toLowerCase(),
+      filter,
+      parent as string
     );
     return res.status(response.code).json(response);
   };

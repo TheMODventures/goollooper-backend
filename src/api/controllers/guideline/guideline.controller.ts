@@ -29,6 +29,7 @@ class GuidelineController {
   create = async (req: Request, res: Response) => {
     const payload: IGuideline = { ...req.body };
     const response = await this.guidelineService.create(payload);
+
     return res.status(response.code).json(response);
   };
 
