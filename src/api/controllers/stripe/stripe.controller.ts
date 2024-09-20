@@ -34,8 +34,8 @@ class StripeController {
     return res.status(response.code).json(response);
   };
 
-  payout = async (req: Request, res: Response) => {
-    const response = await this.stripeService.payout(req);
+  platformPayout = async (req: Request, res: Response) => {
+    const response = await this.stripeService.platformPayout(req);
     return res.status(response.code).json(response);
   };
   onboarding = async (req: Request, res: Response) => {

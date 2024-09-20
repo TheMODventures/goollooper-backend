@@ -425,7 +425,7 @@ class StripeService {
   //   }
   // };
 
-  payout = async (req: Request): Promise<ApiResponse> => {
+  platformPayout = async (req: Request): Promise<ApiResponse> => {
     const session = await mongoose.startSession();
     try {
       session.startTransaction();
@@ -445,6 +445,24 @@ class StripeService {
         currency: "usd",
         description: "Payout Goollooper",
       });
+
+      await this.transactionRepository.updateMany<ITransaction>(
+        {
+          status: ETransactionStatus.pending,
+          transactionType: {
+            $in: [
+              TransactionType.subscription,
+              TransactionType.taskAddRequest,
+              TransactionType.megablast,
+              TransactionType.applicationFee,
+            ],
+          },
+        },
+        {
+          $set: { status: ETransactionStatus.completed },
+        },
+        { session }
+      );
 
       return ResponseHelper.sendSuccessResponse("Payout", payout);
     } catch (error) {
