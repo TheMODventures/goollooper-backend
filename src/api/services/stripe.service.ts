@@ -463,7 +463,8 @@ class StripeService {
           },
           {
             $set: { status: ETransactionStatus.completed },
-          }
+          },
+          { session }
         );
       console.log(transaction, "Transaction");
       session.commitTransaction();
