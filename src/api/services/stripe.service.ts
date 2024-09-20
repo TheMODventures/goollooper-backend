@@ -446,24 +446,27 @@ class StripeService {
         description: "Payout Goollooper",
       });
 
-      await this.transactionRepository.updateMany<ITransaction>(
-        {
-          status: ETransactionStatus.pending,
-          transactionType: {
-            $in: [
-              TransactionType.subscription,
-              TransactionType.taskAddRequest,
-              TransactionType.megablast,
-              TransactionType.applicationFee,
-            ],
-          },
-        },
-        {
-          $set: { status: ETransactionStatus.completed },
-        },
-        { session }
-      );
+      console.log(payout, "Payout");
 
+      const transaction =
+        await this.transactionRepository.updateMany<ITransaction>(
+          {
+            status: ETransactionStatus.pending,
+            type: {
+              $in: [
+                TransactionType.subscription,
+                TransactionType.taskAddRequest,
+                TransactionType.megablast,
+                TransactionType.applicationFee,
+              ],
+            },
+          },
+          {
+            $set: { status: ETransactionStatus.completed },
+          }
+        );
+      console.log(transaction, "Transaction");
+      session.commitTransaction();
       return ResponseHelper.sendSuccessResponse("Payout", payout);
     } catch (error) {
       session.abortTransaction();
