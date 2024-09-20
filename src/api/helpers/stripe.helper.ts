@@ -269,6 +269,7 @@ class StripeHelper {
   async createSubscriptionItem(customerId: string, price: string) {
     const obj = stripe.subscriptions.create({
       customer: customerId,
+      cancel_at_period_end: true,
       items: [
         {
           price: price,

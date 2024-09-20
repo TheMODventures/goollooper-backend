@@ -52,6 +52,8 @@ export interface IUser {
     subscription: string;
     plan: string;
     name: string;
+    subscribe: boolean;
+    subscriptionAuthId: string;
   };
   locationType?: EUserLocationType;
   location?: Location[];

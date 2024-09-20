@@ -24,7 +24,6 @@ const userModel: Schema = new Schema(
     username: {
       type: String,
       trim: true,
-      // default: null,
       index: {
         unique: true,
         partialFilterExpression: {

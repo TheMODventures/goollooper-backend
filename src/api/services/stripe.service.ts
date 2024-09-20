@@ -22,10 +22,13 @@ import {
   PaymentIntentType,
 } from "../../database/interfaces/wallet.interface";
 import mongoose from "mongoose";
+import { NotificationRepository } from "../repository/notification/notification.repository";
+import NotificationService from "./notification.service";
 
 class StripeService {
   private userRepository: UserRepository;
   private walletRepository: WalletRepository;
+  private notificationRepository: NotificationRepository;
   private transactionRepository: TransactionRepository;
   private dateHelper: DateHelper;
 
@@ -33,6 +36,7 @@ class StripeService {
     this.userRepository = new UserRepository();
     this.walletRepository = new WalletRepository();
     this.transactionRepository = new TransactionRepository();
+    this.notificationRepository = new NotificationRepository();
     this.dateHelper = new DateHelper();
   }
 
@@ -301,6 +305,30 @@ class StripeService {
           // Handle other statuses
         }
         break;
+
+      // case "customer.subscription.trial_will_end":
+      // console.log("customer.subscription.trial_will_end", event.data.object);
+      // break
+
+      case "customer.subscription.deleted":
+        console.log("Subscription deleted :", event.data.object);
+        const customer = event.data.object.customer as string;
+        const user = await this.userRepository.updateByOne<IUser>(
+          { stripeCustomerId: customer },
+          {
+            subscription: {
+              subscribe: false,
+            },
+          }
+        );
+
+        this;
+        break;
+
+      // case "invoice.upcoming":
+      //   console.log("Invoice upcoming :", event.data.object);
+      // break;
+
       default:
         console.log(`Unhandled event type ${event.type}`);
     }
@@ -570,12 +598,15 @@ class StripeService {
 
           const retrievedBalance = await stripeHelper.retrieveBalance();
 
-          if (retrievedBalance.pending[0].amount < transaction.amount * 100) {
+          if (retrievedBalance?.pending[0].amount < transaction.amount * 100) {
             session.abortTransaction();
             return ResponseHelper.sendResponse(400, "Insufficient balance");
           }
 
-          if (retrievedBalance.available[0].amount < transaction.amount * 100) {
+          if (
+            retrievedBalance?.available[0].amount <
+            transaction.amount * 100
+          ) {
             session.abortTransaction();
             return ResponseHelper.sendResponse(400, "Insufficient balance");
           }
@@ -631,10 +662,10 @@ class StripeService {
     try {
       // Define the transaction types to filter by
       const transactionTypes = [
-        "Subscription",
-        "Task Add Request",
-        "Megablast",
-        "Application Fee",
+        TransactionType.subscription,
+        TransactionType.taskAddRequest,
+        TransactionType.megablast,
+        TransactionType.applicationFee,
       ];
 
       // Define the aggregation pipeline
@@ -668,9 +699,7 @@ class StripeService {
       // Extract totalAmount from the first item in the data array
       const balance = transactionResponse.data[0]?.totalAmount || 0;
 
-      return ResponseHelper.sendResponse(200, {
-        balance,
-      });
+      return ResponseHelper.sendSuccessResponse("Balance retrieved", balance);
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }

@@ -124,7 +124,7 @@ class SubscriptionService {
       }
 
       if (wallet.balance < payload.price) {
-        console.warn(
+        console.log(
           `Insufficient balance for user ID: ${userId}. Balance: ${wallet.balance}, Required: ${payload.price}`
         );
         return ResponseHelper.sendResponse(
