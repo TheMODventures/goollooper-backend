@@ -198,7 +198,6 @@ class StripeService {
           { session }
         ),
       ]);
-      console.log(topUpTransaction, applicationFeeTransaction);
 
       if (!topUpTransaction || !applicationFeeTransaction) {
         await session.abortTransaction();
@@ -237,15 +236,20 @@ class StripeService {
         console.log("Charge succeeded:", event.data.object);
         // Handle the charge.succeeded event
         break;
-      case "customer.subscription.pending_update_expired":
-        console.log("Subscription pending update expired:", event.data.object);
-        // Handle the customer.subscription.pending_update_expired event
-        break;
 
       case "account.application.authorized":
         console.log("Account application authorized:", event.data.object);
 
         break;
+
+      case "capability.updated":
+        console.log("Capability updated:");
+        break;
+
+      case "balance.available":
+        console.log("Balance available:", event.data.object);
+        break;
+
       case "account.updated":
         const account = event.data.object as Stripe.Account;
         console.log("Account Updated:", account);
@@ -296,6 +300,21 @@ class StripeService {
           );
           // Handle account failure due to unmet requirements
           // e.g., notify the user about the issue, suggest corrective actions
+        } else if (
+          account.payouts_enabled === false ||
+          account.charges_enabled === false
+        ) {
+          console.log(`Account ${account.id} is not fully active yet.`);
+          this.userRepository.updateByOne(
+            { stripeConnectId: account.id },
+            {
+              accountAuthorized: false,
+              stripeConnectAccountRequirementsDue: {
+                payoutEnabled: account.payouts_enabled,
+                chargesEnabled: account.charges_enabled,
+              },
+            }
+          );
         } else {
           console.log(`Account ${account.id} is not fully active yet.`);
           this.userRepository.updateByOne(
@@ -313,7 +332,7 @@ class StripeService {
       case "customer.subscription.deleted":
         console.log("Subscription deleted :", event.data.object);
         const customer = event.data.object.customer as string;
-        const user = await this.userRepository.updateByOne<IUser>(
+        await this.userRepository.updateByOne<IUser>(
           { stripeCustomerId: customer },
           {
             subscription: {
@@ -446,8 +465,6 @@ class StripeService {
         description: "Payout Goollooper",
       });
 
-      console.log(payout, "Payout");
-
       const transaction =
         await this.transactionRepository.updateMany<ITransaction>(
           {
@@ -466,7 +483,6 @@ class StripeService {
           },
           { session }
         );
-      console.log(transaction, "Transaction");
       session.commitTransaction();
       return ResponseHelper.sendSuccessResponse("Payout", payout);
     } catch (error) {
@@ -542,6 +558,44 @@ class StripeService {
     const session = await mongoose.startSession();
     try {
       session.startTransaction();
+
+      const user = await this.userRepository.getById<IUser>(
+        req.locals.auth?.userId as string
+      );
+
+      // Step 1: Check if user exists
+      if (!user) return ResponseHelper.sendResponse(404, "User not found");
+
+      // Step 2: Check if Stripe Connect account is linked
+      if (!user.stripeConnectId)
+        return ResponseHelper.sendResponse(
+          404,
+          "Stripe Connect Account not found"
+        );
+
+      // Step 3: Check if account is authorized
+      if (!user.accountAuthorized)
+        return ResponseHelper.sendResponse(400, "Account not authorized");
+
+      // Step 4: Check if there are any outstanding requirements for the Stripe Connect account
+      const requirements = user.stripeConnectAccountRequirementsDue;
+
+      if (requirements.currentlyDue.length > 0) {
+        return ResponseHelper.sendResponse(
+          400,
+          `Account requirements currently due: ${requirements.currentlyDue.join(
+            ", "
+          )}`
+        );
+      }
+
+      if (requirements.pastDue.length > 0) {
+        return ResponseHelper.sendResponse(
+          400,
+          `Account requirements past due: ${requirements.pastDue.join(", ")}`
+        );
+      }
+
       const wallet = await this.walletRepository.getOne<IWallet>({
         user: req.locals.auth?.userId as string,
       });

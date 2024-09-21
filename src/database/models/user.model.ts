@@ -182,6 +182,8 @@ const userModel: Schema = new Schema(
     accountAuthorized: { type: Boolean, default: false },
     stripeConnectAccountRequirementsDue: {
       disabledReason: { type: String, default: null },
+      payoutEnabled: { type: Boolean, default: false },
+      chargesEnabled: { type: Boolean, default: false },
       currentlyDue: { type: [String], default: [] },
       eventuallyDue: { type: [String], default: [] },
       pastDue: { type: [String], default: [] },

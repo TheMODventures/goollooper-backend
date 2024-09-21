@@ -283,12 +283,9 @@ class StripeHelper {
     accountId: string
   ): Promise<Stripe.Response<Stripe.AccountSession>> {
     return await stripe.accountSessions.create({
-      account: accountId, // Replace with your connected account ID
+      account: accountId,
       components: {
         payment_details: {
-          enabled: true,
-        },
-        documents: {
           enabled: true,
         },
         payments: {
@@ -308,6 +305,9 @@ class StripeHelper {
           },
         },
         account_onboarding: {
+          enabled: true,
+        },
+        documents: {
           enabled: true,
         },
       },
