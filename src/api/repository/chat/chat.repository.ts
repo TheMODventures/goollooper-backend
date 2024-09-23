@@ -66,6 +66,8 @@ import {
   ITransaction,
   ITransactionDoc,
 } from "../../../database/interfaces/transaction.interface";
+import { WorkerRepository } from "../worker/worker.repository";
+import { IWorker } from "../../../database/interfaces/worker.interface";
 export class ChatRepository
   extends BaseRepository<IChat, IChatDoc>
   implements IChatRepository
@@ -77,6 +79,7 @@ export class ChatRepository
   private calendarRepository: CalendarRepository;
   private walletRepository: WalletRepository;
   private transactionRepository: TransactionRepository;
+  private workerRepository: WorkerRepository;
   protected app: Application;
 
   constructor(io?: Server) {
@@ -89,6 +92,7 @@ export class ChatRepository
     this.walletRepository = new WalletRepository();
     this.notificationService = new NotificationService();
     this.transactionRepository = new TransactionRepository();
+    this.workerRepository = new WorkerRepository();
   }
 
   deleteChat = async (chatId: string) => {
@@ -765,7 +769,6 @@ export class ChatRepository
               return { ...sp, status: 4 }; // Move from standby (3) to active (4)
             }
 
-            // Return the service provider unchanged if no conditions match
             return sp;
           });
           console.log("🚀 break_point 3", dataset);
@@ -1174,15 +1177,25 @@ export class ChatRepository
           msg.type = MessageType.addWorkers;
           msg.body = "Workers Added";
 
-          const workers = dataset.workers;
+          const { workers } = dataset;
+
+          // Early return for validation error
           if (!Array.isArray(workers) || workers.length === 0) {
             return this.io?.emit("error", { error: "Workers are required" });
           }
 
-          const findChat = await this.updateById<IChat>(chatId, {
+          // Update the chat with new workers
+          await this.updateById<IChat>(chatId, {
             $addToSet: { workers: { $each: workers } },
           });
 
+          // Fetch details of the workers added
+          const workerDetails = await this.workerRepository.getAll<IWorker>({
+            _id: { $in: workers },
+          });
+
+          // Attach the worker details to the message
+          msg.workers = workerDetails;
           break;
         case "12":
           msg.type = MessageType.removeWorkers;

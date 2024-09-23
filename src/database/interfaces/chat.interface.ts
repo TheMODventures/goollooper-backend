@@ -6,6 +6,7 @@ import {
   Request,
   RequestStatus,
 } from "./enums";
+import { IWorker } from "./worker.interface";
 
 export interface IReceivedBy {
   user: string | Types.ObjectId;
@@ -25,6 +26,7 @@ export interface IMessage {
   receivedBy?: IReceivedBy[];
   requestId?: string | Types.ObjectId;
   deleted?: boolean;
+  workers?: IWorker[];
   deletedAt?: Date;
 }
 
