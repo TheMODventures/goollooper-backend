@@ -12,12 +12,16 @@ import {
 } from "../../database/interfaces/rating.interface";
 import { ResponseHelper } from "../helpers/reponseapi.helper";
 import { RatingRepository } from "../repository/rating/rating.repository";
+import { UserRepository } from "../repository/user/user.repository";
+import { IUser } from "../../database/interfaces/user.interface";
 
 class RatingService {
   private ratingRepository: RatingRepository;
+  private userRepository: UserRepository;
 
   constructor() {
     this.ratingRepository = new RatingRepository();
+    this.userRepository = new UserRepository();
   }
 
   index = async (
@@ -50,9 +54,23 @@ class RatingService {
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   };
-
   create = async (payload: IRating): Promise<ApiResponse> => {
     try {
+      const user = await this.userRepository.getById<IUser>(
+        payload.to as string
+      );
+      if (!user) return ResponseHelper.sendResponse(404, "User not found");
+
+      const updatedRatingCount = user.ratingCount + 1;
+      const updatedAverageRating =
+        (user.averageRating * user.ratingCount + payload.star) /
+        updatedRatingCount;
+
+      await this.userRepository.updateById(user._id as string, {
+        averageRating: updatedAverageRating,
+        ratingCount: updatedRatingCount,
+      });
+
       const data = await this.ratingRepository.create<IRating>(payload);
       return ResponseHelper.sendResponse(201, data);
     } catch (error) {
@@ -62,16 +80,49 @@ class RatingService {
 
   createMultiple = async (payload: RatingPayload): Promise<ApiResponse> => {
     try {
-      const reviews = payload.to.map((e) => {
-        return {
-          star: payload.star,
-          description: payload.description || null,
-          by: payload.by,
-          to: e,
-          task: payload.task,
-        } as IRating;
-      });
+      const reviews: IRating[] = [];
+      const userUpdates: {
+        userId: string;
+        updateData: { averageRating: number; ratingCount: number };
+      }[] = [];
+
+      await Promise.all(
+        payload.to.map(async (userId) => {
+          userId = userId.toString();
+          const user = await this.userRepository.getById<IUser>(userId);
+          if (!user) return;
+
+          const updatedRatingCount = user.ratingCount + 1;
+          const updatedAverageRating =
+            (user.averageRating * user.ratingCount + payload.star) /
+            updatedRatingCount;
+
+          userUpdates.push({
+            userId: user._id as string,
+            updateData: {
+              averageRating: updatedAverageRating,
+              ratingCount: updatedRatingCount,
+            },
+          });
+
+          reviews.push({
+            star: payload.star,
+            description: payload.description || "",
+            by: payload.by,
+            to: userId,
+            task: payload.task,
+          } as IRating);
+        })
+      );
+
       const data = await this.ratingRepository.createMany<IRating>(reviews);
+
+      await Promise.all(
+        userUpdates.map(({ userId, updateData }) =>
+          this.userRepository.updateById(userId, updateData)
+        )
+      );
+
       return ResponseHelper.sendResponse(201, data);
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);
