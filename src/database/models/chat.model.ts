@@ -116,6 +116,13 @@ const chatSchema = new Schema(
           type: Schema.Types.ObjectId,
           default: null,
         },
+        workers: [
+          {
+            type: Schema.Types.ObjectId,
+            ref: "Worker",
+            default: [],
+          },
+        ],
         ...deleteFields,
       },
     ],
