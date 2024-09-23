@@ -1038,11 +1038,11 @@ export class ChatRepository
 
         case "9":
           msg.type = MessageType.bill;
-          msg.body = "Bill";
 
-          if (!dataset.amount) {
+          if (!dataset.amount)
             return this.io?.emit(`error`, { error: "Amount is required" });
-          }
+
+          msg.body = dataset.amount;
 
           const task = await this.taskRepository.getById<ITask>(chat?.task);
           if (!task) {
