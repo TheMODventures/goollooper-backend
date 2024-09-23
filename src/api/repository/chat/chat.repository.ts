@@ -549,17 +549,12 @@ export class ChatRepository
       },
       {
         $lookup: {
-          from: "workers", // Lookup for message workers details
+          from: "workers",
           localField: "messages.workers",
           foreignField: "_id",
           as: "messages.workers",
         },
       },
-      // {
-      //   $addFields: {
-      //     "messages.workersDetails": "$messages.workers", // Add workers details to messages
-      //   },
-      // },
       {
         $lookup: {
           from: "tasks",
@@ -820,6 +815,7 @@ export class ChatRepository
           await this.updateById<IChat>(chat._id, {
             participants: updatedParticipants,
             requests: [],
+            messages: [],
           });
           break;
 
@@ -1047,7 +1043,6 @@ export class ChatRepository
         case "8":
           msg.type = MessageType.reschedule;
           msg.body = "Task Rescheduled";
-          console.log("🚀 CASE 8", dataset);
           break;
 
         case "9":
