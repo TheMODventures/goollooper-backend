@@ -580,7 +580,7 @@ class StripeService {
       // Step 4: Check if there are any outstanding requirements for the Stripe Connect account
       const requirements = user.stripeConnectAccountRequirementsDue;
 
-      if (requirements.currentlyDue.length > 0) {
+      if (requirements?.currentlyDue?.length > 0) {
         return ResponseHelper.sendResponse(
           400,
           `Account requirements currently due: ${requirements.currentlyDue.join(
@@ -589,7 +589,7 @@ class StripeService {
         );
       }
 
-      if (requirements.pastDue.length > 0) {
+      if (requirements?.pastDue?.length > 0) {
         return ResponseHelper.sendResponse(
           400,
           `Account requirements past due: ${requirements.pastDue.join(", ")}`
