@@ -549,6 +549,19 @@ export class ChatRepository
       },
       {
         $lookup: {
+          from: "workers", // Lookup for message workers details
+          localField: "messages.workers",
+          foreignField: "_id",
+          as: "messages.workers",
+        },
+      },
+      // {
+      //   $addFields: {
+      //     "messages.workersDetails": "$messages.workers", // Add workers details to messages
+      //   },
+      // },
+      {
+        $lookup: {
           from: "tasks",
           localField: "task",
           foreignField: "_id",
@@ -562,8 +575,6 @@ export class ChatRepository
           messages: { $push: "$messages" },
           requests: { $first: "$requests" },
           task: { $first: "$task" },
-          // totalCount: { $sum: 1 }, // Calculate the total count of messages in the chat
-          // unReadCount: { $sum: "$unReadCount" }, // Calculate the total count of unread messages in the chat
         },
       },
     ]);
