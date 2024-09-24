@@ -162,8 +162,8 @@ export enum EGUIDELINE {
 }
 
 export enum ECALLDEVICETYPE {
-  ios,
-  android,
+  ios = "ios",
+  android = "android",
 }
 
 export enum TransactionType {
