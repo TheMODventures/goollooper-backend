@@ -2618,100 +2618,106 @@ export class ChatRepository
           calleeID?.forEach((calleeID: string) => {
             this.userRepository.getCallToken(calleeID).then(async (v: any) => {
               if (v) {
-                this.userRepository.getById(userId).then(() => {
-                  console.log(v.callDeviceType); // Log actual value
-                  console.log(ECALLDEVICETYPE.ios); // Log enum value
-                  console.log(
-                    typeof v.callDeviceType,
-                    typeof ECALLDEVICETYPE.ios
-                  ); // Log types
-                  if (v.callDeviceType === ECALLDEVICETYPE.ios) {
-                    console.log("IOS DEVICE IF WORKING");
-                    const callerInfo = {
-                      chatId: req.query.channelName,
-                      title:
-                        chat?.chatType === EChatType.GROUP
-                          ? chat?.groupName
-                          : v.firstName + " " + v.lastName,
-                      isGroup: req.body?.isGroup ? true : false,
-                      participants: req.body?.participants,
-                    };
-                    const info = JSON.stringify({
-                      callerInfo,
-                      videoSDKInfo: {},
-                      type: "CALL_INITIATED",
-                    });
+                this.userRepository
+                  .getById(userId)
+                  .then(({ firstName, lastName }: any) => {
+                    console.log(v.callDeviceType); // Log actual value
+                    console.log(ECALLDEVICETYPE.ios); // Log enum value
+                    console.log(
+                      typeof v.callDeviceType,
+                      typeof ECALLDEVICETYPE.ios
+                    ); // Log types
+                    if (v.callDeviceType === ECALLDEVICETYPE.ios) {
+                      console.log("IOS DEVICE IF WORKING");
+                      console.log("V", v);
 
-                    // let deviceToken = calleeInfo.APN;
-                    // TODO: change environement i.e: production or debug
-                    const options: any = {
-                      token: {
-                        key: config.key,
-                        keyId: IOS_KEY_ID,
-                        teamId: IOS_TEAM_ID,
-                      },
-                      production: false,
-                    };
-
-                    var apnProvider = new apn.Provider({
-                      ...options,
-                    } as any);
-
-                    var note = new apn.Notification();
-
-                    note.expiry = Math.floor(Date.now() / 1000) + 3600; // Expires 1 hour from now.
-                    note.badge = 1;
-                    note.sound = "ping.aiff";
-                    note.alert = "You have a new message";
-                    note.rawPayload = {
-                      callerName: callerInfo?.title ?? "hello",
-                      aps: {
-                        "content-available": 1,
-                      },
-                      handle: callerInfo?.title ?? "hello",
-                      callerInfo,
-                      videoSDKInfo,
-                      data: { info, type: "CALL_INITIATED" },
-                      type: "CALL_INITIATED",
-                      uuid: v4(),
-                    };
-                    note.pushType = "voip";
-                    note.topic = "com.app.goollooper.voip";
-
-                    console.log("CALL TOKEN", v.callToken);
-                    console.log("NOTE", note);
-
-                    apnProvider.send(note, v.callToken).then((result: any) => {
-                      console.log("RESULT", JSON.stringify(result));
-                      if (result.failed && result.failed.length > 0) {
-                        console.log("FAILED", result.failed);
-                      }
-                    });
-                  } else {
-                    const info = JSON.stringify({
-                      callerInfo: {
+                      const callerInfo = {
                         chatId: req.query.channelName,
                         title:
                           chat?.chatType === EChatType.GROUP
                             ? chat?.groupName
-                            : v.firstName + " " + v.lastName,
+                            : firstName + " " + lastName,
                         isGroup: req.body?.isGroup ? true : false,
                         participants: req.body?.participants,
-                      },
-                      videoSDKInfo: {},
-                      type: "CALL_INITIATED",
-                    });
-                    const message = {
-                      data: { info },
-                      android: { priority: "high" },
-                      registration_ids: [v.callToken],
-                    };
-                    NotificationHelper.sendNotification({
-                      data: message.data,
-                      tokens: message.registration_ids,
-                    } as PushNotification);
-                  }
-                });
+                      };
+                      const info = JSON.stringify({
+                        callerInfo,
+                        videoSDKInfo: {},
+                        type: "CALL_INITIATED",
+                      });
+
+                      // let deviceToken = calleeInfo.APN;
+                      // TODO: change environement i.e: production or debug
+                      const options: any = {
+                        token: {
+                          key: config.key,
+                          keyId: IOS_KEY_ID,
+                          teamId: IOS_TEAM_ID,
+                        },
+                        production: false,
+                      };
+
+                      var apnProvider = new apn.Provider({
+                        ...options,
+                      } as any);
+
+                      var note = new apn.Notification();
+
+                      note.expiry = Math.floor(Date.now() / 1000) + 3600; // Expires 1 hour from now.
+                      note.badge = 1;
+                      note.sound = "ping.aiff";
+                      note.alert = "You have a new message";
+                      note.rawPayload = {
+                        callerName: callerInfo?.title ?? "hello",
+                        aps: {
+                          "content-available": 1,
+                        },
+                        handle: callerInfo?.title ?? "hello",
+                        callerInfo,
+                        videoSDKInfo,
+                        data: { info, type: "CALL_INITIATED" },
+                        type: "CALL_INITIATED",
+                        uuid: v4(),
+                      };
+                      note.pushType = "voip";
+                      note.topic = "com.app.goollooper.voip";
+
+                      console.log("CALL TOKEN", v.callToken);
+                      console.log("NOTE", note);
+
+                      apnProvider
+                        .send(note, v.callToken)
+                        .then((result: any) => {
+                          console.log("RESULT", JSON.stringify(result));
+                          if (result.failed && result.failed.length > 0) {
+                            console.log("FAILED", result.failed);
+                          }
+                        });
+                    } else {
+                      const info = JSON.stringify({
+                        callerInfo: {
+                          chatId: req.query.channelName,
+                          title:
+                            chat?.chatType === EChatType.GROUP
+                              ? chat?.groupName
+                              : v.firstName + " " + v.lastName,
+                          isGroup: req.body?.isGroup ? true : false,
+                          participants: req.body?.participants,
+                        },
+                        videoSDKInfo: {},
+                        type: "CALL_INITIATED",
+                      });
+                      const message = {
+                        data: { info },
+                        android: { priority: "high" },
+                        registration_ids: [v.callToken],
+                      };
+                      NotificationHelper.sendNotification({
+                        data: message.data,
+                        tokens: message.registration_ids,
+                      } as PushNotification);
+                    }
+                  });
               }
             });
           });
