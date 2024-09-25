@@ -4,13 +4,7 @@ import { Server } from "socket.io";
 import { RtcRole, RtcTokenBuilder } from "agora-access-token";
 import { v4 } from "uuid";
 import express, { Application, Request } from "express";
-// import file from '../../helpers/''
-const path = require("path");
-
-const config = {
-  key: path.resolve(__dirname, "../../../../AuthKey_KPDRMQKZUB.p8"), // Adjust as needed
-  // other config options
-};
+import path from "path";
 
 import * as apn from "@parse/node-apn";
 import {
@@ -74,6 +68,9 @@ import {
   ITransaction,
   ITransactionDoc,
 } from "../../../database/interfaces/transaction.interface";
+const config = {
+  key: path.resolve(__dirname, "../../../../AuthKey_KPDRMQKZUB.p8"),
+};
 import { WorkerRepository } from "../worker/worker.repository";
 import { IWorker } from "../../../database/interfaces/worker.interface";
 export class ChatRepository

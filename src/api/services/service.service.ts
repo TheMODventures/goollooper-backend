@@ -28,9 +28,11 @@ class ServiceService {
       const keyWords = search.split(" ").filter(Boolean);
       const pipeline: PipelineStage[] = [];
 
+      // Match non-deleted main categories
       pipeline.push({ $match: { isDeleted: false } });
       pipeline.push({ $match: { parent: null } });
 
+      // Lookup subCategories from the same collection
       pipeline.push({
         $lookup: {
           from: "services",
@@ -40,12 +42,14 @@ class ServiceService {
         },
       });
 
+      // Add 'hasSubCategory' field based on the size of subCategories array
       pipeline.push({
         $addFields: {
           hasSubCategory: { $gt: [{ $size: "$subCategories" }, 0] },
         },
       });
 
+      // Match subCategories based on the search keywords
       if (keyWords.length > 0) {
         pipeline.push({
           $match: {
@@ -58,15 +62,31 @@ class ServiceService {
         });
       }
 
+      // Project necessary fields for both main and subcategories
       pipeline.push({
         $project: {
-          subCategories: 1,
+          "subCategories._id": 1,
+          "subCategories.title": 1,
+          "subCategories.hasSubCategory": 1,
+          "subCategories.parent": 1,
           title: 1,
+          industry: 1,
           description: 1,
           hasSubCategory: 1,
         },
       });
 
+      // Perform a lookup to get industry details for the main category
+      pipeline.push({
+        $lookup: {
+          from: "industries", // The collection to perform lookup from
+          localField: "industry", // Main category industry field
+          foreignField: "_id", // Industry document _id field
+          as: "industry", // Alias the lookup result as 'industry'
+        },
+      });
+
+      // Fetch the paginated response from the repository
       const response =
         await this.serviceRepository.getAllWithAggregatePagination<IService>(
           pipeline,
