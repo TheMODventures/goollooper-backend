@@ -28,9 +28,10 @@ class ServiceService {
       const keyWords = search.split(" ").filter(Boolean);
       const pipeline: PipelineStage[] = [];
 
-      pipeline.push({ $match: { isDeleted: false } });
-      pipeline.push({ $match: { parent: null } });
+      // Step 1: Match active services that are main categories (no parent)
+      pipeline.push({ $match: { isDeleted: false, parent: null } });
 
+      // Step 2: Lookup for subcategories based on the parent field
       pipeline.push({
         $lookup: {
           from: "services",
@@ -40,12 +41,14 @@ class ServiceService {
         },
       });
 
+      // Step 3: Add hasSubCategory field based on the size of subCategories
       pipeline.push({
         $addFields: {
           hasSubCategory: { $gt: [{ $size: "$subCategories" }, 0] },
         },
       });
 
+      // Step 4: Filter by keywords if provided
       if (keyWords.length > 0) {
         pipeline.push({
           $match: {
@@ -58,34 +61,68 @@ class ServiceService {
         });
       }
 
+      // Step 5: Lookup industry and get only the name
+      pipeline.push({
+        $lookup: {
+          from: "industries", // From industries collection
+          localField: "industry", // Match localField industry in services
+          foreignField: "_id", // With _id in industries
+          as: "industry", // Alias as industry
+        },
+      });
+
+      // Step 6: Unwind the industry array
+      pipeline.push({
+        $unwind: {
+          path: "$industry",
+          preserveNullAndEmptyArrays: true, // Allow null if no industry is found
+        },
+      });
+
+      // Step 7: Project only required fields
       pipeline.push({
         $project: {
+          title: 1,
+          description: 1,
+          "subCategories._id": 1,
           "subCategories.title": 1,
           "subCategories.type": 1,
           "subCategories.parent": 1,
-          title: 1,
-          industry: 1,
-          description: 1,
+          // "subCategories.keyWords": 1,
+          industry: "$industry.name", // Only project the industry name
           hasSubCategory: 1,
         },
       });
 
+      // Step 8: Group by industry and aggregate categories under each industry
       pipeline.push({
-        $lookup: {
-          from: "industries", // Use the plural, lowercase collection name
-          localField: "industry", // The industry field in the services collection
-          foreignField: "_id", // The _id field in the industries collection
-          as: "industry", // The alias for the result
+        $group: {
+          _id: "$industry", // Group by industry name
+          industry: { $first: "$industry" }, // Get the first industry name for each group
+          categories: {
+            $push: {
+              _id: "$_id", // The main category ID
+              category: "$title", // Main category title
+              subCategories: "$subCategories", // Nested subcategories
+              hasSubCategory: "$hasSubCategory", // Boolean to indicate if subcategories exist
+            },
+          },
         },
       });
 
+      // Step 9: Sort by industry name
+      pipeline.push({
+        $sort: { industry: 1 },
+      });
+
+      // Final response with pagination
       const response =
         await this.serviceRepository.getAllWithAggregatePagination<IService>(
           pipeline,
           "",
           "",
           {
-            title: "asc",
+            industry: "asc", // Sort by industry name in ascending order
           },
           undefined,
           true,
