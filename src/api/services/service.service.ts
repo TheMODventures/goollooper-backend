@@ -28,24 +28,8 @@ class ServiceService {
       const keyWords = search.split(" ").filter(Boolean);
       const pipeline: PipelineStage[] = [];
 
-      // Determine whether to filter by parent or not
       pipeline.push({ $match: { isDeleted: false } });
-      if (parent) {
-        // If a parent ID is provided, fetch only the subcategories for that parent
-        pipeline.push({
-          $match: { parent: new mongoose.Types.ObjectId(parent) },
-        });
-      } else {
-        pipeline.push({ $match: { parent: null } });
-
-        if (keyWords.length > 0) {
-          pipeline.push({
-            $match: {
-              keyWords: { $in: keyWords },
-            },
-          });
-        }
-      }
+      pipeline.push({ $match: { parent: null } });
 
       pipeline.push({
         $lookup: {
@@ -62,9 +46,24 @@ class ServiceService {
         },
       });
 
+      if (keyWords.length > 0) {
+        pipeline.push({
+          $match: {
+            subCategories: {
+              $elemMatch: {
+                keyWords: { $in: keyWords },
+              },
+            },
+          },
+        });
+      }
+
       pipeline.push({
         $project: {
-          subCategories: 0,
+          subCategories: 1,
+          title: 1,
+          description: 1,
+          hasSubCategory: 1,
         },
       });
 

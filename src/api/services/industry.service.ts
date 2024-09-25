@@ -1,7 +1,10 @@
 import { ResponseHelper } from "../helpers/reponseapi.helper";
 import { IIndustry } from "../../database/interfaces/industry.interface";
 import { IndustryRepository } from "../repository/industry/industry.repository";
-import { SUCCESS_DATA_DELETION_PASSED } from "../../constant";
+import {
+  SUCCESS_DATA_DELETION_PASSED,
+  SUCCESS_DATA_LIST_PASSED,
+} from "../../constant";
 
 class IndustryService {
   private industryRepository: IndustryRepository;
@@ -16,7 +19,10 @@ class IndustryService {
       if (industries.length == 0) {
         return ResponseHelper.sendResponse(404, "No industries found");
       }
-      return ResponseHelper.sendResponse(200, industries);
+      return ResponseHelper.sendSuccessResponse(
+        SUCCESS_DATA_LIST_PASSED,
+        industries
+      );
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
