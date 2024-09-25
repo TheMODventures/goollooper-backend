@@ -76,13 +76,12 @@ class ServiceService {
         },
       });
 
-      // Perform a lookup to get industry details for the main category
       pipeline.push({
         $lookup: {
-          from: "industries", // The collection to perform lookup from
-          localField: "industry", // Main category industry field
-          foreignField: "_id", // Industry document _id field
-          as: "industry", // Alias the lookup result as 'industry'
+          from: "industries",
+          localField: "industry",
+          foreignField: "_id",
+          as: "industry",
         },
       });
 
