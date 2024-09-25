@@ -28,11 +28,9 @@ class ServiceService {
       const keyWords = search.split(" ").filter(Boolean);
       const pipeline: PipelineStage[] = [];
 
-      // Match non-deleted main categories
       pipeline.push({ $match: { isDeleted: false } });
       pipeline.push({ $match: { parent: null } });
 
-      // Lookup subCategories from the same collection
       pipeline.push({
         $lookup: {
           from: "services",
@@ -42,14 +40,12 @@ class ServiceService {
         },
       });
 
-      // Add 'hasSubCategory' field based on the size of subCategories array
       pipeline.push({
         $addFields: {
           hasSubCategory: { $gt: [{ $size: "$subCategories" }, 0] },
         },
       });
 
-      // Match subCategories based on the search keywords
       if (keyWords.length > 0) {
         pipeline.push({
           $match: {
@@ -62,12 +58,10 @@ class ServiceService {
         });
       }
 
-      // Project necessary fields for both main and subcategories
       pipeline.push({
         $project: {
-          "subCategories._id": 1,
           "subCategories.title": 1,
-          "subCategories.hasSubCategory": 1,
+          "subCategories.type": 1,
           "subCategories.parent": 1,
           title: 1,
           industry: 1,
@@ -78,14 +72,13 @@ class ServiceService {
 
       pipeline.push({
         $lookup: {
-          from: "industries",
-          localField: "industry",
-          foreignField: "_id",
-          as: "industry",
+          from: "industries", // Use the plural, lowercase collection name
+          localField: "industry", // The industry field in the services collection
+          foreignField: "_id", // The _id field in the industries collection
+          as: "industry", // The alias for the result
         },
       });
 
-      // Fetch the paginated response from the repository
       const response =
         await this.serviceRepository.getAllWithAggregatePagination<IService>(
           pipeline,
