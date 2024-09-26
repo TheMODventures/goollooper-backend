@@ -150,83 +150,14 @@ class ServiceService {
 
   show = async (_id: string): Promise<ApiResponse> => {
     try {
-      const query: PipelineStage[] = [
-        { $match: { _id: new mongoose.Types.ObjectId(_id) } },
-        {
-          $lookup: {
-            from: "services",
-            localField: "_id",
-            foreignField: "parent",
-            as: "subServices",
-          },
-        },
-        {
-          $addFields: {
-            subServices: {
-              $filter: {
-                input: "$subServices",
-                as: "child",
-                cond: { $ne: ["$$child._id", "$_id"] },
-              },
-            },
-          },
-        },
-        {
-          $unwind: {
-            path: "$subServices",
-            preserveNullAndEmptyArrays: true,
-          },
-        },
-        {
-          $group: {
-            _id: "$_id",
-            title: { $first: "$title" },
-            type: { $first: "$type" },
-            subServices: { $push: "$subServices" },
-            matchedServices: {
-              $addToSet: {
-                $cond: {
-                  if: { $ne: ["$_id", "$subServices._id"] },
-                  then: "$_id",
-                  else: null,
-                },
-              },
-            },
-          },
-        },
-        {
-          $unwind: "$matchedServices",
-        },
-        {
-          $match: {
-            matchedServices: { $ne: null },
-          },
-        },
-        {
-          $project: {
-            title: 1,
-            type: 1,
-            subServices: {
-              $map: {
-                input: "$subServices",
-                as: "child",
-                in: {
-                  _id: "$$child._id",
-                  title: "$$child.title",
-                  parent: "$$child.parent",
-                },
-              },
-            },
-          },
-        },
-      ];
-      const response = await this.serviceRepository.getDataByAggregate(query);
-      if (!response.length) {
-        return ResponseHelper.sendResponse(404);
-      }
+      const response = await this.serviceRepository.getAll<IService>({
+        parent: _id,
+      });
+      if (response === null) return ResponseHelper.sendResponse(404);
+
       return ResponseHelper.sendSuccessResponse(
         SUCCESS_DATA_SHOW_PASSED,
-        response[0] as any
+        response
       );
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);
