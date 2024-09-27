@@ -2,6 +2,7 @@ import { Moment } from "moment";
 import mongoose, { Document } from "mongoose";
 
 import { Days, EUserLocationType, EUserRole } from "./enums";
+import { IService } from "./service.interface";
 
 interface Location {
   type: string;
@@ -47,7 +48,7 @@ export interface IUser {
   about?: string;
   role: EUserRole;
   volunteer?: string[];
-  services?: string[];
+  services?: string[] | IService[];
   subscription?: {
     subscription: string;
     plan: string;
@@ -100,6 +101,7 @@ export interface IUser {
   stripeCustomerId?: string;
   stripeConnectId?: string;
   accountAuthorized?: boolean;
+  allServices: IService[];
   stripeConnectAccountRequirementsDue: {
     pastDue: string[];
     currentlyDue: string[];

@@ -23,6 +23,7 @@ import { UploadHelper } from "../helpers/upload.helper";
 import TokenService from "./token.service";
 import { stripeHelper } from "../helpers/stripe.helper";
 import { RatingRepository } from "../repository/rating/rating.repository";
+import { IService } from "../../database/interfaces/service.interface";
 
 class UserService {
   private userRepository: UserRepository;
@@ -138,32 +139,132 @@ class UserService {
 
   show = async (_id: string): Promise<ApiResponse> => {
     try {
-      const filter: FilterQuery<IUser> = {
-        _id: _id,
-        isDeleted: false,
-        $or: [
-          { role: EUserRole.user },
-          { role: EUserRole.serviceProvider },
-          { role: EUserRole.subAdmin },
-        ],
-      };
-      const response = await this.userRepository.getOne<IUser>(filter, "", "", [
-        {
-          path: "volunteer",
-          model: "Service",
-          select: "title type parent",
+      const pipeline: PipelineStage[] = [];
+
+      pipeline.push({
+        $match: { isDeleted: false, _id: new mongoose.Types.ObjectId(_id) },
+      });
+
+      pipeline.push({
+        $lookup: {
+          from: "services",
+          localField: "services",
+          foreignField: "_id",
+          as: "services",
         },
-        {
-          path: "services",
-          model: "Service",
-          select: "title type parent",
+      });
+
+      pipeline.push({
+        $graphLookup: {
+          from: "services",
+          startWith: "$services._id",
+          connectFromField: "parent",
+          connectToField: "_id",
+          as: "services",
+          maxDepth: 10,
+          depthField: "level",
         },
+      });
+
+      pipeline.push({
+        $addFields: {
+          services: {
+            $map: {
+              input: "$services",
+              as: "service",
+              in: {
+                _id: "$$service._id",
+                title: "$$service.title",
+                parent: "$$service.parent",
+                level: "$$service.level",
+                isSelected: { $in: ["$$service._id", "$services"] }, // Check if selected
+
+                hasSubCategory: {
+                  $cond: {
+                    if: {
+                      $gt: [
+                        { $size: { $ifNull: ["$$service.subCategories", []] } },
+                        0,
+                      ],
+                    },
+                    then: true,
+                    else: false,
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+
+      pipeline.push({
+        $addFields: {
+          services: {
+            $map: {
+              input: "$services",
+              as: "service",
+              in: {
+                _id: "$$service._id",
+                title: "$$service.title",
+                parent: "$$service.parent",
+                level: "$$service.level",
+                isSelected: { $in: ["$$service._id", "$services"] },
+
+                subCategories: {
+                  $filter: {
+                    input: "$services",
+                    as: "subService",
+                    cond: { $eq: ["$$subService.parent", "$$service._id"] },
+                  },
+                },
+
+                hasSubCategory: {
+                  $gt: [
+                    {
+                      $size: {
+                        $ifNull: [
+                          {
+                            $filter: {
+                              input: "$services",
+                              as: "subService",
+                              cond: {
+                                $eq: ["$$subService.parent", "$$service._id"],
+                              },
+                            },
+                          },
+                          [],
+                        ],
+                      },
+                    },
+                    0,
+                  ],
+                },
+              },
+            },
+          },
+        },
+      });
+
+      pipeline.push({
+        $project: {
+          authProvider: 0,
+          password: 0,
+          "services.keyWords": 0,
+          "services.__v": 0,
+        },
+      });
+
+      const response = await this.userRepository.getDataByAggregate<IUser>([
+        ...pipeline,
       ]);
 
       if (response === null) {
         return ResponseHelper.sendResponse(404);
       }
 
+      const service = this.buildServiceTree(response[0].services as IService[]);
+      if (Array.isArray(service) && service.length > 0)
+        response[0].services = service;
       const schedules = await this.scheduleRepository.getAll({
         user: _id,
         isDeleted: false,
@@ -182,7 +283,7 @@ class UserService {
         1,
         2
       );
-      const res = { ...response, schedule: schedules, rating: rating };
+      const res = { response, schedules, rating };
       return ResponseHelper.sendSuccessResponse(SUCCESS_DATA_SHOW_PASSED, res);
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);
@@ -202,107 +303,9 @@ class UserService {
       });
 
       dataset.company = { ...userResponse?.company, ...dataset.company };
-      // if (req && _.isArray(req.files)) {
-      //   if (
-      //     req.files.length &&
-      //     req.files?.find((file) => file.fieldname === "profileImage")
-      //   ) {
-      //     const image = req.files?.filter(
-      //       (file) => file.fieldname === "profileImage"
-      //     );
-      //     let path = await this.uploadHelper.uploadFileFromBuffer(image);
-      //     dataset.profileImage = path[0];
-      //   }
 
-      //   if (
-      //     req.files.length &&
-      //     req.files?.find((file) => file.fieldname === "gallery")
-      //   ) {
-      //     const image = req.files?.filter(
-      //       (file) => file.fieldname === "gallery"
-      //     );
-      //     let path: any = await this.uploadHelper.uploadFileFromBuffer(image);
-      //     body.galleryImages?.push(...path);
-      //     dataset.gallery = body.galleryImages || path;
-      //   }
-
-      //   if (
-      //     req.files.length &&
-      //     req.files?.find((file) => file.fieldname === "visuals")
-      //   ) {
-      //     const image = req.files?.filter(
-      //       (file) => file.fieldname === "visuals"
-      //     );
-      //     let path = await this.uploadHelper.uploadFileFromBuffer(image);
-      //     body.visualFiles?.push(...path);
-      //     dataset.visuals = body.visualFiles || path;
-      //   }
-
-      //   if (
-      //     req.files.length &&
-      //     req.files?.find((file) => file.fieldname === "companyLogo")
-      //   ) {
-      //     const image = req.files?.filter(
-      //       (file) => file.fieldname === "companyLogo"
-      //     );
-      //     let path = await this.uploadHelper.uploadFileFromBuffer(image);
-      //     dataset.company.logo = path[0];
-      //   }
-
-      //   if (
-      //     req.files.length &&
-      //     req.files?.find((file) => file.fieldname === "companyResume")
-      //   ) {
-      //     const image = req.files?.filter(
-      //       (file) => file.fieldname === "companyResume"
-      //     );
-      //     let path = await this.uploadHelper.uploadFileFromBuffer(image);
-      //     dataset.company.resume = path[0];
-      //   }
-
-      //   if (
-      //     req.files.length &&
-      //     req.files?.find((file) => file.fieldname === "certificates")
-      //   ) {
-      //     const image = req.files?.filter(
-      //       (file) => file.fieldname === "certificates"
-      //     );
-      //     let path = await this.uploadHelper.uploadFileFromBuffer(image);
-      //     body.certificateFiles?.push(...path);
-      //     dataset.certificates = body.certificateFiles || path;
-      //   }
-
-      //   if (
-      //     req.files.length &&
-      //     req.files?.find((file) => file.fieldname === "licenses")
-      //   ) {
-      //     const image = req.files?.filter(
-      //       (file) => file.fieldname === "licenses"
-      //     );
-      //     let path = await this.uploadHelper.uploadFileFromBuffer(image);
-      //     body.licenseFiles?.push(...path);
-      //     dataset.licenses = body.licenseFiles || path;
-      //   }
-
-      //   if (
-      //     req.files.length &&
-      //     req.files?.find((file) => file.fieldname === "insurances")
-      //   ) {
-      //     const image = req.files?.filter(
-      //       (file) => file.fieldname === "insurances"
-      //     );
-      //     let path = await this.uploadHelper.uploadFileFromBuffer(image);
-      //     body.insuranceFiles?.push(...path);
-      //     dataset.insurances = body.insuranceFiles || path;
-      //   }
-      // }
-      //
-
-      // file is now will be handling from the fe with media api
       let isBSL = false;
       if (dataset?.subscription?.subscription) {
-        // let response = await stripeHelper.subscriptions(dataset.subscription.subscription);
-        // console.log("response", response);
         let subscription = dataset.subscription.name;
         console.log("dataset.subscription", dataset.subscription);
         if (subscription) {
@@ -667,6 +670,41 @@ class UserService {
     );
   };
 
+  buildServiceTree = (services: IService[]): IService[] => {
+    const serviceMap: {
+      [key: string]: IService & { subCategories: IService[] };
+    } = {}; // A map to keep track of all services by _id
+
+    // Initialize the map with services and add a children array to each
+    services.forEach((service) => {
+      if (service._id) {
+        serviceMap[service._id.toString()] = { ...service, subCategories: [] };
+      }
+    });
+
+    const tree: IService[] = [];
+
+    // Loop over the services and build the tree
+    services.forEach((service) => {
+      if (service.parent) {
+        // If the service has a parent, push it to the parent's subCategories array
+        if (serviceMap[service.parent.toString()]) {
+          if (service._id) {
+            serviceMap[service.parent.toString()].subCategories.push(
+              serviceMap[service._id.toString()]
+            );
+          }
+        }
+      } else {
+        // If the service has no parent, it's a top-level service, so push it to the tree
+        if (service._id) {
+          tree.push(serviceMap[service._id.toString()]);
+        }
+      }
+    });
+
+    return tree; // The tree contains all the services in hierarchical order
+  };
   addSubAdmin = async (payload: IUser): Promise<ApiResponse> => {
     try {
       if (payload.phoneCode && payload.phone) {

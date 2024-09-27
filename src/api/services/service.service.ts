@@ -166,7 +166,6 @@ class ServiceService {
         },
       });
 
-      // Step 3: Add hasSubCategory field based on the size of subCategories
       query.push({
         $addFields: {
           hasSubCategory: { $gt: [{ $size: "$subCategories" }, 0] },

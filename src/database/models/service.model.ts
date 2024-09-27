@@ -35,6 +35,10 @@ serviceModel.pre("save", function (next) {
   next();
 });
 
+serviceModel.index(
+  { parent: 1 },
+  { partialFilterExpression: { parent: { $exists: true, $ne: null } } }
+);
 serviceModel.plugin(mongoosePaginate);
 serviceModel.plugin(aggregatePaginate);
 
