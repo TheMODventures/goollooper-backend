@@ -150,10 +150,53 @@ class ServiceService {
 
   show = async (_id: string): Promise<ApiResponse> => {
     try {
-      const response = await this.serviceRepository.getAll<IService>({
-        parent: _id,
+      const page = 1;
+      const limit = 10;
+      const query: PipelineStage[] = [];
+
+      query.push({ $match: { parent: new mongoose.Types.ObjectId(_id) } });
+      query.push({ $match: { isDeleted: false } });
+
+      query.push({
+        $lookup: {
+          from: "services",
+          localField: "_id",
+          foreignField: "parent",
+          as: "subCategories",
+        },
       });
-      if (response === null) return ResponseHelper.sendResponse(404);
+
+      // Step 3: Add hasSubCategory field based on the size of subCategories
+      query.push({
+        $addFields: {
+          hasSubCategory: { $gt: [{ $size: "$subCategories" }, 0] },
+        },
+      });
+
+      query.push({
+        $project: {
+          title: 1,
+          type: 1,
+          parent: 1,
+          industry: 1,
+          isDeleted: 1,
+          hasSubCategory: 1,
+        },
+      });
+
+      const response =
+        await this.serviceRepository.getAllWithAggregatePagination<IService>(
+          query,
+          "",
+          "",
+          {
+            industry: "asc",
+          },
+          undefined,
+          true,
+          page,
+          limit
+        );
 
       return ResponseHelper.sendSuccessResponse(
         SUCCESS_DATA_SHOW_PASSED,
