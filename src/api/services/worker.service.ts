@@ -43,7 +43,7 @@ export class WorkerService {
         return ResponseHelper.sendResponse(400, "Maximum worker limit reached");
       const worker = await this.workerRepository.create<IWorker>(payload);
       return ResponseHelper.sendSuccessResponse(
-        SUCCESS_DATA_INSERTION_PASSED,
+        "Worker created successfully",
         worker
       );
     } catch (error) {
@@ -64,7 +64,7 @@ export class WorkerService {
         return ResponseHelper.sendResponse(400, "Maximum worker limit reached");
       const workers = await this.workerRepository.createMany<IWorker>(payload);
       return ResponseHelper.sendSuccessResponse(
-        SUCCESS_DATA_INSERTION_PASSED,
+        "Workers created successfully",
         workers
       );
     } catch (error) {
@@ -84,7 +84,7 @@ export class WorkerService {
       );
       if (!worker) return ResponseHelper.sendResponse(404, "Worker not found");
       return ResponseHelper.sendSuccessResponse(
-        SUCCESS_DATA_UPDATION_PASSED,
+        `${worker.firstName} ${worker.lastName} updated successfully`,
         worker
       );
     } catch (error) {

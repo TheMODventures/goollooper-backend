@@ -5,7 +5,7 @@ export const SUCCESS_REGISTRATION_PASSED: string = "Registered Successfully!";
 export const SUCCESS_LOGIN_PASSED: string = "Logged In Successfully!";
 export const SUCCESS_LOGOUT_PASS: string = "Logged Out Successfully!";
 export const SUCCESS_OTP_VERIFICATION_PASSED: string =
-  "Otp Verifed Successfully!";
+  "Otp Verified Successfully!";
 export const SUCCESS_OTP_SEND_PASSED: string = "New Otp Sent Successfully!!";
 export const SUCCESS_DATA_INSERTION_PASSED: string =
   "Data Inserted Successfully!";
@@ -36,4 +36,4 @@ export const REQUEST_ADDED_FEE = 3.99; // this will be in USD
 export const STRIPE_FIXED = 0.3; // this will be in USD
 export const STRIPE_PERCENTAGE = 0.0029; // this will be in percentage
 export const STRIPE_INTERNATIONAL_PERCENTAGE = 0.0039; // this will be in percentage
-export const APPLICATION_FEE = 0.5; // this will be in USD
+export const APPLICATION_FEE = 0.3; // this will be in USD

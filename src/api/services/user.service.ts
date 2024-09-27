@@ -283,7 +283,12 @@ class UserService {
         1,
         2
       );
-      const res = { response, schedules, rating };
+
+      const res = {
+        ...response[0],
+        schedules,
+        rating,
+      };
       return ResponseHelper.sendSuccessResponse(SUCCESS_DATA_SHOW_PASSED, res);
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);
