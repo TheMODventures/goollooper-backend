@@ -151,7 +151,7 @@ class ServiceService {
   show = async (_id: string): Promise<ApiResponse> => {
     try {
       const page = 1;
-      const limit = 10;
+      const limit = 50;
       const query: PipelineStage[] = [];
 
       query.push({ $match: { parent: new mongoose.Types.ObjectId(_id) } });
