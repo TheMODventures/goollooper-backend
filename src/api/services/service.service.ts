@@ -29,13 +29,8 @@ class ServiceService {
       const keyWords = search.split(" ").filter(Boolean);
       const pipeline: PipelineStage[] = [];
 
-      // Step 1: Match active services that are main categories (no parent)
       pipeline.push({
-        $match: {
-          isDeleted: false,
-          parent: null,
-          type: filter.type || "service",
-        },
+        $match: { isDeleted: false, parent: null, type: filter.type },
       });
 
       // Step 2: Lookup for subcategories based on the parent field
@@ -90,37 +85,36 @@ class ServiceService {
       pipeline.push({
         $project: {
           title: 1,
-          description: 1,
+          industry: "$industry.name", // Only project the industry name
+          hasSubCategory: 1,
           "subCategories._id": 1,
           "subCategories.title": 1,
           "subCategories.type": 1,
           "subCategories.parent": 1,
           // "subCategories.keyWords": 1,
-          industry: "$industry.name", // Only project the industry name
-          hasSubCategory: 1,
         },
       });
 
-      if (filter.type == ServiceType.interest) {
-        pipeline.push({
-          $group: {
-            _id: "$industry", // Group by industry name
-            industry: { $first: "$industry" }, // Get the first industry name for each group
-            categories: {
-              $push: {
-                _id: "$_id", // The main category ID
-                category: "$title", // Main category title
-                subCategories: "$subCategories", // Nested subcategories
-                hasSubCategory: "$hasSubCategory", // Boolean to indicate if subcategories exist
-              },
+      // Step 8: Group by industry and aggregate categories under each industry
+      pipeline.push({
+        $group: {
+          _id: "$industry", // Group by industry name
+          industry: { $first: "$industry" }, // Get the first industry name for each group
+          categories: {
+            $push: {
+              _id: "$_id", // The main category ID
+              category: "$title", // Main category title
+              subCategories: "$subCategories", // Nested subcategories
+              hasSubCategory: "$hasSubCategory", // Boolean to indicate if subcategories exist
             },
           },
-        });
-        pipeline.push({
-          $sort: { industry: 1 },
-        });
-      }
+        },
+      });
 
+      // Step 9: Sort by industry name
+      pipeline.push({
+        $sort: { industry: 1 },
+      });
       // Final response with pagination
       const response =
         await this.serviceRepository.getAllWithAggregatePagination<IService>(
@@ -135,7 +129,7 @@ class ServiceService {
           page,
           limit
         );
-
+      console.log(response);
       return ResponseHelper.sendSuccessResponse(
         SUCCESS_DATA_LIST_PASSED,
         response
