@@ -155,6 +155,15 @@ class UserService {
       });
 
       pipeline.push({
+        $lookup: {
+          from: "services",
+          localField: "volunteer",
+          foreignField: "_id",
+          as: "volunteer",
+        },
+      });
+
+      pipeline.push({
         $graphLookup: {
           from: "services",
           startWith: "$services._id",

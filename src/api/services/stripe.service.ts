@@ -6,7 +6,7 @@ import { stripeHelper } from "../helpers/stripe.helper";
 import { IUser } from "../../database/interfaces/user.interface";
 import { DateHelper } from "../helpers/date.helper";
 import { APPLICATION_FEE } from "../../constant";
-import Stripe from "stripe";
+import { Stripe } from "stripe";
 import { WalletRepository } from "../repository/wallet/wallet.repository";
 import { TransactionRepository } from "../repository/transaction/transaction.repository";
 import {
@@ -15,28 +15,26 @@ import {
 } from "../../database/interfaces/transaction.interface";
 import {
   ETransactionStatus,
+  EUserRole,
   TransactionType,
 } from "../../database/interfaces/enums";
-import {
-  IWallet,
-  PaymentIntentType,
-} from "../../database/interfaces/wallet.interface";
+import { IWallet } from "../../database/interfaces/wallet.interface";
 import mongoose from "mongoose";
-import { NotificationRepository } from "../repository/notification/notification.repository";
-import NotificationService from "./notification.service";
+import TokenService from "./token.service";
 
 class StripeService {
   private userRepository: UserRepository;
   private walletRepository: WalletRepository;
-  private notificationRepository: NotificationRepository;
   private transactionRepository: TransactionRepository;
+  private tokenService: TokenService;
   private dateHelper: DateHelper;
 
   constructor() {
     this.userRepository = new UserRepository();
     this.walletRepository = new WalletRepository();
     this.transactionRepository = new TransactionRepository();
-    this.notificationRepository = new NotificationRepository();
+    this.tokenService = new TokenService();
+
     this.dateHelper = new DateHelper();
   }
 
@@ -330,18 +328,32 @@ class StripeService {
       // break
 
       case "customer.subscription.deleted":
-        console.log("Subscription deleted :", event.data.object);
-        const customer = event.data.object.customer as string;
-        await this.userRepository.updateByOne<IUser>(
-          { stripeCustomerId: customer },
-          {
-            subscription: {
-              subscribe: false,
-            },
-          }
-        );
+        console.log("Subscription deleted:", event.data.object);
 
-        this;
+        const customer = event.data.object.customer as string;
+        // Find the user first
+        const user = await this.userRepository.getOne<IUser>({
+          stripeCustomerId: customer,
+        });
+        console.log("USER FOUND", user);
+        if (user) {
+          // Log out the user
+          await this.tokenService.loggedOut(
+            user._id as string,
+            user?.refreshToken as string
+          );
+          // Update the user's role and subscription status
+          await this.userRepository.updateByOne<IUser>(
+            { stripeCustomerId: customer },
+            {
+              role: EUserRole.user,
+              subscription: {
+                subscribe: false,
+              },
+            }
+          );
+        }
+
         break;
 
       // case "invoice.upcoming":

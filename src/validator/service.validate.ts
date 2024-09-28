@@ -1,5 +1,6 @@
 import { isObjectIdOrHexString } from "mongoose";
 import * as yup from "yup";
+import { ServiceType } from "../database/interfaces/enums";
 
 const paramRule = {
   id: yup
@@ -42,7 +43,11 @@ const createRule = yup.object().shape({
       title: yup.string().required(),
       type: yup.string().required(),
       parent: yup.string().notRequired(),
-      industry: yup.string().required(),
+      industry: yup.string().when("type", {
+        is: ServiceType.interest,
+        then: (schema) => schema.required(),
+        otherwise: (schema) => schema.notRequired(),
+      }),
       keyWords: yup.array().of(yup.string()).notRequired(),
     })
     .noUnknown(),

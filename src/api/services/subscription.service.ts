@@ -102,7 +102,8 @@ class SubscriptionService {
     const session = await mongoose.startSession();
     try {
       session.startTransaction();
-      console.log("Received payload:", payload);
+
+      const dummyPrice = 1; // TODO remove this in production
 
       const [user, wallet] = await Promise.all([
         this.userRepository.getOne<IUser>({
@@ -123,14 +124,23 @@ class SubscriptionService {
         return ResponseHelper.sendResponse(404, "Wallet not found");
       }
 
-      if (wallet.balance < payload.price) {
+      if (wallet.balance < dummyPrice) {
+        // TODO remove this in production
         console.log(
-          `Insufficient balance for user ID: ${userId}. Balance: ${wallet.balance}, Required: ${payload.price}`
+          `Insufficient balance for user ID: ${userId}. Balance: ${dummyPrice}, Required: ${payload.price}` // TODO remove this in production
         );
         return ResponseHelper.sendResponse(
           400,
           "Insufficient balance in wallet"
         );
+      }
+      const subscriptionAuthId = user.subscription?.subscriptionAuthId;
+      console.log("subscriptionAuthId", subscriptionAuthId);
+
+      if (subscriptionAuthId) {
+        await stripeHelper.deleteSubscriptionItem(subscriptionAuthId);
+
+        console.log("Previous subscription deleted successfully");
       }
 
       const subscription = await stripeHelper.createSubscriptionItem(
@@ -145,7 +155,7 @@ class SubscriptionService {
 
       const updatedWallet = await this.walletRepository.updateByOne(
         { user: new mongoose.Types.ObjectId(userId) },
-        { $inc: { balance: -payload.price } },
+        { $inc: { balance: dummyPrice } }, // TODO remove this in production
         { session }
       );
 

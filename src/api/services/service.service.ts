@@ -9,6 +9,7 @@ import {
 import { IService } from "../../database/interfaces/service.interface";
 import { ResponseHelper } from "../helpers/reponseapi.helper";
 import { ServiceRepository } from "../repository/service/service.repository";
+import { ServiceType } from "../../database/interfaces/enums";
 
 class ServiceService {
   private serviceRepository: ServiceRepository;
@@ -29,7 +30,13 @@ class ServiceService {
       const pipeline: PipelineStage[] = [];
 
       // Step 1: Match active services that are main categories (no parent)
-      pipeline.push({ $match: { isDeleted: false, parent: null } });
+      pipeline.push({
+        $match: {
+          isDeleted: false,
+          parent: null,
+          type: filter.type || "service",
+        },
+      });
 
       // Step 2: Lookup for subcategories based on the parent field
       pipeline.push({
@@ -94,26 +101,25 @@ class ServiceService {
         },
       });
 
-      // Step 8: Group by industry and aggregate categories under each industry
-      pipeline.push({
-        $group: {
-          _id: "$industry", // Group by industry name
-          industry: { $first: "$industry" }, // Get the first industry name for each group
-          categories: {
-            $push: {
-              _id: "$_id", // The main category ID
-              category: "$title", // Main category title
-              subCategories: "$subCategories", // Nested subcategories
-              hasSubCategory: "$hasSubCategory", // Boolean to indicate if subcategories exist
+      if (filter.type == ServiceType.interest) {
+        pipeline.push({
+          $group: {
+            _id: "$industry", // Group by industry name
+            industry: { $first: "$industry" }, // Get the first industry name for each group
+            categories: {
+              $push: {
+                _id: "$_id", // The main category ID
+                category: "$title", // Main category title
+                subCategories: "$subCategories", // Nested subcategories
+                hasSubCategory: "$hasSubCategory", // Boolean to indicate if subcategories exist
+              },
             },
           },
-        },
-      });
-
-      // Step 9: Sort by industry name
-      pipeline.push({
-        $sort: { industry: 1 },
-      });
+        });
+        pipeline.push({
+          $sort: { industry: 1 },
+        });
+      }
 
       // Final response with pagination
       const response =

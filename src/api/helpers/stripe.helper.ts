@@ -278,7 +278,9 @@ class StripeHelper {
     });
     return obj;
   }
-
+  async deleteSubscriptionItem(subscriptionId: string) {
+    return stripe.subscriptions.cancel(subscriptionId);
+  }
   async connectAccountOnboardingLink(
     accountId: string
   ): Promise<Stripe.Response<Stripe.AccountSession>> {
