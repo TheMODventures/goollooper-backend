@@ -95,6 +95,7 @@ const userModel: Schema = new Schema(
       name: { type: String, enum: Object.values(Subscription) },
       subscribe: { type: Boolean, default: false },
       subscriptionAuthId: { type: String, default: null },
+      expirytime: { type: Date, default: null },
     },
     locationType: { type: String, enum: Object.values(EUserLocationType) },
 

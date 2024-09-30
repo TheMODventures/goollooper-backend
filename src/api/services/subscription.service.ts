@@ -4,7 +4,10 @@ import {
   SUCCESS_DATA_LIST_PASSED,
   SUCCESS_DATA_SHOW_PASSED,
 } from "../../constant";
-import { ISubscription } from "../../database/interfaces/subscription.interface";
+import {
+  ISubscription,
+  Plans,
+} from "../../database/interfaces/subscription.interface";
 import { ResponseHelper } from "../helpers/reponseapi.helper";
 import { stripeHelper } from "../helpers/stripe.helper";
 import { UserRepository } from "../repository/user/user.repository";
@@ -160,8 +163,26 @@ class SubscriptionService {
       );
 
       if (!updatedWallet) {
-        console.error("Failed to update wallet balance");
         throw new Error("Failed to update wallet balance");
+      }
+
+      let expirytime;
+      const currentDate = new Date();
+
+      if (payload.plan === "monthly") {
+        expirytime = new Date(
+          currentDate.getTime() + Plans.monthly * 24 * 60 * 60 * 1000
+        ); // Add 30 days
+      } else if (payload.plan === "year") {
+        expirytime = new Date(
+          currentDate.getTime() + Plans.year * 24 * 60 * 60 * 1000
+        ); // Add 365 days
+      } else if (payload.plan === "day") {
+        expirytime = new Date(
+          currentDate.getTime() + Plans.day * 24 * 60 * 60 * 1000
+        ); // Add 1 day
+      } else {
+        throw new Error(`Unsupported plan: ${payload.plan}`);
       }
 
       const updateData = {
@@ -172,6 +193,7 @@ class SubscriptionService {
           price: payload.price,
           subscribe: true,
           subscriptionAuthId: subscription.id,
+          expirytime,
         },
       };
 
@@ -239,6 +261,28 @@ class SubscriptionService {
     } catch (error) {
       console.log(error, "Error");
 
+      return ResponseHelper.sendResponse(500, (error as Error).message);
+    }
+  };
+
+  cancel = async (id: string): Promise<ApiResponse> => {
+    try {
+      const user = await this.userRepository.getById<IUser>(id);
+      if (!user) return ResponseHelper.sendResponse(400, "User Does Not Exist");
+
+      // const subscription = await stripeHelper.createSubscriptionItem(
+      //   user.stripeCustomerId as string,
+      //   user.subscription.
+      // );
+
+      await this.userRepository.updateById<ISubscription>(id, {
+        subscription: {
+          subscribe: false,
+        },
+      });
+
+      return ResponseHelper.sendSuccessResponse("Subscriptions Cancel");
+    } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   };

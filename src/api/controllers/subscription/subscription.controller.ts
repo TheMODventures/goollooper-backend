@@ -29,7 +29,11 @@ class SubscriptionController {
     const response = await this.subscriptionService.create(payload, user);
     return res.status(response.code).json(response);
   };
-
+  cancel = async (req: Request, res: Response) => {
+    const user = req.locals.auth?.userId;
+    const response = await this.subscriptionService.cancel(user as string);
+    return res.status(response.code).json(response);
+  };
   show = async (req: Request, res: Response) => {
     const { id } = req.params;
     const response = await this.subscriptionService.show(id);

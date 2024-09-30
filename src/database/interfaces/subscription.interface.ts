@@ -24,3 +24,8 @@ export interface ISubscriptionDoc extends ISubscription, Document {
   createdAt?: Date;
   updatedAt?: Date;
 }
+export enum Plans {
+  monthly = 30,
+  year = 365,
+  day = 1,
+}
