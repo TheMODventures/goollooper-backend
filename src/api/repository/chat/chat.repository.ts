@@ -2767,22 +2767,11 @@ export class ChatRepository
                   },
                   production: false,
                 };
-                // const message = {
-                //   data: { info },
-                //   ios: { priority: "high" },
-                //   registration_ids: [v.callToken],
-                // };
-
-                // NotificationHelper.sendNotification({
-                //   data: message.data,
-                //   tokens: message.registration_ids,
-                // } as PushNotification);
 
                 var apnProvider = new apn.Provider({ ...options });
-
                 var note = new apn.Notification();
 
-                note.expiry = Math.floor(Date.now() / 1000) + 3600; // Expires 1 hour from now.
+                note.expiry = Math.floor(Date.now() / 1000) + 3600;
                 note.badge = 1;
                 note.sound = "ping.aiff";
                 note.alert = "You have a new message";
