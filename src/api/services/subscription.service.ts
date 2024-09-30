@@ -192,6 +192,7 @@ class SubscriptionService {
           name: payload.name,
           price: payload.price,
           subscribe: true,
+          priceId: payload.priceId,
           subscriptionAuthId: subscription.id,
           expirytime,
         },
