@@ -106,7 +106,7 @@ class SubscriptionService {
     try {
       session.startTransaction();
 
-      const dummyPrice = 1; // TODO remove this in production
+      // const dummyPrice = 1; // TODO remove this in production
 
       const [user, wallet] = await Promise.all([
         this.userRepository.getOne<IUser>({
@@ -127,10 +127,10 @@ class SubscriptionService {
         return ResponseHelper.sendResponse(404, "Wallet not found");
       }
 
-      if (wallet.balance < dummyPrice) {
+      if (wallet.balance < payload.price) {
         // TODO remove this in production
         console.log(
-          `Insufficient balance for user ID: ${userId}. Balance: ${dummyPrice}, Required: ${payload.price}` // TODO remove this in production
+          `Insufficient balance for user ID: ${userId}. Balance: ${payload.price}, Required: ${payload.price}` // TODO remove this in production
         );
         return ResponseHelper.sendResponse(
           400,
@@ -158,7 +158,7 @@ class SubscriptionService {
 
       const updatedWallet = await this.walletRepository.updateByOne(
         { user: new mongoose.Types.ObjectId(userId) },
-        { $inc: { balance: dummyPrice } }, // TODO remove this in production
+        { $inc: { balance: -payload.price } }, // TODO remove this in production
         { session }
       );
 
@@ -217,7 +217,6 @@ class SubscriptionService {
           type: TransactionType.subscription,
           status: ETransactionStatus.pending,
           isCredit: false,
-          // subscription: subscription.id as string,
           wallet: wallet._id as string,
           createdAt: new Date(),
           updatedAt: new Date(),

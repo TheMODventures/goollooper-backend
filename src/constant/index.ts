@@ -28,10 +28,10 @@ export const ERROR_VERiFICATION: string = "Invalid Otp!";
 export const ERROR_LOGIN: string = "Invalid Credentials!";
 export const ERROR_OLD_PASSWORD: string = "Invalid Old Password";
 
-export const SERVICE_INITIATION_FEE = 1; // this will be in USD 30
-export const MEGA_BLAST_FEE = 1; // this will be in USD // 10
-export const REQUEST_ADDED_FEE = 1; // this will be in USD // 3.99
+export const SERVICE_INITIATION_FEE = 30; // this will be in USD 30
+export const MEGA_BLAST_FEE = 10; // this will be in USD // 10
+export const REQUEST_ADDED_FEE = 3.99; // this will be in USD // 3.99
 export const STRIPE_FIXED = 0.3; // this will be in USD // 0.3
 export const STRIPE_PERCENTAGE = 0.0029; // this will be in percentage // 0.0029
 export const STRIPE_INTERNATIONAL_PERCENTAGE = 0.0039; // this will be in percentage // 0.0039
-export const APPLICATION_FEE = 0.1; // this will be in USD // 0.3
+export const APPLICATION_FEE = 0.2; // this will be in USD // 0.3
