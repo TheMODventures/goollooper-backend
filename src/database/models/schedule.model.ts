@@ -37,7 +37,7 @@ const scheduleModel: Schema = new Schema(
   schemaOptions
 );
 
-scheduleModel.index({ _id: 1, name: 1, isPublish: 1 });
+scheduleModel.index({ _id: 1, user: 1 });
 
 export const Schedule = mongoose.model<IScheduleDoc>(
   "Schedules",

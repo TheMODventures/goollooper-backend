@@ -35,3 +35,13 @@ export const STRIPE_FIXED = 0.3; // this will be in USD // 0.3
 export const STRIPE_PERCENTAGE = 0.0029; // this will be in percentage // 0.0029
 export const STRIPE_INTERNATIONAL_PERCENTAGE = 0.0039; // this will be in percentage // 0.0039
 export const APPLICATION_FEE = 0.2; // this will be in USD // 0.3
+
+export const days = [
+  "sunday",
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+];

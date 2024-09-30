@@ -8,6 +8,7 @@ import { IGolist } from "../../database/interfaces/golist.interface";
 import { GolistRepository } from "../repository/golist/golist.repository";
 import { ResponseHelper } from "../helpers/reponseapi.helper";
 import {
+  days,
   SUCCESS_DATA_DELETION_PASSED,
   SUCCESS_DATA_INSERTION_PASSED,
   SUCCESS_DATA_LIST_PASSED,
@@ -22,6 +23,7 @@ import {
   ERating,
   EUserRole,
   ENOTIFICATION_TYPES,
+  Subscription,
 } from "../../database/interfaces/enums";
 import { NotificationHelper } from "../helpers/notification.helper";
 import { UserRepository } from "../repository/user/user.repository";
@@ -273,14 +275,7 @@ class GolistService {
           $regex: /\.(mp4|avi|mov|mkv|jpg|jpeg|png|gif|bmp)$/i,
         };
 
-      // if (subscription) {
-      //   match["subscription.subscription"] = new mongoose.Types.ObjectId(
-      //     subscription
-      //   );
-      // }
       if (subscription && subscription?.length > 0) {
-        // const subscriptionIds = subscription.map((e: any) => e);
-        // match["subscription.subscription"] = { $in: subscriptionIds };
         query.push({
           $match: {
             "subscription.name": { $in: subscription },
@@ -337,6 +332,32 @@ class GolistService {
       } else {
         query.push({ $sort: { createdAt: -1 } });
       }
+      const date = new Date();
+      const currentDay = days[date.getDay()];
+      const currentHour = date.getHours();
+      const currentMinute = date.getMinutes();
+      const currentTime = `${currentHour
+        .toString()
+        .padStart(2, "0")}:${currentMinute.toString().padStart(2, "0")}`;
+
+      query.push({
+        $match: {
+          $or: [
+            {
+              "subscription.name": Subscription.bsl.toUpperCase(),
+              schedule: {
+                $elemMatch: {
+                  day: currentDay,
+                  dayOff: "false",
+                },
+              },
+            },
+            {
+              "subscription.name": { $ne: Subscription.bsl.toUpperCase() },
+            },
+          ],
+        },
+      });
 
       query.push(
         ...[
@@ -354,10 +375,12 @@ class GolistService {
               role: 1,
               subscription: 1,
               distance: 1,
+              schedule: 1,
             },
           },
         ]
       );
+
       const users = await this.userRepository.getAllWithAggregatePagination(
         query,
         undefined,
@@ -369,16 +392,12 @@ class GolistService {
         page,
         limit
       );
-      // const users = await new UserService().getDataByAggregate(
-      //   page,
-      //   limit,
-      //   query
-      // );
+      console.log(users);
+
       return ResponseHelper.sendSuccessResponse(
         SUCCESS_DATA_LIST_PASSED,
         users
       );
-      // return ResponseHelper.sendResponse(200, users);
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
@@ -411,28 +430,28 @@ class GolistService {
   ) => {
     try {
       const query: PipelineStage[] = [];
-      if (zipCode) {
-        const googleCoordinates = (await GoogleMapHelper.searchLocation(
-          zipCode,
-          ""
-        )) as Number[] | null;
-        if (!googleCoordinates)
-          return ResponseHelper.sendResponse(404, "postal code is invalid");
-        coordinates = googleCoordinates;
-      }
-      if (coordinates?.length !== 0 && !isNaN(coordinates[0] as number)) {
-        query.push({
-          $geoNear: {
-            near: {
-              type: "Point",
-              coordinates: coordinates as [number, number],
-            },
-            distanceField: "distance",
-            spherical: true,
-            maxDistance: 10000,
-          },
-        });
-      }
+      // if (zipCode) {
+      //   const googleCoordinates = (await GoogleMapHelper.searchLocation(
+      //     zipCode,
+      //     ""
+      //   )) as Number[] | null;
+      //   if (!googleCoordinates)
+      //     return ResponseHelper.sendResponse(404, "postal code is invalid");
+      //   coordinates = googleCoordinates;
+      // }
+      // if (coordinates?.length !== 0 && !isNaN(coordinates[0] as number)) {
+      //   query.push({
+      //     $geoNear: {
+      //       near: {
+      //         type: "Point",
+      //         coordinates: coordinates as [number, number],
+      //       },
+      //       distanceField: "distance",
+      //       spherical: true,
+      //       maxDistance: 10000,
+      //     },
+      //   });
+      // }
       const match = {
         _id: { $ne: new mongoose.Types.ObjectId(userId) },
         isDeleted: false,
