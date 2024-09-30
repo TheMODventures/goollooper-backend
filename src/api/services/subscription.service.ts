@@ -270,10 +270,13 @@ class SubscriptionService {
       const user = await this.userRepository.getById<IUser>(id);
       if (!user) return ResponseHelper.sendResponse(400, "User Does Not Exist");
 
-      // const subscription = await stripeHelper.createSubscriptionItem(
-      //   user.stripeCustomerId as string,
-      //   user.subscription.
-      // );
+      if (user.subscription?.subscribe == false)
+        return ResponseHelper.sendResponse(400, "subscription does not exist");
+
+      await stripeHelper.createSubscriptionItem(
+        user.stripeCustomerId as string,
+        user.subscription?.priceId as string
+      );
 
       await this.userRepository.updateById<ISubscription>(id, {
         subscription: {

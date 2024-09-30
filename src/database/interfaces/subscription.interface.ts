@@ -11,6 +11,7 @@ export interface ISubscription extends JwtToken {
   price: number;
   subscribe?: boolean;
   subscriptionAuthId?: string;
+  expirytime: string;
 }
 
 export interface IPlans extends JwtToken {

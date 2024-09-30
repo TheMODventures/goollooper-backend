@@ -30,8 +30,8 @@ class SubscriptionController {
     return res.status(response.code).json(response);
   };
   cancel = async (req: Request, res: Response) => {
-    const user = req.locals.auth?.userId;
-    const response = await this.subscriptionService.cancel(user as string);
+    const user = req?.locals?.auth?.userId!;
+    const response = await this.subscriptionService.cancel(user);
     return res.status(response.code).json(response);
   };
   show = async (req: Request, res: Response) => {

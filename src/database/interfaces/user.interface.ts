@@ -53,6 +53,7 @@ export interface IUser {
     subscription: string;
     plan: string;
     name: string;
+    priceId: string;
     subscribe: boolean;
     subscriptionAuthId: string;
   };

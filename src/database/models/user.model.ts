@@ -90,10 +90,11 @@ const userModel: Schema = new Schema(
     volunteer: [{ type: Schema.Types.ObjectId, ref: "Service" }],
     services: [{ type: Schema.Types.ObjectId, ref: "Service" }],
     subscription: {
-      subscription: { type: String }, // it will be stripe product id starting with prod
+      subscription: { type: String },
       plan: { type: String, enum: Object.values(SubscriptionType) },
       name: { type: String, enum: Object.values(Subscription) },
       subscribe: { type: Boolean, default: false },
+      priceId: { type: String, default: null },
       subscriptionAuthId: { type: String, default: null },
       expirytime: { type: Date, default: null },
     },
