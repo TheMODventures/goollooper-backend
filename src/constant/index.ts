@@ -37,7 +37,6 @@ export const STRIPE_INTERNATIONAL_PERCENTAGE = 0.0039; // this will be in percen
 export const APPLICATION_FEE = 0.2; // this will be in USD // 0.3
 
 export const days = [
-  // days
   "sunday",
   "monday",
   "tuesday",
