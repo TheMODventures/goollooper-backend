@@ -2,7 +2,10 @@ import { Request, Response } from "express";
 import { FilterQuery } from "mongoose";
 
 import ServiceService from "../../services/service.service";
-import { IService } from "../../../database/interfaces/service.interface";
+import {
+  IService,
+  IServicePayload,
+} from "../../../database/interfaces/service.interface";
 
 class ServiceController {
   protected serviceService: ServiceService;
@@ -23,7 +26,7 @@ class ServiceController {
     const limitNow = limit ? limit : 10;
     const filter: FilterQuery<IService> = {
       title: { $regex: title, $options: "i" },
-      type: { $regex: type },
+      type: type,
       isDeleted: false,
     };
     const response = await this.serviceService.index(
@@ -37,7 +40,7 @@ class ServiceController {
   };
 
   create = async (req: Request, res: Response) => {
-    const payload: IService = { ...req.body };
+    const payload: IServicePayload = { ...req.body };
     const response = await this.serviceService.create(payload);
     return res.status(response.code).json(response);
   };

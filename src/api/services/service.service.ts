@@ -6,7 +6,10 @@ import {
   SUCCESS_DATA_SHOW_PASSED,
   SUCCESS_DATA_UPDATION_PASSED,
 } from "../../constant";
-import { IService } from "../../database/interfaces/service.interface";
+import {
+  IService,
+  IServicePayload,
+} from "../../database/interfaces/service.interface";
 import { ResponseHelper } from "../helpers/reponseapi.helper";
 import { ServiceRepository } from "../repository/service/service.repository";
 import { ServiceType } from "../../database/interfaces/enums";
@@ -66,10 +69,10 @@ class ServiceService {
       // Step 5: Lookup industry and get only the name
       pipeline.push({
         $lookup: {
-          from: "industries", // From industries collection
-          localField: "industry", // Match localField industry in services
-          foreignField: "_id", // With _id in industries
-          as: "industry", // Alias as industry
+          from: "industries",
+          localField: "industry",
+          foreignField: "_id",
+          as: "industry",
         },
       });
 
@@ -96,20 +99,23 @@ class ServiceService {
       });
 
       // Step 8: Group by industry and aggregate categories under each industry
-      pipeline.push({
-        $group: {
-          _id: "$industry", // Group by industry name
-          industry: { $first: "$industry" }, // Get the first industry name for each group
-          categories: {
-            $push: {
-              _id: "$_id", // The main category ID
-              category: "$title", // Main category title
-              subCategories: "$subCategories", // Nested subcategories
-              hasSubCategory: "$hasSubCategory", // Boolean to indicate if subcategories exist
+      if (filter.type == ServiceType.interest) {
+        console.log("HELLO WORLD");
+        pipeline.push({
+          $group: {
+            _id: "$industry",
+            industry: { $first: "$industry" },
+            categories: {
+              $push: {
+                _id: "$_id",
+                category: "$title",
+                subCategories: "$subCategories",
+                hasSubCategory: "$hasSubCategory",
+              },
             },
           },
-        },
-      });
+        });
+      }
 
       // Step 9: Sort by industry name
       pipeline.push({
@@ -129,7 +135,6 @@ class ServiceService {
           page,
           limit
         );
-      console.log(response);
       return ResponseHelper.sendSuccessResponse(
         SUCCESS_DATA_LIST_PASSED,
         response
@@ -138,10 +143,9 @@ class ServiceService {
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   };
-
-  create = async (payload: IService): Promise<ApiResponse> => {
+  create = async (payload: IServicePayload): Promise<ApiResponse> => {
     try {
-      const data = await this.serviceRepository.create<IService>(payload);
+      const data = await this.createCategoryWithSubcategories(payload);
       return ResponseHelper.sendResponse(201, data);
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);
@@ -240,85 +244,26 @@ class ServiceService {
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   };
+
+  private async createCategoryWithSubcategories(
+    category: IServicePayload
+  ): Promise<IService> {
+    const { subCategories, ...categoryData } = category;
+
+    const createdCategory = await this.serviceRepository.create<IService>(
+      categoryData as unknown as IService
+    );
+    console.log("CATEGORY", createdCategory);
+    if (subCategories && subCategories.length > 0) {
+      await Promise.all(
+        subCategories.map(async (subCategory) => {
+          subCategory.parent = createdCategory._id as string;
+          return this.createCategoryWithSubcategories(subCategory);
+        })
+      );
+    }
+    return createdCategory;
+  }
 }
 
 export default ServiceService;
-
-// const pipeline: PipelineStage[] = [
-//   { $match: filter },
-//   {
-//     $lookup: {
-//       from: "services",
-//       localField: "_id",
-//       foreignField: "parent",
-//       as: "subServices",
-//     },
-//   },
-//   {
-//     $addFields: {
-//       subServices: {
-//         $filter: {
-//           input: "$subServices",
-//           as: "child",
-//           cond: { $ne: ["$$child._id", "$_id"] },
-//         },
-//       },
-//     },
-//   },
-//   {
-//     $unwind: {
-//       path: "$subServices",
-//       preserveNullAndEmptyArrays: true,
-//     },
-//   },
-//   {
-//     $group: {
-//       _id: "$_id",
-//       title: { $first: "$title" },
-//       type: { $first: "$type" },
-//       parent: { $first: "$parent" },
-//       subServices: { $push: "$subServices" },
-//       matchedServices: {
-//         $addToSet: {
-//           $cond: {
-//             if: { $ne: ["$_id", "$subServices._id"] },
-//             then: "$_id",
-//             else: null,
-//           },
-//         },
-//       },
-//     },
-//   },
-//   {
-//     $match: {
-//       subServices: { $ne: [] },
-//       matchedServices: { $ne: null },
-//     },
-//   },
-//   {
-//     $unwind: "$matchedServices",
-//   },
-//   {
-//     $project: {
-//       title: 1,
-//       type: 1,
-//       parent: 1,
-//       subServices: {
-//         $map: {
-//           input: "$subServices",
-//           as: "child",
-//           in: {
-//             _id: "$$child._id",
-//             title: "$$child.title",
-//             parent: "$$child.parent",
-//           },
-//         },
-//       },
-//     },
-//   },
-//   {
-//     $match: {
-//       parent: null,
-//     },
-//   },
-// ];

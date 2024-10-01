@@ -40,15 +40,26 @@ const createRule = yup.object().shape({
   body: yup
     .object()
     .shape({
-      title: yup.string().required(),
-      type: yup.string().required(),
-      parent: yup.string().notRequired(),
-      industry: yup.string().when("type", {
-        is: ServiceType.interest,
-        then: (schema) => schema.required(),
-        otherwise: (schema) => schema.notRequired(),
-      }),
-      keyWords: yup.array().of(yup.string()).notRequired(),
+      title: yup.string().required("Title is required."),
+      type: yup
+        .string()
+        .required("Type is required.")
+        .oneOf(Object.values(ServiceType), "Invalid service type."), // Ensure type is a valid enum value
+      parent: yup.string().nullable(),
+      industry: yup
+        .string()
+        .nullable()
+        .when("type", {
+          is: ServiceType.interest,
+          then: (schema) =>
+            schema.required("Industry is required for interest type."),
+          otherwise: (schema) => schema.notRequired(),
+        }),
+      keyWords: yup
+        .array()
+        .of(yup.string().required("Keyword must be a string."))
+        .notRequired(),
+      subCategories: yup.array(),
     })
     .noUnknown(),
   query: yup.object().noUnknown(),

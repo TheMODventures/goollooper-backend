@@ -334,11 +334,11 @@ class GolistService {
       }
       const date = new Date();
       const currentDay = days[date.getDay()];
-      const currentHour = date.getHours();
-      const currentMinute = date.getMinutes();
-      const currentTime = `${currentHour
-        .toString()
-        .padStart(2, "0")}:${currentMinute.toString().padStart(2, "0")}`;
+      // const currentHour = date.getHours();
+      // const currentMinute = date.getMinutes();
+      // const currentTime = `${currentHour
+      //   .toString()
+      //   .padStart(2, "0")}:${currentMinute.toString().padStart(2, "0")}`;
 
       query.push({
         $match: {
