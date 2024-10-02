@@ -63,6 +63,7 @@ const createRule = yup.object().shape({
       countryCode: yup.string().notRequired(),
       phoneCode: yup.string().notRequired(),
       phone: yup.string().notRequired(),
+      role: yup.number().required(),
       locationType: yup
         .string()
         .oneOf([...Object.values(EUserLocationType).map((value) => value)])
