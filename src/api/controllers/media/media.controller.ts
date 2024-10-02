@@ -2,7 +2,6 @@ import { Request, Response } from "express";
 import _ from "lodash";
 import { UploadHelper } from "../../helpers/upload.helper";
 import { ResponseHelper } from "../../helpers/reponseapi.helper";
-import { SUCCESS_DATA_INSERTION_PASSED } from "../../../constant";
 
 class MediaController {
   private uploadHelper: UploadHelper;

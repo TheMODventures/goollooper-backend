@@ -173,7 +173,7 @@ class SubscriptionService {
         expirytime = new Date(
           currentDate.getTime() + Plans.monthly * 24 * 60 * 60 * 1000
         ); // Add 30 days
-      } else if (payload.plan === "year") {
+      } else if (payload.plan === "annum") {
         expirytime = new Date(
           currentDate.getTime() + Plans.year * 24 * 60 * 60 * 1000
         ); // Add 365 days
