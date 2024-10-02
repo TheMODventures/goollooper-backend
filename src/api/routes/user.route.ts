@@ -20,7 +20,6 @@ import ScheduleRoutes from "./schedule.route";
 import IndustryRoute from "./industry.route";
 import WorkerRoutes from "./worker.route";
 
-
 class UserRoutes extends BaseRoutes {
   private authRoutes: AuthRoutes;
   private serviceRoutes: ServiceRoutes;
@@ -72,7 +71,6 @@ class UserRoutes extends BaseRoutes {
     this.router.use("/auth", this.authRoutes.router);
     this.router.use("/guideline", this.guidelineRoutes.router);
     this.router.use("/transaction", this.transactionRoutes.router);
-    this.router.use(this.authorize.validateAuth);
     this.router.use("/service", this.serviceRoutes.router);
     this.router.use(this.authorize.validateAuth);
     this.router.use("/subscription", this.subscriptionRoutes.router);
@@ -90,7 +88,6 @@ class UserRoutes extends BaseRoutes {
     this.router.use("/schedule", this.scheduleRoutes.router);
     this.router.use("/industry", this.industryRoutes.router);
     this.router.use("/worker", this.workerRoutes.router);
-
   }
 }
 

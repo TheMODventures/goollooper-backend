@@ -321,13 +321,10 @@ class UserService {
       let isBSL = false;
       if (dataset?.subscription?.subscription) {
         let subscription = dataset.subscription.name;
-        console.log("dataset.subscription", dataset.subscription);
         if (subscription) {
           isBSL =
             subscription.toLocaleLowerCase() ===
             Subscription.bsl.toLocaleLowerCase();
-
-          console.log("isBSL", isBSL);
 
           // service provider can add upto 3 location max
           if (dataset.location && dataset.location.length > 3) {
