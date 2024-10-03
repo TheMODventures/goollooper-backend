@@ -260,6 +260,7 @@ class UserService {
           password: 0,
           "services.keyWords": 0,
           "services.__v": 0,
+          schedule: 0,
         },
       });
 

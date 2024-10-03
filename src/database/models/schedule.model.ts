@@ -30,7 +30,7 @@ const scheduleModel: Schema = new Schema(
       required: true,
       validate: [timeValidator, "Invalid end time"],
     },
-    dayOff: { type: Boolean, default: false },
+    dayOff: { type: Boolean, default: true },
     user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     isDeleted: { type: Boolean, default: false },
   },
