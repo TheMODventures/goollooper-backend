@@ -2,7 +2,10 @@ import { Request, Response } from "express";
 import { FilterQuery } from "mongoose";
 
 import ServiceService from "../../services/service.service";
-import { IService } from "../../../database/interfaces/service.interface";
+import {
+  IService,
+  IServicePayload,
+} from "../../../database/interfaces/service.interface";
 
 class ServiceController {
   protected serviceService: ServiceService;
@@ -12,23 +15,32 @@ class ServiceController {
   }
 
   index = async (req: Request, res: Response) => {
-    const { limit, page, title = "", type = "" } = req.query;
+    const {
+      limit,
+      page,
+      title = "",
+      type = "",
+      search = "",
+      parent = "",
+    } = req.query;
     const limitNow = limit ? limit : 10;
     const filter: FilterQuery<IService> = {
       title: { $regex: title, $options: "i" },
-      type: { $regex: type },
+      type: type,
       isDeleted: false,
     };
     const response = await this.serviceService.index(
       Number(page),
       Number(limitNow),
-      filter
+      String(search).toLowerCase(),
+      filter,
+      parent as string
     );
     return res.status(response.code).json(response);
   };
 
   create = async (req: Request, res: Response) => {
-    const payload: IService = { ...req.body };
+    const payload: IServicePayload = { ...req.body };
     const response = await this.serviceService.create(payload);
     return res.status(response.code).json(response);
   };

@@ -35,7 +35,6 @@ import { NotificationRepository } from "../repository/notification/notification.
 import NotificationService, {
   NotificationParams,
 } from "./notification.service";
-import { IUser } from "../../database/interfaces/user.interface";
 
 interface CustomSocket extends SocketIO.Socket {
   user?: any; // Adjust the type according to your user structure

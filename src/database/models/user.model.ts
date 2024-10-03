@@ -24,7 +24,6 @@ const userModel: Schema = new Schema(
     username: {
       type: String,
       trim: true,
-      // default: null,
       index: {
         unique: true,
         partialFilterExpression: {
@@ -91,11 +90,13 @@ const userModel: Schema = new Schema(
     volunteer: [{ type: Schema.Types.ObjectId, ref: "Service" }],
     services: [{ type: Schema.Types.ObjectId, ref: "Service" }],
     subscription: {
-      subscription: { type: String }, // it will be stripe product id starting with prod
+      subscription: { type: String },
       plan: { type: String, enum: Object.values(SubscriptionType) },
       name: { type: String, enum: Object.values(Subscription) },
       subscribe: { type: Boolean, default: false },
+      priceId: { type: String, default: null },
       subscriptionAuthId: { type: String, default: null },
+      expirytime: { type: Date, default: null },
     },
     locationType: { type: String, enum: Object.values(EUserLocationType) },
 
@@ -183,6 +184,8 @@ const userModel: Schema = new Schema(
     accountAuthorized: { type: Boolean, default: false },
     stripeConnectAccountRequirementsDue: {
       disabledReason: { type: String, default: null },
+      payoutEnabled: { type: Boolean, default: false },
+      chargesEnabled: { type: Boolean, default: false },
       currentlyDue: { type: [String], default: [] },
       eventuallyDue: { type: [String], default: [] },
       pastDue: { type: [String], default: [] },

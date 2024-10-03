@@ -269,6 +269,7 @@ class StripeHelper {
   async createSubscriptionItem(customerId: string, price: string) {
     const obj = stripe.subscriptions.create({
       customer: customerId,
+      cancel_at_period_end: true,
       items: [
         {
           price: price,
@@ -277,17 +278,16 @@ class StripeHelper {
     });
     return obj;
   }
-
+  async deleteSubscriptionItem(subscriptionId: string) {
+    return stripe.subscriptions.cancel(subscriptionId);
+  }
   async connectAccountOnboardingLink(
     accountId: string
   ): Promise<Stripe.Response<Stripe.AccountSession>> {
     return await stripe.accountSessions.create({
-      account: accountId, // Replace with your connected account ID
+      account: accountId,
       components: {
         payment_details: {
-          enabled: true,
-        },
-        documents: {
           enabled: true,
         },
         payments: {
@@ -307,6 +307,9 @@ class StripeHelper {
           },
         },
         account_onboarding: {
+          enabled: true,
+        },
+        documents: {
           enabled: true,
         },
       },

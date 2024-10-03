@@ -6,6 +6,7 @@ import {
   Request,
   RequestStatus,
 } from "./enums";
+import { IWorker } from "./worker.interface";
 
 export interface IReceivedBy {
   user: string | Types.ObjectId;
@@ -25,6 +26,7 @@ export interface IMessage {
   receivedBy?: IReceivedBy[];
   requestId?: string | Types.ObjectId;
   deleted?: boolean;
+  workers?: IWorker[];
   deletedAt?: Date;
 }
 
@@ -48,10 +50,12 @@ export interface IRequest {
   title?: string;
   mediaUrl?: string;
   amount?: string;
+  paymentRecipients?: string[];
   date?: Date;
   slot?: Slot;
   type: Request;
   status: RequestStatus;
+  workers?: string[];
   createdBy?: string | Types.ObjectId;
   createdAt?: Date;
 }
@@ -69,6 +73,7 @@ export interface IChat extends Document {
   task: string | Types.ObjectId;
   requests: IRequest[];
   deleted: boolean;
+  workers: string[];
   deletedAt?: Date;
 }
 

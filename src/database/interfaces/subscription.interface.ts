@@ -11,6 +11,7 @@ export interface ISubscription extends JwtToken {
   price: number;
   subscribe?: boolean;
   subscriptionAuthId?: string;
+  expirytime: string;
 }
 
 export interface IPlans extends JwtToken {
@@ -23,4 +24,9 @@ export interface ISubscriptionDoc extends ISubscription, Document {
   _id?: mongoose.Types.ObjectId;
   createdAt?: Date;
   updatedAt?: Date;
+}
+export enum Plans {
+  monthly = 30,
+  year = 365,
+  day = 1,
 }

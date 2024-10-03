@@ -2,10 +2,11 @@ import mongoose from "mongoose";
 import axios, { AxiosResponse } from "axios";
 import { Server } from "socket.io";
 import { RtcRole, RtcTokenBuilder } from "agora-access-token";
-import { uuid } from "uuidv4";
+import { v4 } from "uuid";
 import express, { Application, Request } from "express";
-import * as apn from "apn";
+import path from "path";
 
+import * as apn from "@parse/node-apn";
 import {
   IChat,
   IChatDoc,
@@ -61,12 +62,17 @@ import NotificationService, {
 import { CalendarRepository } from "../calendar/calendar.repository";
 import { IWallet } from "../../../database/interfaces/wallet.interface";
 import { WalletRepository } from "../wallet/wallet.repository";
-import { SERVICE_INITIATION_FEE } from "../../../constant";
+import { ERROR_NOTFOUND, SERVICE_INITIATION_FEE } from "../../../constant";
 import { TransactionRepository } from "../transaction/transaction.repository";
 import {
   ITransaction,
   ITransactionDoc,
 } from "../../../database/interfaces/transaction.interface";
+const config = {
+  key: path.resolve(__dirname, "../../../../AuthKey_KPDRMQKZUB.p8"),
+};
+import { WorkerRepository } from "../worker/worker.repository";
+import { IWorker } from "../../../database/interfaces/worker.interface";
 export class ChatRepository
   extends BaseRepository<IChat, IChatDoc>
   implements IChatRepository
@@ -78,6 +84,7 @@ export class ChatRepository
   private calendarRepository: CalendarRepository;
   private walletRepository: WalletRepository;
   private transactionRepository: TransactionRepository;
+  private workerRepository: WorkerRepository;
   protected app: Application;
 
   constructor(io?: Server) {
@@ -90,6 +97,7 @@ export class ChatRepository
     this.walletRepository = new WalletRepository();
     this.notificationService = new NotificationService();
     this.transactionRepository = new TransactionRepository();
+    this.workerRepository = new WorkerRepository();
   }
 
   deleteChat = async (chatId: string) => {
@@ -546,6 +554,14 @@ export class ChatRepository
       },
       {
         $lookup: {
+          from: "workers",
+          localField: "messages.workers",
+          foreignField: "_id",
+          as: "messages.workers",
+        },
+      },
+      {
+        $lookup: {
           from: "tasks",
           localField: "task",
           foreignField: "_id",
@@ -559,8 +575,6 @@ export class ChatRepository
           messages: { $push: "$messages" },
           requests: { $first: "$requests" },
           task: { $first: "$task" },
-          // totalCount: { $sum: 1 }, // Calculate the total count of messages in the chat
-          // unReadCount: { $sum: "$unReadCount" }, // Calculate the total count of unread messages in the chat
         },
       },
     ]);
@@ -717,6 +731,7 @@ export class ChatRepository
           status: EMessageStatus.SENT,
         })),
       };
+
       switch (dataset.type?.toString()) {
         case "1":
           msg.type = MessageType.request;
@@ -765,7 +780,6 @@ export class ChatRepository
               return { ...sp, status: 4 }; // Move from standby (3) to active (4)
             }
 
-            // Return the service provider unchanged if no conditions match
             return sp;
           });
           console.log("🚀 break_point 3", dataset);
@@ -806,6 +820,7 @@ export class ChatRepository
           await this.updateById<IChat>(chat._id, {
             participants: updatedParticipants,
             requests: [],
+            messages: [],
           });
           break;
 
@@ -1027,17 +1042,187 @@ export class ChatRepository
               error: "Date and slot are required",
             });
           }
-          msg.body = "Tour Request";
-          console.log("🚀 CASE 7", dataset);
-
+          msg.body = "Tour";
           break;
 
         case "8":
           msg.type = MessageType.reschedule;
           msg.body = "Task Rescheduled";
-          console.log("🚀 CASE 8", dataset);
           break;
 
+        case "9":
+          msg.type = MessageType.bill;
+
+          if (!dataset.amount)
+            return this.io?.emit(`error`, { error: "Amount is required" });
+
+          msg.body = dataset.amount;
+
+          const task = await this.taskRepository.getById<ITask>(chat?.task);
+          if (!task) {
+            return this.io?.emit(`error`, { error: ERROR_NOTFOUND });
+          }
+
+          const updatedTask = await this.taskRepository.updateById<ITask>(
+            chat?.task,
+            {
+              invoiceAmount: dataset.amount,
+            }
+          );
+
+          if (!updatedTask) {
+            return this.io?.emit(`error`, { error: ERROR_NOTFOUND });
+          }
+
+          break;
+        case "10":
+          msg.type = MessageType.pay;
+          msg.body = "Pay";
+          console.log("🚀 CASE 10", dataset);
+
+          // Validate dataset.amount
+          const amount = Number(dataset.amount);
+          if (isNaN(amount) || amount <= 0) {
+            return this.io?.emit(`error`, {
+              error: "A valid amount is required",
+            });
+          }
+
+          // Validate paymentRecipients array
+          const paymentRecipients = dataset.paymentRecipients;
+          if (
+            !Array.isArray(paymentRecipients) ||
+            paymentRecipients.length === 0
+          ) {
+            return this.io?.emit(`error`, {
+              error: "Payment recipients are required",
+            });
+          }
+
+          // Calculate total amount to be paid
+          const totalAmount = amount * paymentRecipients.length;
+
+          // Fetch the sender's wallet
+          const userWallet = await this.walletRepository.getOne<IWallet>({
+            user: senderId,
+          });
+          if (!userWallet) {
+            return this.io?.emit(`error`, { error: "Wallet not found" });
+          }
+
+          // Check if user has sufficient balance
+          if (userWallet.balance < totalAmount) {
+            return this.io?.emit(`error`, { error: "Insufficient balance" });
+          }
+
+          try {
+            // Process each payment recipient
+            const transactions = await Promise.all(
+              paymentRecipients.map(async (recipientId: string) => {
+                const recipientWallet =
+                  await this.walletRepository.getOne<IWallet>({
+                    user: recipientId,
+                  });
+                if (!recipientWallet) {
+                  this.io?.emit(`error`, {
+                    error: `Recipient wallet not found for user ${recipientId}`,
+                  });
+                  return null;
+                }
+
+                // Create a transaction for the recipient
+                await this.transactionRepository.create<ITransaction>({
+                  amount,
+                  user: recipientId,
+                  type: TransactionType.task,
+                  wallet: recipientWallet._id as string,
+                  status: ETransactionStatus.completed,
+                  isCredit: true,
+                });
+
+                // Update the recipient's wallet balance by adding the amount
+                await this.walletRepository.updateById<IWallet>(
+                  recipientWallet._id as string,
+                  {
+                    balance: recipientWallet.balance + amount,
+                  }
+                );
+
+                return recipientWallet;
+              })
+            );
+
+            // Filter out failed transactions
+            const successfulTransactions = transactions.filter(
+              (t) => t !== null
+            );
+
+            // Deduct total amount from sender's wallet after successful transactions
+            if (successfulTransactions.length > 0) {
+              await this.walletRepository.updateById<IWallet>(
+                userWallet._id as string,
+                {
+                  balance: userWallet.balance - totalAmount,
+                }
+              );
+
+              await this.transactionRepository.create<ITransaction>({
+                amount: totalAmount,
+                user: senderId,
+                type: TransactionType.task,
+                wallet: userWallet._id as string,
+                status: ETransactionStatus.completed,
+                isCredit: false,
+              });
+            } else {
+              this.io?.emit(`error`, {
+                error: "No transactions were successful",
+              });
+            }
+          } catch (error) {
+            this.io?.emit(`error`, { error: "Payment process failed" });
+          }
+
+          break;
+        case "11":
+          msg.type = MessageType.addWorkers;
+          msg.body = "Workers Added";
+
+          const { workers } = dataset;
+
+          // Early return for validation error
+          if (!Array.isArray(workers) || workers.length === 0) {
+            return this.io?.emit("error", { error: "Workers are required" });
+          }
+
+          // Update the chat with new workers
+          await this.updateById<IChat>(chatId, {
+            $addToSet: { workers: { $each: workers } },
+          });
+
+          // Fetch details of the workers added
+          const workerDetails = await this.workerRepository.getAll<IWorker>({
+            _id: { $in: workers },
+          });
+
+          // Attach the worker details to the message
+          msg.workers = workerDetails;
+          break;
+        case "12":
+          msg.type = MessageType.removeWorkers;
+          msg.body = "Workers Removed";
+
+          const workersToRemove = dataset.workers;
+
+          if (!Array.isArray(workersToRemove) || workersToRemove.length === 0) {
+            return this.io?.emit("error", { error: "Workers are required" });
+          }
+
+          const updatedChatRemove = await this.updateById<IChat>(chatId, {
+            $pull: { workers: { $in: workersToRemove } },
+          });
+
+          break;
         default:
           break;
       }
@@ -1069,10 +1254,6 @@ export class ChatRepository
           }
         }
       });
-      console.log(
-        "🚀 ~ file: chat.repository.ts ~ line 1011 ~ ChatRepository ~ sendRequest= ~ response",
-        userIds
-      );
 
       this.sendNotificationMsg({
         userIds,
@@ -1119,7 +1300,29 @@ export class ChatRepository
       // return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   };
+  // async addParticipants(chatId: string, userId:string, participants: string[]) {
 
+  //   const isChatExist = await this.getById(chatId);
+  //   if(!isChatExist){
+  //     this.io?.emit(`error`, { error: "Chat not found" });
+  //   }
+
+  //   console.log(`~~~addParticipants/${chatId}`, participants);
+
+  //   if(this.io){
+  //     this.io?.emit(`addParticipants/${chatId}`, "participants added");
+  //   }
+  //   return;
+  // }
+  // async removeParticipants(chatId: string, userId:string, participants: string[]) {
+
+  //   console.log(`~~~removeParticipants/${chatId}`, participants);
+
+  //   if(this.io){
+  //     this.io?.emit(`removeParticipants/${chatId}`, "participants removed");
+  //   }
+  //   return;
+  // }
   // Mark all messages as read for a user
   async readAllMessages(chatId: string, user: string) {
     try {
@@ -1271,197 +1474,197 @@ export class ChatRepository
   }
 
   // Add participants to a chat
-  async addParticipants(
-    chatId: string,
-    user: string,
-    participantIds: string[]
-  ) {
-    try {
-      // console.log({ chatId, participantIds });
-      const filter = { _id: chatId };
-      const participantsToAdd: any[] = await this.userRepository.getAll(
-        { _id: participantIds },
-        undefined,
-        ModelHelper.userSelect,
-        undefined,
-        undefined,
-        true,
-        1,
-        200
-      );
-      let username = "";
-      participantsToAdd.map(
-        (e: IUser) => (username += `${e.firstName ?? ""} ${e.lastName ?? ""}, `)
-      );
+  // async addParticipants(
+  //   chatId: string,
+  //   user: string,
+  //   participantIds: string[]
+  // ) {
+  //   try {
+  //     // console.log({ chatId, participantIds });
+  //     const filter = { _id: chatId };
+  //     const participantsToAdd: any[] = await this.userRepository.getAll(
+  //       { _id: participantIds },
+  //       undefined,
+  //       ModelHelper.userSelect,
+  //       undefined,
+  //       undefined,
+  //       true,
+  //       1,
+  //       200
+  //     );
+  //     let username = "";
+  //     participantsToAdd.map(
+  //       (e: IUser) => (username += `${e.firstName ?? ""} ${e.lastName ?? ""}, `)
+  //     );
 
-      const update = {
-        $addToSet: {
-          participants: {
-            $each: participantIds.map((user) => ({
-              user,
-              status: EParticipantStatus.ACTIVE,
-            })),
-          },
-        },
-      };
+  //     const update = {
+  //       $addToSet: {
+  //         participants: {
+  //           $each: participantIds.map((user) => ({
+  //             user,
+  //             status: EParticipantStatus.ACTIVE,
+  //           })),
+  //         },
+  //       },
+  //     };
 
-      let result: any = await Chat.findOneAndUpdate(filter, update)
-        .select("-messages")
-        .populate({
-          path: "participants.user",
-          select: "username firstName lastName _id profileImage",
-        });
+  //     let result: any = await Chat.findOneAndUpdate(filter, update)
+  //       .select("-messages")
+  //       .populate({
+  //         path: "participants.user",
+  //         select: "username firstName lastName _id profileImage",
+  //       });
 
-      const msg = {
-        _id: new mongoose.Types.ObjectId(),
-        body: `${username}joined the group`,
-        addedUsers: participantIds,
-        groupName: result.groupName,
-        sentBy: null,
-        receivedBy: result.participants.map((e: IParticipant) => ({
-          user: e.user,
-          status: EMessageStatus.SEEN,
-        })),
-      };
+  //     const msg = {
+  //       _id: new mongoose.Types.ObjectId(),
+  //       body: `${username}joined the group`,
+  //       addedUsers: participantIds,
+  //       groupName: result.groupName,
+  //       sentBy: null,
+  //       receivedBy: result.participants.map((e: IParticipant) => ({
+  //         user: e.user,
+  //         status: EMessageStatus.SEEN,
+  //       })),
+  //     };
 
-      await result.update({
-        $push: {
-          messages: msg,
-        },
-      });
+  //     await result.update({
+  //       $push: {
+  //         messages: msg,
+  //       },
+  //     });
 
-      await result.save();
+  //     await result.save();
 
-      if (this.io) {
-        result.participants.forEach(async (participant: any) => {
-          if (participant.status == EParticipantStatus.ACTIVE) {
-            this.io?.emit(
-              `newMessage/${chatId}/${participant.user._id.toString()}`,
-              msg
-            );
-            // this.io?.emit(
-            //   `getChats/${participant.user._id}`, await this.getChats(participant.user)
-            // );
-            await this.getChats(participant.user);
-          }
-        });
+  //     if (this.io) {
+  //       result.participants.forEach(async (participant: any) => {
+  //         if (participant.status == EParticipantStatus.ACTIVE) {
+  //           this.io?.emit(
+  //             `newMessage/${chatId}/${participant.user._id.toString()}`,
+  //             msg
+  //           );
+  //           // this.io?.emit(
+  //           //   `getChats/${participant.user._id}`, await this.getChats(participant.user)
+  //           // );
+  //           await this.getChats(participant.user);
+  //         }
+  //       });
 
-        this.io?.emit(`addParticipants/${chatId}`, {
-          message: "added participants",
-          result,
-        });
-      }
+  //       this.io?.emit(`addParticipants/${chatId}`, {
+  //         message: "added participants",
+  //         result,
+  //       });
+  //     }
 
-      return result;
-    } catch (error) {
-      // console.error("Error adding participants:", error);
-      throw error;
-    }
-  }
+  //     return result;
+  //   } catch (error) {
+  //     // console.error("Error adding participants:", error);
+  //     throw error;
+  //   }
+  // }
 
-  // Remove participants from a chat
-  async removeParticipants(chatId: string, /*user,*/ participantIds: string[]) {
-    try {
-      // console.log({ chatId, participantIds });
-      const filter = { _id: chatId /*admins: user*/ };
-      const u: any[] = await this.userRepository.getAll(
-        { _id: participantIds },
-        undefined,
-        ModelHelper.userSelect,
-        undefined,
-        undefined,
-        true,
-        1,
-        200
-      );
-      let username = "";
-      u.map(
-        (e: IUser) => (username += `${e.firstName ?? ""} ${e.lastName ?? ""}, `)
-      );
-      // // console.log(username)
-      const update = {
-        $pull: { participants: { user: { $in: participantIds } } },
-      };
-      let result: any = await Chat.findOneAndUpdate(filter, update)
-        .select("-messages")
-        .populate({
-          path: "participants.user",
-          select: "username firstName lastName _id  profileImage",
-        });
-      // // console.log(result)
-      const msg = {
-        _id: new mongoose.Types.ObjectId(),
-        body: `${username}leave the group`,
-        removedUsers: participantIds,
-        groupName: result.groupName,
-        sentBy: null,
-        receivedBy: result.participants.map((e: IParticipant) => ({
-          user: e.user,
-          status: EMessageStatus.SEEN,
-        })),
-      };
-      await result.update({
-        $push: {
-          messages: msg,
-        },
-      });
-      const userIds: string[] = [];
-      // // console.log(result)
-      await result.save();
-      if (participantIds.includes(result.createdBy.toString()))
-        result = await Chat.findOneAndUpdate(filter, {
-          createdBy: result.participants[0].user._id,
-        }).populate({
-          path: "participants.user",
-          select: "username firstName lastName _id  profileImage status",
-        });
-      // // console.log(result.participants);
-      if (this.io) {
-        result.participants.forEach(async (participant: any) => {
-          if (participant.status == EParticipantStatus.ACTIVE) {
-            // // console.log(participant.user._id.toString())
-            if (
-              participantIds[0] !== participant.user._id &&
-              !participant.isMuted
-            )
-              userIds.push(participant.user._id);
-            // // console.log(`newMessage/${chatId}/${participant.user}`)
-            // if (this.io) {
-            this.io?.emit(
-              `newMessage/${chatId}/${participant.user._id.toString()}`,
-              msg
-            );
-            // this.io?.emit(
-            //   `getChats/${participant.user._id}`, await this.getChats(participant.user)
-            // );
-            await this.getChats(participant.user);
-            // }
-          }
-        });
-        this.io?.emit(`removeParticipants/${chatId}`, {
-          message:
-            result == null
-              ? "you are not allowed to remove participants"
-              : "removed participants",
-          result,
-        });
-      }
-      this.sendNotificationMsg(
-        {
-          userIds,
-          title: result.groupName,
-          body: `${username}leave the group`,
-          chatId,
-        },
-        result
-      );
+  // // Remove participants from a chat
+  // async removeParticipants(chatId: string, /*user,*/ participantIds: string[]) {
+  //   try {
+  //     // console.log({ chatId, participantIds });
+  //     const filter = { _id: chatId /*admins: user*/ };
+  //     const u: any[] = await this.userRepository.getAll(
+  //       { _id: participantIds },
+  //       undefined,
+  //       ModelHelper.userSelect,
+  //       undefined,
+  //       undefined,
+  //       true,
+  //       1,
+  //       200
+  //     );
+  //     let username = "";
+  //     u.map(
+  //       (e: IUser) => (username += `${e.firstName ?? ""} ${e.lastName ?? ""}, `)
+  //     );
+  //     // // console.log(username)
+  //     const update = {
+  //       $pull: { participants: { user: { $in: participantIds } } },
+  //     };
+  //     let result: any = await Chat.findOneAndUpdate(filter, update)
+  //       .select("-messages")
+  //       .populate({
+  //         path: "participants.user",
+  //         select: "username firstName lastName _id  profileImage",
+  //       });
+  //     // // console.log(result)
+  //     const msg = {
+  //       _id: new mongoose.Types.ObjectId(),
+  //       body: `${username}leave the group`,
+  //       removedUsers: participantIds,
+  //       groupName: result.groupName,
+  //       sentBy: null,
+  //       receivedBy: result.participants.map((e: IParticipant) => ({
+  //         user: e.user,
+  //         status: EMessageStatus.SEEN,
+  //       })),
+  //     };
+  //     await result.update({
+  //       $push: {
+  //         messages: msg,
+  //       },
+  //     });
+  //     const userIds: string[] = [];
+  //     // // console.log(result)
+  //     await result.save();
+  //     if (participantIds.includes(result.createdBy.toString()))
+  //       result = await Chat.findOneAndUpdate(filter, {
+  //         createdBy: result.participants[0].user._id,
+  //       }).populate({
+  //         path: "participants.user",
+  //         select: "username firstName lastName _id  profileImage status",
+  //       });
+  //     // // console.log(result.participants);
+  //     if (this.io) {
+  //       result.participants.forEach(async (participant: any) => {
+  //         if (participant.status == EParticipantStatus.ACTIVE) {
+  //           // // console.log(participant.user._id.toString())
+  //           if (
+  //             participantIds[0] !== participant.user._id &&
+  //             !participant.isMuted
+  //           )
+  //             userIds.push(participant.user._id);
+  //           // // console.log(`newMessage/${chatId}/${participant.user}`)
+  //           // if (this.io) {
+  //           this.io?.emit(
+  //             `newMessage/${chatId}/${participant.user._id.toString()}`,
+  //             msg
+  //           );
+  //           // this.io?.emit(
+  //           //   `getChats/${participant.user._id}`, await this.getChats(participant.user)
+  //           // );
+  //           await this.getChats(participant.user);
+  //           // }
+  //         }
+  //       });
+  //       this.io?.emit(`removeParticipants/${chatId}`, {
+  //         message:
+  //           result == null
+  //             ? "you are not allowed to remove participants"
+  //             : "removed participants",
+  //         result,
+  //       });
+  //     }
+  //     this.sendNotificationMsg(
+  //       {
+  //         userIds,
+  //         title: result.groupName,
+  //         body: `${username}leave the group`,
+  //         chatId,
+  //       },
+  //       result
+  //     );
 
-      return result;
-    } catch (error) {
-      // console.error("Error removing participants:", error);
-      throw error;
-    }
-  }
+  //     return result;
+  //   } catch (error) {
+  //     // console.error("Error removing participants:", error);
+  //     throw error;
+  //   }
+  // }
 
   //   // Add admins to a group chat
   //   async addAdmins(chatId: string, user: string, adminIds: string[]) {
@@ -2407,114 +2610,114 @@ export class ChatRepository
         privilegeExpiredTs
       );
       // const tokenA = "";
-
       console.log("Token with integer number Uid: " + tokenA);
       const chat = await Chat.findById(channelName).select("-messages");
-      if (notifyOther) {
+      if (true) {
+        console.log("FIRST STAGE");
         if (calleeID?.length) {
           calleeID?.forEach((calleeID: string) => {
             this.userRepository.getCallToken(calleeID).then(async (v: any) => {
               if (v) {
-                const isInCall = await this.checkInChannelStatus(
-                  convertTo32BitInt(calleeID),
-                  channelName as string
-                );
-                if (!isInCall)
-                  this.userRepository
-                    .getById(userId)
-                    .then(({ firstName, lastName }: any) => {
-                      if ((v as any).callDeviceType === ECALLDEVICETYPE.ios) {
-                        const callerInfo = {
+                this.userRepository
+                  .getById(userId)
+                  .then(({ firstName, lastName }: any) => {
+                    console.log(v.callDeviceType); // Log actual value
+                    console.log(ECALLDEVICETYPE.ios); // Log enum value
+                    console.log(
+                      typeof v.callDeviceType,
+                      typeof ECALLDEVICETYPE.ios
+                    ); // Log types
+                    if (v.callDeviceType === ECALLDEVICETYPE.ios) {
+                      console.log("IOS DEVICE IF WORKING");
+                      console.log("V", v);
+
+                      const callerInfo = {
+                        chatId: req.query.channelName,
+                        title:
+                          chat?.chatType === EChatType.GROUP
+                            ? chat?.groupName
+                            : firstName + " " + lastName,
+                        isGroup: req.body?.isGroup ? true : false,
+                        participants: req.body?.participants,
+                      };
+                      const info = JSON.stringify({
+                        callerInfo,
+                        videoSDKInfo: {},
+                        type: "CALL_INITIATED",
+                      });
+
+                      // let deviceToken = calleeInfo.APN;
+                      // TODO: change environement i.e: production or debug
+                      const options: any = {
+                        token: {
+                          key: config.key,
+                          keyId: IOS_KEY_ID,
+                          teamId: IOS_TEAM_ID,
+                        },
+                        production: false,
+                      };
+
+                      var apnProvider = new apn.Provider({
+                        ...options,
+                      } as any);
+
+                      var note = new apn.Notification();
+
+                      note.expiry = Math.floor(Date.now() / 1000) + 3600; // Expires 1 hour from now.
+                      note.badge = 1;
+                      note.sound = "ping.aiff";
+                      note.alert = "You have a new message";
+                      note.rawPayload = {
+                        callerName: callerInfo?.title ?? "hello",
+                        aps: {
+                          "content-available": 1,
+                        },
+                        handle: callerInfo?.title ?? "hello",
+                        callerInfo,
+                        videoSDKInfo,
+                        data: { info, type: "CALL_INITIATED" },
+                        type: "CALL_INITIATED",
+                        uuid: v4(),
+                      };
+                      note.pushType = "voip";
+                      note.topic = "com.app.goollooper.voip";
+
+                      console.log("CALL TOKEN", v.callToken);
+                      console.log("NOTE", note);
+
+                      apnProvider
+                        .send(note, v.callToken)
+                        .then((result: any) => {
+                          console.log("RESULT", JSON.stringify(result));
+                          if (result.failed && result.failed.length > 0) {
+                            console.log("FAILED", result.failed);
+                          }
+                        });
+                    } else {
+                      const info = JSON.stringify({
+                        callerInfo: {
                           chatId: req.query.channelName,
                           title:
                             chat?.chatType === EChatType.GROUP
                               ? chat?.groupName
-                              : firstName + " " + lastName,
+                              : v.firstName + " " + v.lastName,
                           isGroup: req.body?.isGroup ? true : false,
                           participants: req.body?.participants,
-                        };
-                        const info = JSON.stringify({
-                          callerInfo,
-                          videoSDKInfo: {},
-                          type: "CALL_INITIATED",
-                        });
-
-                        // let deviceToken = calleeInfo.APN;
-
-                        // TODO: change environement i.e: production or debug
-                        const options: any = {
-                          token: {
-                            key: IOS_KEY, // path of .p8 file
-                            keyId: IOS_KEY_ID,
-                            teamId: IOS_TEAM_ID,
-                          },
-                          production: false,
-                        };
-
-                        var apnProvider = new apn.Provider({
-                          ...options,
-                        } as any);
-
-                        var note = new apn.Notification();
-
-                        note.expiry = Math.floor(Date.now() / 1000) + 3600; // Expires 1 hour from now.
-                        note.badge = 1;
-                        note.sound = "ping.aiff";
-                        note.alert = "You have a new message";
-                        note.rawPayload = {
-                          callerName: callerInfo?.title ?? "hello",
-                          aps: {
-                            "content-available": 1,
-                          },
-                          handle: callerInfo?.title ?? "hello",
-                          callerInfo,
-                          videoSDKInfo,
-                          data: { info, type: "CALL_INITIATED" },
-                          type: "CALL_INITIATED",
-                          uuid: uuid(),
-                        };
-                        // note.pushType = "voip";
-                        note.topic = "org.goollooper.app.voip";
-                        apnProvider
-                          .send(note, v.callToken)
-                          .then((result: any) => {
-                            console.log("RESULT", result);
-                            if (result.failed && result.failed.length > 0) {
-                              console.log("FAILED", result.failed);
-                            }
-                          });
-                      } else {
-                        const info = JSON.stringify({
-                          callerInfo: {
-                            chatId: req.query.channelName,
-                            title:
-                              chat?.chatType === EChatType.GROUP
-                                ? chat?.groupName
-                                : firstName + " " + lastName,
-                            isGroup: req.body?.isGroup ? true : false,
-                            participants: req.body?.participants,
-                          },
-                          videoSDKInfo: {},
-                          type: "CALL_INITIATED",
-                        });
-                        const message = {
-                          data: { info },
-                          android: { priority: "high" },
-                          registration_ids: [v.callToken],
-                        };
-                        NotificationHelper.sendNotification({
-                          data: message.data,
-                          tokens: message.registration_ids,
-                        } as PushNotification);
-                        // fcm.send(message, function (err, res) {
-                        //   if (err) {
-                        //     console.log("Error: " + err);
-                        //   } else {
-                        //     console.log("Success: " + res);
-                        //   }
-                        // });
-                      }
-                    });
+                        },
+                        videoSDKInfo: {},
+                        type: "CALL_INITIATED",
+                      });
+                      const message = {
+                        data: { info },
+                        android: { priority: "high" },
+                        registration_ids: [v.callToken],
+                      };
+                      NotificationHelper.sendNotification({
+                        data: message.data,
+                        tokens: message.registration_ids,
+                      } as PushNotification);
+                    }
+                  });
               }
             });
           });
@@ -2558,7 +2761,7 @@ export class ChatRepository
 
                 const options: any = {
                   token: {
-                    key: IOS_KEY, // path of .p8 file
+                    key: config.key, // path of .p8 file
                     keyId: IOS_KEY_ID,
                     teamId: IOS_TEAM_ID,
                   },
@@ -2566,10 +2769,9 @@ export class ChatRepository
                 };
 
                 var apnProvider = new apn.Provider({ ...options });
-
                 var note = new apn.Notification();
 
-                note.expiry = Math.floor(Date.now() / 1000) + 3600; // Expires 1 hour from now.
+                note.expiry = Math.floor(Date.now() / 1000) + 3600;
                 note.badge = 1;
                 note.sound = "ping.aiff";
                 note.alert = "You have a new message";
@@ -2583,10 +2785,12 @@ export class ChatRepository
                   videoSDKInfo,
                   data: { info, type: "CALL_DECLINED" },
                   type: "CALL_DECLINED",
-                  uuid: uuid(),
+                  uuid: v4(),
                 };
-                // note.pushType = "voip";
-                note.topic = "org.goollooper.app.voip";
+                note.pushType = "voip";
+                note.topic = "com.app.goollooper.voip";
+                console.log("CALL TOKEN", v.callToken);
+
                 apnProvider.send(note, v.callToken).then((result) => {
                   console.log("RESULT", result);
                   if (result.failed && result.failed.length > 0) {
@@ -2613,6 +2817,7 @@ export class ChatRepository
                   data: message.data,
                   tokens: message.registration_ids,
                 } as PushNotification);
+
                 // fcm.send(message, function (err, res) {
                 //   if (err) {
                 //     console.log("Error: " + err);

@@ -6,9 +6,13 @@ import {
   SUCCESS_DATA_SHOW_PASSED,
   SUCCESS_DATA_UPDATION_PASSED,
 } from "../../constant";
-import { IService } from "../../database/interfaces/service.interface";
+import {
+  IService,
+  IServicePayload,
+} from "../../database/interfaces/service.interface";
 import { ResponseHelper } from "../helpers/reponseapi.helper";
 import { ServiceRepository } from "../repository/service/service.repository";
+import { ServiceType } from "../../database/interfaces/enums";
 
 class ServiceService {
   private serviceRepository: ServiceRepository;
@@ -20,96 +24,111 @@ class ServiceService {
   index = async (
     page: number,
     limit = 10,
-    filter: FilterQuery<IService>
+    search: string,
+    filter: FilterQuery<IService>,
+    parent?: string // Optional parent parameter
   ): Promise<ApiResponse> => {
     try {
-      const getDocCount = await this.serviceRepository.getCount(filter);
-      const pipeline: PipelineStage[] = [
-        { $match: filter },
-        {
-          $lookup: {
-            from: "services",
-            localField: "_id",
-            foreignField: "parent",
-            as: "subServices",
-          },
-        },
-        {
-          $addFields: {
-            subServices: {
-              $filter: {
-                input: "$subServices",
-                as: "child",
-                cond: { $ne: ["$$child._id", "$_id"] },
-              },
-            },
-          },
-        },
-        {
-          $unwind: {
-            path: "$subServices",
-            preserveNullAndEmptyArrays: true,
-          },
-        },
-        {
-          $group: {
-            _id: "$_id",
-            title: { $first: "$title" },
-            type: { $first: "$type" },
-            parent: { $first: "$parent" },
-            subServices: { $push: "$subServices" },
-            matchedServices: {
-              $addToSet: {
-                $cond: {
-                  if: { $ne: ["$_id", "$subServices._id"] },
-                  then: "$_id",
-                  else: null,
-                },
-              },
-            },
-          },
-        },
-        {
-          $match: {
-            subServices: { $ne: [] },
-            matchedServices: { $ne: null },
-          },
-        },
-        {
-          $unwind: "$matchedServices",
-        },
-        {
-          $project: {
-            title: 1,
-            type: 1,
-            parent: 1,
-            subServices: {
-              $map: {
-                input: "$subServices",
-                as: "child",
-                in: {
-                  _id: "$$child._id",
-                  title: "$$child.title",
-                  parent: "$$child.parent",
-                },
-              },
-            },
-          },
-        },
-        {
-          $match: {
-            parent: null,
-          },
-        },
-      ];
+      const keyWords = search.split(" ").filter(Boolean);
+      const pipeline: PipelineStage[] = [];
 
+      pipeline.push({
+        $match: { isDeleted: false, parent: null, type: filter.type },
+      });
+
+      // Step 2: Lookup for subcategories based on the parent field
+      pipeline.push({
+        $lookup: {
+          from: "services",
+          localField: "_id",
+          foreignField: "parent",
+          as: "subCategories",
+        },
+      });
+
+      // Step 3: Add hasSubCategory field based on the size of subCategories
+      pipeline.push({
+        $addFields: {
+          hasSubCategory: { $gt: [{ $size: "$subCategories" }, 0] },
+        },
+      });
+
+      // Step 4: Filter by keywords if provided
+      if (keyWords.length > 0) {
+        pipeline.push({
+          $match: {
+            subCategories: {
+              $elemMatch: {
+                keyWords: { $in: keyWords },
+              },
+            },
+          },
+        });
+      }
+
+      // Step 5: Lookup industry and get only the name
+      pipeline.push({
+        $lookup: {
+          from: "industries",
+          localField: "industry",
+          foreignField: "_id",
+          as: "industry",
+        },
+      });
+
+      // Step 6: Unwind the industry array
+      pipeline.push({
+        $unwind: {
+          path: "$industry",
+          preserveNullAndEmptyArrays: true, // Allow null if no industry is found
+        },
+      });
+
+      // Step 7: Project only required fields
+      pipeline.push({
+        $project: {
+          title: 1,
+          industry: "$industry.name", // Only project the industry name
+          hasSubCategory: 1,
+          "subCategories._id": 1,
+          "subCategories.title": 1,
+          "subCategories.type": 1,
+          "subCategories.parent": 1,
+          // "subCategories.keyWords": 1,
+        },
+      });
+
+      // Step 8: Group by industry and aggregate categories under each industry
+      if (filter.type == ServiceType.interest) {
+        console.log("HELLO WORLD");
+        pipeline.push({
+          $group: {
+            _id: "$industry",
+            industry: { $first: "$industry" },
+            categories: {
+              $push: {
+                _id: "$_id",
+                category: "$title",
+                subCategories: "$subCategories",
+                hasSubCategory: "$hasSubCategory",
+              },
+            },
+          },
+        });
+      }
+
+      // Step 9: Sort by industry name
+      pipeline.push({
+        $sort: { industry: 1 },
+      });
+      // Final response with pagination
       const response =
         await this.serviceRepository.getAllWithAggregatePagination<IService>(
           pipeline,
           "",
           "",
           {
-            title: "asc",
+            industry: "asc", // Sort by industry name in ascending order
           },
           undefined,
           true,
@@ -118,17 +137,26 @@ class ServiceService {
         );
       return ResponseHelper.sendSuccessResponse(
         SUCCESS_DATA_LIST_PASSED,
-        response,
-        getDocCount
+        response
       );
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   };
-
-  create = async (payload: IService): Promise<ApiResponse> => {
+  create = async (
+    payload: IServicePayload | IService
+  ): Promise<ApiResponse> => {
     try {
-      const data = await this.serviceRepository.create<IService>(payload);
+      let data;
+      if (payload.type == ServiceType.interest)
+        data = await this.createCategoryWithSubcategories(
+          payload as IServicePayload
+        );
+      else
+        data = await this.serviceRepository.create<IService>(
+          payload as IService
+        );
+
       return ResponseHelper.sendResponse(201, data);
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);
@@ -137,83 +165,56 @@ class ServiceService {
 
   show = async (_id: string): Promise<ApiResponse> => {
     try {
-      const query: PipelineStage[] = [
-        { $match: { _id: new mongoose.Types.ObjectId(_id) } },
-        {
-          $lookup: {
-            from: "services",
-            localField: "_id",
-            foreignField: "parent",
-            as: "subServices",
+      const page = 1;
+      const limit = 50;
+      const query: PipelineStage[] = [];
+
+      query.push({ $match: { parent: new mongoose.Types.ObjectId(_id) } });
+      query.push({ $match: { isDeleted: false } });
+
+      query.push({
+        $lookup: {
+          from: "services",
+          localField: "_id",
+          foreignField: "parent",
+          as: "subCategories",
+        },
+      });
+
+      query.push({
+        $addFields: {
+          hasSubCategory: { $gt: [{ $size: "$subCategories" }, 0] },
+        },
+      });
+
+      query.push({
+        $project: {
+          title: 1,
+          type: 1,
+          parent: 1,
+          industry: 1,
+          isDeleted: 1,
+          hasSubCategory: 1,
+        },
+      });
+
+      const response =
+        await this.serviceRepository.getAllWithAggregatePagination<IService>(
+          query,
+          "",
+          "",
+          {
+            industry: "asc",
           },
-        },
-        {
-          $addFields: {
-            subServices: {
-              $filter: {
-                input: "$subServices",
-                as: "child",
-                cond: { $ne: ["$$child._id", "$_id"] },
-              },
-            },
-          },
-        },
-        {
-          $unwind: {
-            path: "$subServices",
-            preserveNullAndEmptyArrays: true,
-          },
-        },
-        {
-          $group: {
-            _id: "$_id",
-            title: { $first: "$title" },
-            type: { $first: "$type" },
-            subServices: { $push: "$subServices" },
-            matchedServices: {
-              $addToSet: {
-                $cond: {
-                  if: { $ne: ["$_id", "$subServices._id"] },
-                  then: "$_id",
-                  else: null,
-                },
-              },
-            },
-          },
-        },
-        {
-          $unwind: "$matchedServices",
-        },
-        {
-          $match: {
-            matchedServices: { $ne: null },
-          },
-        },
-        {
-          $project: {
-            title: 1,
-            type: 1,
-            subServices: {
-              $map: {
-                input: "$subServices",
-                as: "child",
-                in: {
-                  _id: "$$child._id",
-                  title: "$$child.title",
-                  parent: "$$child.parent",
-                },
-              },
-            },
-          },
-        },
-      ];
-      const response = await this.serviceRepository.getDataByAggregate(query);
-      if (!response.length) {
-        return ResponseHelper.sendResponse(404);
-      }
+          undefined,
+          true,
+          page,
+          limit
+        );
+
       return ResponseHelper.sendSuccessResponse(
         SUCCESS_DATA_SHOW_PASSED,
-        response[0] as any
+        response
       );
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);
@@ -255,48 +256,25 @@ class ServiceService {
     }
   };
 
-  // populateAllData = async (
-  //   payload: { title: string; type: string; subServices: string[] }[]
-  // ) => {
-  //   try {
-  //     for (let i = 0; i < payload?.length; i++) {
-  //       let element = payload[i];
-  //       const exists = await this.serviceRepository.getOne<IService>({
-  //         title: element?.title,
-  //         type: element?.type,
-  //       });
-  //       let data: IService | null = exists;
+  private async createCategoryWithSubcategories(
+    category: IServicePayload
+  ): Promise<IService> {
+    const { subCategories, ...categoryData } = category;
 
-  //       // if service not exists create
-  //       if (!exists) {
-  //         const payloadObj: any = {
-  //           title: element?.title,
-  //           type: element?.type,
-  //         };
-  //         data = await this.serviceRepository.create<IService>(payloadObj);
-  //       }
-
-  //       element?.subServices?.forEach(async (field: any) => {
-  //         const subServiceExists =
-  //           await this.serviceRepository.getOne<IService>({
-  //             title: field?.title,
-  //             type: element?.type,
-  //           });
-  //         if (!subServiceExists) {
-  //           const cityPayload: any = {
-  //             title: field?.title,
-  //             type: element?.type,
-  //             parent: data?._id,
-  //           };
-  //           this.serviceRepository.create<IService>(cityPayload);
-  //         }
-  //       });
-  //     }
-  //     return ResponseHelper.sendResponse(201);
-  //   } catch (error) {
-  //     return ResponseHelper.sendResponse(500, (error as Error).message);
-  //   }
-  // };
+    const createdCategory = await this.serviceRepository.create<IService>(
+      categoryData as unknown as IService
+    );
+    console.log("CATEGORY", createdCategory);
+    if (subCategories && subCategories.length > 0) {
+      await Promise.all(
+        subCategories.map(async (subCategory) => {
+          subCategory.parent = createdCategory._id as string;
+          return this.createCategoryWithSubcategories(subCategory);
+        })
+      );
+    }
+    return createdCategory;
+  }
 }
 
 export default ServiceService;

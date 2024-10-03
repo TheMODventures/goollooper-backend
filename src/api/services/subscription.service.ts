@@ -4,7 +4,10 @@ import {
   SUCCESS_DATA_LIST_PASSED,
   SUCCESS_DATA_SHOW_PASSED,
 } from "../../constant";
-import { ISubscription } from "../../database/interfaces/subscription.interface";
+import {
+  ISubscription,
+  Plans,
+} from "../../database/interfaces/subscription.interface";
 import { ResponseHelper } from "../helpers/reponseapi.helper";
 import { stripeHelper } from "../helpers/stripe.helper";
 import { UserRepository } from "../repository/user/user.repository";
@@ -15,6 +18,7 @@ import { IWallet } from "../../database/interfaces/wallet.interface";
 import Stripe from "stripe";
 import {
   ETransactionStatus,
+  EUserRole,
   TransactionType,
 } from "../../database/interfaces/enums";
 import { ITransaction } from "../../database/interfaces/transaction.interface";
@@ -102,7 +106,8 @@ class SubscriptionService {
     const session = await mongoose.startSession();
     try {
       session.startTransaction();
-      console.log("Received payload:", payload);
+
+      // const dummyPrice = 1; // TODO remove this in production
 
       const [user, wallet] = await Promise.all([
         this.userRepository.getOne<IUser>({
@@ -124,13 +129,22 @@ class SubscriptionService {
       }
 
       if (wallet.balance < payload.price) {
-        console.warn(
-          `Insufficient balance for user ID: ${userId}. Balance: ${wallet.balance}, Required: ${payload.price}`
+        // TODO remove this in production
+        console.log(
+          `Insufficient balance for user ID: ${userId}. Balance: ${payload.price}, Required: ${payload.price}` // TODO remove this in production
         );
         return ResponseHelper.sendResponse(
           400,
           "Insufficient balance in wallet"
         );
+      }
+      const subscriptionAuthId = user.subscription?.subscriptionAuthId;
+      console.log("subscriptionAuthId", subscriptionAuthId);
+
+      if (subscriptionAuthId) {
+        await stripeHelper.deleteSubscriptionItem(subscriptionAuthId);
+
+        console.log("Previous subscription deleted successfully");
       }
 
       const subscription = await stripeHelper.createSubscriptionItem(
@@ -145,13 +159,31 @@ class SubscriptionService {
 
       const updatedWallet = await this.walletRepository.updateByOne(
         { user: new mongoose.Types.ObjectId(userId) },
-        { $inc: { balance: -payload.price } },
+        { $inc: { balance: -payload.price } }, // TODO remove this in production
         { session }
       );
 
       if (!updatedWallet) {
-        console.error("Failed to update wallet balance");
         throw new Error("Failed to update wallet balance");
+      }
+
+      let expirytime;
+      const currentDate = new Date();
+
+      if (payload.plan === "monthly") {
+        expirytime = new Date(
+          currentDate.getTime() + Plans.monthly * 24 * 60 * 60 * 1000
+        ); // Add 30 days
+      } else if (payload.plan === "annum") {
+        expirytime = new Date(
+          currentDate.getTime() + Plans.year * 24 * 60 * 60 * 1000
+        ); // Add 365 days
+      } else if (payload.plan === "day") {
+        expirytime = new Date(
+          currentDate.getTime() + Plans.day * 24 * 60 * 60 * 1000
+        ); // Add 1 day
+      } else {
+        throw new Error(`Unsupported plan: ${payload.plan}`);
       }
 
       const updateData = {
@@ -161,7 +193,9 @@ class SubscriptionService {
           name: payload.name,
           price: payload.price,
           subscribe: true,
+          priceId: payload.priceId,
           subscriptionAuthId: subscription.id,
+          expirytime,
         },
       };
 
@@ -183,9 +217,8 @@ class SubscriptionService {
           user: userId,
           amount: payload.price,
           type: TransactionType.subscription,
-          status: ETransactionStatus.completed,
+          status: ETransactionStatus.pending,
           isCredit: false,
-          // subscription: subscription.id as string,
           wallet: wallet._id as string,
           createdAt: new Date(),
           updatedAt: new Date(),
@@ -229,6 +262,32 @@ class SubscriptionService {
     } catch (error) {
       console.log(error, "Error");
 
+      return ResponseHelper.sendResponse(500, (error as Error).message);
+    }
+  };
+
+  cancel = async (id: string): Promise<ApiResponse> => {
+    try {
+      const user = await this.userRepository.getById<IUser>(id);
+      if (!user) return ResponseHelper.sendResponse(400, "User Does Not Exist");
+
+      if (user.subscription?.subscribe == false)
+        return ResponseHelper.sendResponse(400, "subscription does not exist");
+
+      await stripeHelper.createSubscriptionItem(
+        user.stripeCustomerId as string,
+        user.subscription?.priceId as string
+      );
+
+      await this.userRepository.updateById<ISubscription>(id, {
+        subscription: {
+          subscribe: false,
+        },
+        role: EUserRole.user,
+      });
+
+      return ResponseHelper.sendSuccessResponse("Subscriptions Cancel");
+    } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   };

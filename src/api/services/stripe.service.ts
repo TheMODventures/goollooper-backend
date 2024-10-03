@@ -6,7 +6,7 @@ import { stripeHelper } from "../helpers/stripe.helper";
 import { IUser } from "../../database/interfaces/user.interface";
 import { DateHelper } from "../helpers/date.helper";
 import { APPLICATION_FEE } from "../../constant";
-import Stripe from "stripe";
+import { Stripe } from "stripe";
 import { WalletRepository } from "../repository/wallet/wallet.repository";
 import { TransactionRepository } from "../repository/transaction/transaction.repository";
 import {
@@ -15,24 +15,26 @@ import {
 } from "../../database/interfaces/transaction.interface";
 import {
   ETransactionStatus,
+  EUserRole,
   TransactionType,
 } from "../../database/interfaces/enums";
-import {
-  IWallet,
-  PaymentIntentType,
-} from "../../database/interfaces/wallet.interface";
+import { IWallet } from "../../database/interfaces/wallet.interface";
 import mongoose from "mongoose";
+import TokenService from "./token.service";
 
 class StripeService {
   private userRepository: UserRepository;
   private walletRepository: WalletRepository;
   private transactionRepository: TransactionRepository;
+  private tokenService: TokenService;
   private dateHelper: DateHelper;
 
   constructor() {
     this.userRepository = new UserRepository();
     this.walletRepository = new WalletRepository();
     this.transactionRepository = new TransactionRepository();
+    this.tokenService = new TokenService();
+
     this.dateHelper = new DateHelper();
   }
 
@@ -194,7 +196,6 @@ class StripeService {
           { session }
         ),
       ]);
-      console.log(topUpTransaction, applicationFeeTransaction);
 
       if (!topUpTransaction || !applicationFeeTransaction) {
         await session.abortTransaction();
@@ -233,15 +234,20 @@ class StripeService {
         console.log("Charge succeeded:", event.data.object);
         // Handle the charge.succeeded event
         break;
-      case "customer.subscription.pending_update_expired":
-        console.log("Subscription pending update expired:", event.data.object);
-        // Handle the customer.subscription.pending_update_expired event
-        break;
 
       case "account.application.authorized":
         console.log("Account application authorized:", event.data.object);
 
         break;
+
+      case "capability.updated":
+        console.log("Capability updated:");
+        break;
+
+      case "balance.available":
+        console.log("Balance available:", event.data.object);
+        break;
+
       case "account.updated":
         const account = event.data.object as Stripe.Account;
         console.log("Account Updated:", account);
@@ -292,6 +298,21 @@ class StripeService {
           );
           // Handle account failure due to unmet requirements
           // e.g., notify the user about the issue, suggest corrective actions
+        } else if (
+          account.payouts_enabled === false ||
+          account.charges_enabled === false
+        ) {
+          console.log(`Account ${account.id} is not fully active yet.`);
+          this.userRepository.updateByOne(
+            { stripeConnectId: account.id },
+            {
+              accountAuthorized: false,
+              stripeConnectAccountRequirementsDue: {
+                payoutEnabled: account.payouts_enabled,
+                chargesEnabled: account.charges_enabled,
+              },
+            }
+          );
         } else {
           console.log(`Account ${account.id} is not fully active yet.`);
           this.userRepository.updateByOne(
@@ -301,6 +322,44 @@ class StripeService {
           // Handle other statuses
         }
         break;
+
+      // case "customer.subscription.trial_will_end":
+      // console.log("customer.subscription.trial_will_end", event.data.object);
+      // break
+
+      case "customer.subscription.deleted":
+        console.log("Subscription deleted:", event.data.object);
+
+        const customer = event.data.object.customer as string;
+        // Find the user first
+        const user = await this.userRepository.getOne<IUser>({
+          stripeCustomerId: customer,
+        });
+        console.log("USER FOUND", user);
+        if (user) {
+          // Log out the user
+          await this.tokenService.loggedOut(
+            user._id as string,
+            user?.refreshToken as string
+          );
+          // Update the user's role and subscription status
+          await this.userRepository.updateByOne<IUser>(
+            { stripeCustomerId: customer },
+            {
+              role: EUserRole.user,
+              subscription: {
+                subscribe: false,
+              },
+            }
+          );
+        }
+
+        break;
+
+      // case "invoice.upcoming":
+      //   console.log("Invoice upcoming :", event.data.object);
+      // break;
+
       default:
         console.log(`Unhandled event type ${event.type}`);
     }
@@ -397,7 +456,7 @@ class StripeService {
   //   }
   // };
 
-  payout = async (req: Request): Promise<ApiResponse> => {
+  platformPayout = async (req: Request): Promise<ApiResponse> => {
     const session = await mongoose.startSession();
     try {
       session.startTransaction();
@@ -418,6 +477,25 @@ class StripeService {
         description: "Payout Goollooper",
       });
 
+      const transaction =
+        await this.transactionRepository.updateMany<ITransaction>(
+          {
+            status: ETransactionStatus.pending,
+            type: {
+              $in: [
+                TransactionType.subscription,
+                TransactionType.taskAddRequest,
+                TransactionType.megablast,
+                TransactionType.applicationFee,
+              ],
+            },
+          },
+          {
+            $set: { status: ETransactionStatus.completed },
+          },
+          { session }
+        );
+      session.commitTransaction();
       return ResponseHelper.sendSuccessResponse("Payout", payout);
     } catch (error) {
       session.abortTransaction();
@@ -492,6 +570,44 @@ class StripeService {
     const session = await mongoose.startSession();
     try {
       session.startTransaction();
+
+      const user = await this.userRepository.getById<IUser>(
+        req.locals.auth?.userId as string
+      );
+
+      // Step 1: Check if user exists
+      if (!user) return ResponseHelper.sendResponse(404, "User not found");
+
+      // Step 2: Check if Stripe Connect account is linked
+      if (!user.stripeConnectId)
+        return ResponseHelper.sendResponse(
+          404,
+          "Stripe Connect Account not found"
+        );
+
+      // Step 3: Check if account is authorized
+      if (!user.accountAuthorized)
+        return ResponseHelper.sendResponse(400, "Account not authorized");
+
+      // Step 4: Check if there are any outstanding requirements for the Stripe Connect account
+      const requirements = user.stripeConnectAccountRequirementsDue;
+
+      if (requirements?.currentlyDue?.length > 0) {
+        return ResponseHelper.sendResponse(
+          400,
+          `Account requirements currently due: ${requirements.currentlyDue.join(
+            ", "
+          )}`
+        );
+      }
+
+      if (requirements?.pastDue?.length > 0) {
+        return ResponseHelper.sendResponse(
+          400,
+          `Account requirements past due: ${requirements.pastDue.join(", ")}`
+        );
+      }
+
       const wallet = await this.walletRepository.getOne<IWallet>({
         user: req.locals.auth?.userId as string,
       });
@@ -570,12 +686,15 @@ class StripeService {
 
           const retrievedBalance = await stripeHelper.retrieveBalance();
 
-          if (retrievedBalance.pending[0].amount < transaction.amount * 100) {
+          if (retrievedBalance?.pending[0].amount < transaction.amount * 100) {
             session.abortTransaction();
             return ResponseHelper.sendResponse(400, "Insufficient balance");
           }
 
-          if (retrievedBalance.available[0].amount < transaction.amount * 100) {
+          if (
+            retrievedBalance?.available[0].amount <
+            transaction.amount * 100
+          ) {
             session.abortTransaction();
             return ResponseHelper.sendResponse(400, "Insufficient balance");
           }
@@ -624,6 +743,52 @@ class StripeService {
       );
     } catch (error) {
       session.abortTransaction();
+      return ResponseHelper.sendResponse(500, (error as Error).message);
+    }
+  };
+  goollooperBalance = async (req: Request): Promise<ApiResponse> => {
+    try {
+      // Define the transaction types to filter by
+      const transactionTypes = [
+        TransactionType.subscription,
+        TransactionType.taskAddRequest,
+        TransactionType.megablast,
+        TransactionType.applicationFee,
+      ];
+
+      // Define the aggregation pipeline
+      const transactionResponse =
+        await this.transactionRepository.getAllWithAggregatePagination<ITransaction>(
+          [
+            {
+              $match: {
+                type: { $in: transactionTypes },
+                status: ETransactionStatus.pending,
+              },
+            },
+            {
+              $group: {
+                _id: null,
+                totalAmount: { $sum: "$amount" },
+              },
+            },
+          ]
+        );
+
+      // Check if the response has valid data
+      if (
+        !transactionResponse ||
+        !transactionResponse.data ||
+        transactionResponse.data.length === 0
+      ) {
+        return ResponseHelper.sendResponse(404, "Transaction not found");
+      }
+
+      // Extract totalAmount from the first item in the data array
+      const balance = transactionResponse.data[0]?.totalAmount || 0;
+
+      return ResponseHelper.sendSuccessResponse("Balance retrieved", balance);
+    } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   };

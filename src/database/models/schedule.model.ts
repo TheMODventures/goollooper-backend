@@ -30,14 +30,14 @@ const scheduleModel: Schema = new Schema(
       required: true,
       validate: [timeValidator, "Invalid end time"],
     },
-    dayOff: { type: Boolean, default: false },
+    dayOff: { type: Boolean, default: true },
     user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     isDeleted: { type: Boolean, default: false },
   },
   schemaOptions
 );
 
-scheduleModel.index({ _id: 1, name: 1, isPublish: 1 });
+scheduleModel.index({ _id: 1, user: 1 });
 
 export const Schedule = mongoose.model<IScheduleDoc>(
   "Schedules",

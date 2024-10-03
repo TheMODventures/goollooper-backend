@@ -33,6 +33,7 @@ class App {
       express.raw({ type: "application/json" }),
       this.stripeController.webhook
     );
+
     this.app.use(cors());
     this.app.use(morgan("dev"));
     this.app.use(express.json());

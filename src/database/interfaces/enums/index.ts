@@ -120,6 +120,10 @@ export enum MessageType {
   system = "system",
   tour = "tour",
   reschedule = "reschedule",
+  bill = "bill",
+  pay = "pay",
+  addWorkers = "workers-added",
+  removeWorkers = "workers-removed",
 }
 
 export enum EChatType {
@@ -158,8 +162,8 @@ export enum EGUIDELINE {
 }
 
 export enum ECALLDEVICETYPE {
-  ios,
-  android,
+  ios = "ios",
+  android = "android",
 }
 
 export enum TransactionType {

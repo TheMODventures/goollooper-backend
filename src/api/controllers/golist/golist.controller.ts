@@ -47,23 +47,27 @@ class GolistController {
         _id: { $ne: payload.createdBy },
         phone: { $in: phoneContacts },
       });
+      console.log("~ USER_DATA", users);
       const mylist = await this.golistService.index(1, 1, {
         type: EList.myList,
         createdBy: user,
       });
+      console.log("~ MYLIST", mylist.data.result);
       if (mylist.total && mylist.total !== 0) {
         const item = mylist.data.result[0] as IGolist;
         const response = await this.golistService.update(
           item._id?.toString() ?? "",
           {
-            serviceProviders: users.data.map((e: IUser) => e._id),
+            serviceProviders: users?.data?.result?.map((e: IUser) => e?._id),
             createdBy: user,
           }
         );
         return res.status(response.code).json(response);
       }
       if (users.status)
-        payload.serviceProviders = users.data.map((e: IUser) => e._id);
+        payload.serviceProviders = users?.data?.result?.map(
+          (e: IUser) => e?._id
+        );
     }
     const response = await this.golistService.create(payload);
     return res.status(response.code).json(response);
@@ -181,6 +185,7 @@ class GolistController {
       visualPhotos as boolean | undefined,
       visualVideos as boolean | undefined
     );
+
     // console.log(response);
     return res.status(response.code).json(response);
   };

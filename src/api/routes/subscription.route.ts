@@ -24,6 +24,11 @@ class SubscriptionRoutes extends BaseRoutes {
       this.validateRequest,
       this.subscriptionController.create
     );
+    this.router.delete(
+      "/cancel",
+      this.validateRequest,
+      this.subscriptionController.cancel
+    );
     this.router.get(
       "/show/:id",
       this.validateRequest,

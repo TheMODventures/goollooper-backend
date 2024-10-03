@@ -17,6 +17,8 @@ import TransactionRoutes from "./transaction.route";
 import StripeRoutes from "./stripe.route";
 import WalletRoutes from "./wallet.route";
 import ScheduleRoutes from "./schedule.route";
+import IndustryRoute from "./industry.route";
+import WorkerRoutes from "./worker.route";
 
 class UserRoutes extends BaseRoutes {
   private authRoutes: AuthRoutes;
@@ -37,6 +39,8 @@ class UserRoutes extends BaseRoutes {
   private stripeRoutes: StripeRoutes;
   private walletRoutes: WalletRoutes;
   private scheduleRoutes: ScheduleRoutes;
+  private industryRoutes: IndustryRoute;
+  private workerRoutes: WorkerRoutes;
 
   constructor() {
     super();
@@ -58,6 +62,8 @@ class UserRoutes extends BaseRoutes {
     this.stripeRoutes = new StripeRoutes();
     this.walletRoutes = new WalletRoutes();
     this.scheduleRoutes = new ScheduleRoutes();
+    this.industryRoutes = new IndustryRoute();
+    this.workerRoutes = new WorkerRoutes();
     this.initializeRoutes();
   }
 
@@ -65,8 +71,8 @@ class UserRoutes extends BaseRoutes {
     this.router.use("/auth", this.authRoutes.router);
     this.router.use("/guideline", this.guidelineRoutes.router);
     this.router.use("/transaction", this.transactionRoutes.router);
-    this.router.use(this.authorize.validateAuth);
     this.router.use("/service", this.serviceRoutes.router);
+    this.router.use(this.authorize.validateAuth);
     this.router.use("/subscription", this.subscriptionRoutes.router);
     this.router.use("/user", this.profileRoutes.router);
     this.router.use("/location-data", this.stateRoutes.router);
@@ -80,6 +86,8 @@ class UserRoutes extends BaseRoutes {
     this.router.use("/media", this.mediaRoutes.router);
     this.router.use("/wallet", this.walletRoutes.router);
     this.router.use("/schedule", this.scheduleRoutes.router);
+    this.router.use("/industry", this.industryRoutes.router);
+    this.router.use("/worker", this.workerRoutes.router);
   }
 }
 

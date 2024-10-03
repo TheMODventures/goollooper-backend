@@ -12,18 +12,13 @@ class TransactionController {
   }
 
   index = async (req: Request, res: Response) => {
-    const { limit, page, type = "", user, status = "" } = req.query;
+    const { limit, page, type, user, status } = req.query;
     const limitNow = limit ? limit : 10;
 
     let filter: FilterQuery<ITransaction> = {};
 
-    if (type) {
-      filter = {
-        type: type,
-        status: status,
-      };
-    }
-
+    if (type) filter = { ...filter, type: type as string };
+    if (status) filter = { ...filter, status: status as string };
     if (user) filter = { ...filter, user: user as string };
 
     const response = await this.transactionService.index(

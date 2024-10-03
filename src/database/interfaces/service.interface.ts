@@ -18,3 +18,12 @@ export interface IServiceDoc extends IService, Document {
   createdAt?: Date;
   updatedAt?: Date;
 }
+
+export interface IServicePayload {
+  title: string;
+  type: ServiceType;
+  parent?: string | null;
+  industry: string;
+  keyWords?: string[];
+  subCategories?: IServicePayload[];
+}

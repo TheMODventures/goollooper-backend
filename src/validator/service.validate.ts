@@ -1,5 +1,6 @@
 import { isObjectIdOrHexString } from "mongoose";
 import * as yup from "yup";
+import { ServiceType } from "../database/interfaces/enums";
 
 const paramRule = {
   id: yup
@@ -39,9 +40,26 @@ const createRule = yup.object().shape({
   body: yup
     .object()
     .shape({
-      title: yup.string().required(),
-      type: yup.string().required(),
-      parent: yup.string().notRequired(),
+      title: yup.string().required("Title is required."),
+      type: yup
+        .string()
+        .required("Type is required.")
+        .oneOf(Object.values(ServiceType), "Invalid service type."), // Ensure type is a valid enum value
+      parent: yup.string().nullable(),
+      industry: yup
+        .string()
+        .nullable()
+        .when("type", {
+          is: ServiceType.interest,
+          then: (schema) =>
+            schema.required("Industry is required for interest type."),
+          otherwise: (schema) => schema.notRequired(),
+        }),
+      keyWords: yup
+        .array()
+        .of(yup.string().required("Keyword must be a string."))
+        .notRequired(),
+      subCategories: yup.array(),
     })
     .noUnknown(),
   query: yup.object().noUnknown(),
@@ -57,6 +75,8 @@ const indexRule = yup.object().shape({
       limit: yup.string().notRequired(),
       title: yup.string().notRequired(),
       type: yup.string().notRequired(),
+      search: yup.string().notRequired(),
+      parent: yup.string().notRequired(),
     })
     .noUnknown(),
 });
