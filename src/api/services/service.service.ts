@@ -143,9 +143,20 @@ class ServiceService {
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   };
-  create = async (payload: IServicePayload): Promise<ApiResponse> => {
+  create = async (
+    payload: IServicePayload | IService
+  ): Promise<ApiResponse> => {
     try {
-      const data = await this.createCategoryWithSubcategories(payload);
+      let data;
+      if (payload.type == ServiceType.interest)
+        data = await this.createCategoryWithSubcategories(
+          payload as IServicePayload
+        );
+      else
+        data = await this.serviceRepository.create<IService>(
+          payload as IService
+        );
+
       return ResponseHelper.sendResponse(201, data);
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);

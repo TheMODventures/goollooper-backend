@@ -18,6 +18,7 @@ import { IWallet } from "../../database/interfaces/wallet.interface";
 import Stripe from "stripe";
 import {
   ETransactionStatus,
+  EUserRole,
   TransactionType,
 } from "../../database/interfaces/enums";
 import { ITransaction } from "../../database/interfaces/transaction.interface";
@@ -282,6 +283,7 @@ class SubscriptionService {
         subscription: {
           subscribe: false,
         },
+        role: EUserRole.user,
       });
 
       return ResponseHelper.sendSuccessResponse("Subscriptions Cancel");

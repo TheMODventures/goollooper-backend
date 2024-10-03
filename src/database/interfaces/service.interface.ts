@@ -21,7 +21,7 @@ export interface IServiceDoc extends IService, Document {
 
 export interface IServicePayload {
   title: string;
-  type: string;
+  type: ServiceType;
   parent?: string | null;
   industry: string;
   keyWords?: string[];
