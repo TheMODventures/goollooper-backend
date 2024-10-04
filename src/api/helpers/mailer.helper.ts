@@ -12,20 +12,25 @@ class Mailer {
     message: string;
   }) {
     const transporter = nodeMailer.createTransport({
-      host: "sandbox.smtp.mailtrap.io",
-      port: 2525,
+      host: "live.smtp.mailtrap.io",
+      port: 587,
       auth: {
-        user: "d786f90c32a85f",
-        pass: "ad999c91a4882c",
+        user: "api",
+        pass: "8f5da552656f8f478f83daaea0581b06",
       },
     });
-
+    // 6e9b154273203d6f4e1b527a0331aff0
     // Ensure DateHelper's mailTemplate method is called with proper parameters
     const dateHelper = new DateHelper();
     const htmlMessage = dateHelper.mailTemplate(new Date(), message);
 
+    const sender = {
+      address: "hello@goollooper.com",
+      name: "Goollooper",
+    };
+
     const mailOptions = {
-      from: "goollooperinc@gmail.com",
+      from: sender,
       to: email,
       subject,
       html: htmlMessage,
@@ -33,7 +38,7 @@ class Mailer {
 
     try {
       const info = await transporter.sendMail(mailOptions);
-      console.log("Email sent: " + info.response);
+      console.log("Email sent: " + info);
     } catch (error) {
       console.error("Error sending email: ", error);
     }

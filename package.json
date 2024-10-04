@@ -55,6 +55,7 @@
     "jsonwebtoken": "^9.0.0",
     "lint-staged": "^13.2.0",
     "lodash": "^4.17.21",
+    "mailtrap": "^3.4.0",
     "moment": "^2.29.4",
     "mongodb": "^6.3.0",
     "mongoose": "^7.0.1",
