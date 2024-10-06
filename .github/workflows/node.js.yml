@@ -24,7 +24,10 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
           cache: "npm"
-
+          
+      - name: Switch user
+        run: su - mod
+        
       - name: Install Dependencies
         run: npm install
 
