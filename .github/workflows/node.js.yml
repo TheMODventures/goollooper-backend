@@ -6,7 +6,7 @@ on:
 
 jobs:
   build:
-    runs-on: goollooper-prod-runner
+    runs-on: goollooper-backend-prod
 
     strategy:
       matrix:
@@ -40,5 +40,5 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Restart Server
-        run: /home/ubuntu/.nvm/versions/node/v18.20.4/bin/pm2 restart apis-goollooper
+      #- name: Restart Server
+       # run: /home/ubuntu/.nvm/versions/node/v18.20.4/bin/pm2 restart apis-goollooper
