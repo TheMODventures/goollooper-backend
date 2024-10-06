@@ -26,7 +26,8 @@ jobs:
           cache: "npm"
           
       - name: Switch user
-        run: su - mod
+        run: |
+          sudo -u mod bash -c "echo 'Running as mod user' && whoami"
         
       - name: Install Dependencies
         run: npm install
