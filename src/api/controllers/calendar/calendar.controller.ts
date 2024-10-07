@@ -1,9 +1,8 @@
 import { Request, Response } from "express";
-import { FilterQuery, mongo } from "mongoose";
+import { FilterQuery } from "mongoose";
 
 import { ICalendar } from "../../../database/interfaces/calendar.interface";
 import CalendarService from "../../services/calendar.service";
-import moment from "moment";
 
 class CalendarController {
   protected calendarService: CalendarService;
