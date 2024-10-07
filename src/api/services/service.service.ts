@@ -194,6 +194,7 @@ class ServiceService {
           parent: 1,
           industry: 1,
           isDeleted: 1,
+          keyWords: 1,
           hasSubCategory: 1,
         },
       });
