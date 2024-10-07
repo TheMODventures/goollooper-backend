@@ -1,26 +1,21 @@
 import {
   DeleteObjectCommand,
   HeadObjectCommand,
+  ObjectCannedACL,
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
 import { StorageEngine } from "multer";
-import { v4 } from "uuid";
+import { v4 as uuidv4 } from "uuid";
 
 import {
-  APP_MODE,
-  AWS_ACCESS_KEY,
-  AWS_BUCKET_NAME,
-  AWS_ENDPOINT,
-  AWS_REGION,
-  AWS_SECRET_ACCESS_KEY,
-  AWS_SUB_FOLDER,
-  DO_BUCKET_NAME,
-  DO_SPACES_ENDPOINT,
   DO_SPACES_KEY,
-  DO_SPACES_REGION,
   DO_SPACES_SECRET,
+  DO_SPACES_REGION,
+  DO_SPACES_ENDPOINT,
+  DO_BUCKET_NAME,
   DO_SUB_FOLDER,
+  APP_MODE,
 } from "../../config/environment.config";
 
 export class UploadHelper {
@@ -31,12 +26,12 @@ export class UploadHelper {
   constructor(subPart: string) {
     this.subPart = subPart;
     this.s3 = new S3Client({
-      forcePathStyle: false,
-      region: AWS_REGION!,
-      endpoint: AWS_ENDPOINT!,
+      forcePathStyle: true, // Ensures that the bucket name is part of the path, not the hostname
+      region: DO_SPACES_REGION,
+      endpoint: DO_SPACES_ENDPOINT,
       credentials: {
-        accessKeyId: AWS_ACCESS_KEY!,
-        secretAccessKey: AWS_SECRET_ACCESS_KEY!,
+        accessKeyId: DO_SPACES_KEY!,
+        secretAccessKey: DO_SPACES_SECRET!,
       },
     });
   }
@@ -45,30 +40,28 @@ export class UploadHelper {
     files: Express.Multer.File[]
   ): Promise<string[]> => {
     try {
-      let keys: string[] = [];
-      let key = "";
+      const keys: string[] = [];
       const params = files.map((file) => {
-        key = `${AWS_SUB_FOLDER!}/${APP_MODE}/${this.subPart}/${v4()}-${
+        const key = `${DO_SUB_FOLDER}/${APP_MODE}/${this.subPart}/${uuidv4()}-${
           file.originalname
         }`;
+        keys.push(key);
         return {
-          Bucket: AWS_BUCKET_NAME!,
+          Bucket: DO_BUCKET_NAME,
           Key: key,
           Body: file.buffer,
           ContentType: file.mimetype,
           ContentDisposition: "inline",
+          ACL: "public-read" as ObjectCannedACL,
         };
       });
+
       await Promise.all(
-        params.map((param) =>
-          this.s3.send(new PutObjectCommand(param)).then((v) => {
-            keys.push(param.Key);
-          })
-        )
+        params.map((param) => this.s3.send(new PutObjectCommand(param)))
       );
       return keys;
     } catch (error) {
-      console.log(`Error uploading file to S3 bucket:`, error);
+      console.error("Error uploading file to DigitalOcean Spaces:", error);
       throw error;
     }
   };
@@ -77,16 +70,19 @@ export class UploadHelper {
     try {
       await this.s3.send(
         new HeadObjectCommand({
-          Bucket: AWS_BUCKET_NAME!,
+          Bucket: DO_BUCKET_NAME,
           Key: key,
         })
       );
       return true;
     } catch (error) {
-      console.log(error);
       if (error instanceof Error && error.name === "NotFound") {
         return false;
       } else {
+        console.error(
+          "Error checking file existence in DigitalOcean Spaces:",
+          error
+        );
         throw error;
       }
     }
@@ -97,22 +93,24 @@ export class UploadHelper {
       try {
         await this.s3.send(
           new DeleteObjectCommand({
-            Bucket: AWS_BUCKET_NAME!,
+            Bucket: DO_BUCKET_NAME,
             Key: key,
           })
         );
         console.log(
-          `Successfully deleted file with key ${key} from S3 bucket.`
+          `Successfully deleted file with key ${key} from DigitalOcean Spaces.`
         );
       } catch (error) {
-        console.log(
-          `Error deleting file with key ${key} from S3 bucket:`,
+        console.error(
+          `Error deleting file with key ${key} from DigitalOcean Spaces:`,
           error
         );
         throw error;
       }
     } else {
-      console.log(`File with key ${key} does not exist in S3 bucket.`);
+      console.log(
+        `File with key ${key} does not exist in DigitalOcean Spaces.`
+      );
     }
   };
 }
