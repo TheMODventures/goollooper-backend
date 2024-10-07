@@ -744,18 +744,33 @@ class TaskService {
         },
       });
 
-      if (isExist) {
+      if (isExist)
         return ResponseHelper.sendResponse(422, `Status is already ${status}`);
-      }
 
       const task = await this.taskRepository.getById<ITask>(_id, "", "", {
         path: "postedBy",
         select: "firstName lastName",
         model: "Users",
       });
-      console.log("~ task", task);
 
       if (!task) return ResponseHelper.sendResponse(404, "Task not found");
+
+      const conflictTiming = await this.taskRepository.getOne<ITask>({
+        serviceProviders: {
+          $elemMatch: { user: new mongoose.Types.ObjectId(user) },
+        },
+        _id: { $ne: _id },
+        date: task.date,
+        "slot.startTime": { $lt: task.slot.endTime },
+        "slot.endTime": { $gt: task.slot.startTime },
+        status: ETaskStatus.pending,
+      });
+
+      if (conflictTiming)
+        return ResponseHelper.sendResponse(
+          409,
+          `Task Timing Conflict with ${conflictTiming.title}`
+        );
 
       const updateCount: any = { $inc: {} };
       const noOfServiceProvider = task?.noOfServiceProvider;

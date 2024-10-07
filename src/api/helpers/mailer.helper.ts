@@ -19,8 +19,7 @@ class Mailer {
         pass: "8f5da552656f8f478f83daaea0581b06",
       },
     });
-    // 6e9b154273203d6f4e1b527a0331aff0
-    // Ensure DateHelper's mailTemplate method is called with proper parameters
+
     const dateHelper = new DateHelper();
     const htmlMessage = dateHelper.mailTemplate(new Date(), message);
 
