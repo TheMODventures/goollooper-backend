@@ -722,16 +722,18 @@ class UserService {
       if (payload.phoneCode && payload.phone) {
         payload.completePhone = payload.phoneCode + payload.phone;
       }
+      const role =
+        payload.role == EUserRole.subAdmin
+          ? EUserRole.subAdmin
+          : EUserRole.support;
+
       const user: IUser = {
         ...payload,
-        role: EUserRole.subAdmin,
+        role,
       };
       const data = await this.userRepository.create<IUser>(user);
       const userId = new mongoose.Types.ObjectId(data._id!);
-      const tokenResponse = await this.tokenService.create(
-        userId,
-        EUserRole.subAdmin
-      );
+      const tokenResponse = await this.tokenService.create(userId, role);
       return ResponseHelper.sendSignTokenResponse(
         201,
         SUCCESS_DATA_INSERTION_PASSED,
