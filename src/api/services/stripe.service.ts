@@ -128,15 +128,16 @@ class StripeService {
         }
       );
 
+      console.log("PAYMENT INTENT", paymentIntent);
+
       if (paymentIntent.status !== "succeeded") {
         await session.abortTransaction();
         session.endSession();
         return ResponseHelper.sendResponse(400, "Payment intent not confirmed");
       }
 
-      const originalAmountInCents = paymentIntent.amount_received; // Get actual amount received from Stripe
+      const originalAmountInCents = paymentIntent.amount_received;
 
-      // Calculate Stripe fees and net transfer amount
       const stripeFeeInCents = this.dateHelper.calculateStripeFee(
         originalAmountInCents
       );
@@ -212,6 +213,34 @@ class StripeService {
       );
     } catch (error) {
       // Abort transaction in case of error
+      console.log("PAYMENT INTENT ERROR", error);
+
+      if (error instanceof Error) {
+        if (error instanceof Stripe.errors.StripeCardError) {
+          console.log(`A payment error occurred: ${error.message}`);
+          return ResponseHelper.sendResponse(400, "Card Decline");
+        } else if (error instanceof Stripe.errors.StripeInvalidRequestError) {
+          console.log("An invalid request occurred:", error.message);
+          return ResponseHelper.sendResponse(
+            400,
+            "An invalid request occurred"
+          );
+        } else if (error instanceof Stripe.errors.StripeAPIError) {
+          console.log("A Stripe API error occurred:", error.message);
+          return ResponseHelper.sendResponse(
+            500,
+            "An error occurred with the Stripe API."
+          );
+        } else {
+          console.log(
+            "Another problem occurred, maybe unrelated to Stripe:",
+            error.message
+          );
+        }
+      } else {
+        console.log("Unknown error type:", error);
+      }
+
       await session.abortTransaction();
       session.endSession();
       return ResponseHelper.sendResponse(500, (error as Error).message);
@@ -335,14 +364,13 @@ class StripeService {
         const user = await this.userRepository.getOne<IUser>({
           stripeCustomerId: customer,
         });
-        console.log("USER FOUND", user);
+
         if (user) {
-          // Log out the user
           await this.tokenService.loggedOut(
             user._id as string,
             user?.refreshToken as string
           );
-          // Update the user's role and subscription status
+
           await this.userRepository.updateByOne<IUser>(
             { stripeCustomerId: customer },
             {
@@ -546,13 +574,11 @@ class StripeService {
         return ResponseHelper.sendResponse(400, "Account link not created");
       }
 
-      // Return the account link in the response
       return ResponseHelper.sendSuccessResponse(
         "Account link created",
         accountLink
       );
     } catch (error) {
-      // Handle any errors that occur during the process
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   }
