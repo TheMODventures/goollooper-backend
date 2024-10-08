@@ -674,7 +674,12 @@ export class ChatRepository
               firstName: name,
               createdAt: new Date(),
             });
-            await this.getChats(participant.user.toString());
+            await this.getChats(
+              participant.user.toString(),
+              1,
+              10,
+              chat.isChatSupport
+            );
           }
         }
       });
