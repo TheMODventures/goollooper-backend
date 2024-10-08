@@ -75,7 +75,7 @@ class UserController {
     if (data?.firstName && data?.username) {
       data.isProfileCompleted = true;
     }
-
+    console.log("Data COMING FROM FE", data);
     const response = await this.userService.update(id, data, req);
     return res.status(response.code).json(response);
   };
