@@ -6,10 +6,11 @@ import AuthBaseController from "./auth.base.controller";
 class AuthController extends AuthBaseController {
   login = async (req: Request, res: Response) => {
     const { email, password } = req.body;
+    console.log(email, password);
     const response = await this.authService.login(
       email,
       password,
-      EUserRole.admin || EUserRole.support
+      EUserRole.admin
     );
     return res.status(response.code).json(response);
   };

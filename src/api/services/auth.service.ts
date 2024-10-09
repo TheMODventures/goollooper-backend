@@ -113,7 +113,11 @@ class AuthService {
       if (role === EUserRole.admin) {
         filter = {
           ...filter,
-          $or: [{ role: EUserRole.admin }, { role: EUserRole.subAdmin }],
+          $or: [
+            { role: EUserRole.admin },
+            { role: EUserRole.subAdmin },
+            { role: EUserRole.support },
+          ],
         };
       } else {
         filter = {
