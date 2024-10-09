@@ -9,7 +9,7 @@ class AuthController extends AuthBaseController {
     const response = await this.authService.login(
       email,
       password,
-      EUserRole.admin
+      EUserRole.admin || EUserRole.support
     );
     return res.status(response.code).json(response);
   };
