@@ -52,12 +52,12 @@ const createRule = yup.object().shape({
         .when("type", {
           is: ServiceType.interest,
           then: (schema) =>
-            schema.required("Industry is required for interest type."),
+            schema.required("Industry is required for interest type"),
           otherwise: (schema) => schema.notRequired(),
         }),
       keyWords: yup
         .array()
-        .of(yup.string().required("Keyword must be a string."))
+        .of(yup.string().required("Keyword must be a string"))
         .notRequired(),
       subCategories: yup.array(),
     })
@@ -95,6 +95,10 @@ const updateRule = yup.object().shape({
       title: yup.string().notRequired(),
       type: yup.string().notRequired(),
       parent: yup.string().notRequired(),
+      keyWords: yup
+        .array()
+        .of(yup.string().required("Keyword must be a string"))
+        .notRequired(),
     })
     .noUnknown(),
   query: yup.object().noUnknown(),
