@@ -492,8 +492,8 @@ class StripeService {
       const retrieveBalance = await stripeHelper.retrieveBalance();
 
       if (
-        retrieveBalance.pending.length > 0 &&
-        retrieveBalance.pending[0].amount < amount * 100
+        retrieveBalance.available.length > 0 &&
+        retrieveBalance.available[0].amount < amount * 100
       ) {
         session.abortTransaction();
         return ResponseHelper.sendResponse(400, "Insufficient balance");
