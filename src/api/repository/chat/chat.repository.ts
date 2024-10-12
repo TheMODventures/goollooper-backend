@@ -608,11 +608,19 @@ export class ChatRepository
     name?: string
   ) {
     try {
-      const chat = await Chat.findById(chatId).select("-messages");
+      const chat = await Chat.findById<IChat>(chatId).select("-messages");
 
       if (!chat) {
         // Handle error: Chat not found
         throw new Error("Chat not found");
+      }
+
+      if (chat.deleted) {
+        if (this.io)
+          this.io?.emit(
+            `newMessage/${chatId}/${senderId}`,
+            "cannot send message due chat deleted"
+          );
       }
 
       const id = new mongoose.Types.ObjectId();
