@@ -259,22 +259,8 @@ class StripeService {
 
     // Handle the event
     switch (event.type) {
-      case "charge.succeeded":
-        console.log("Charge succeeded:", event.data.object);
-        // Handle the charge.succeeded event
-        break;
-
       case "account.application.authorized":
         console.log("Account application authorized:", event.data.object);
-
-        break;
-
-      case "capability.updated":
-        console.log("Capability updated:");
-        break;
-
-      case "balance.available":
-        console.log("Balance available:", event.data.object);
         break;
 
       case "account.updated":
@@ -352,10 +338,6 @@ class StripeService {
         }
         break;
 
-      // case "customer.subscription.trial_will_end":
-      // console.log("customer.subscription.trial_will_end", event.data.object);
-      // break
-
       case "customer.subscription.deleted":
         console.log("Subscription deleted:", event.data.object);
 
@@ -384,10 +366,10 @@ class StripeService {
 
         break;
 
-      // case "invoice.upcoming":
-      //   console.log("Invoice upcoming :", event.data.object);
-      // break;
+      case "account.external_account.created":
+        console.log("Account Created:", event.data.object);
 
+        break;
       default:
         console.log(`Unhandled event type ${event.type}`);
     }
@@ -545,7 +527,7 @@ class StripeService {
 
       // Check if the user already has a Stripe Connect account
       let stripeConnectId = user.stripeConnectId;
-      const payload = { ...req.body, account: stripeConnectId };
+
       if (!stripeConnectId) {
         const createStripeConnect = await stripeHelper.stripeConnectAccount({
           email: user.email,
@@ -564,6 +546,7 @@ class StripeService {
           stripeConnectId,
         });
       }
+      const payload = { ...req.body, account: stripeConnectId };
 
       // Generate the account onboarding link
       const accountLink = await stripeHelper.connectAccountOnboardingLink(
