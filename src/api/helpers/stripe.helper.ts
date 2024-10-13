@@ -281,38 +281,17 @@ class StripeHelper {
   async deleteSubscriptionItem(subscriptionId: string) {
     return stripe.subscriptions.cancel(subscriptionId);
   }
-  async connectAccountOnboardingLink(
-    accountId: string
-  ): Promise<Stripe.Response<Stripe.AccountSession>> {
-    return await stripe.accountSessions.create({
-      account: accountId,
-      components: {
-        payment_details: {
-          enabled: true,
-        },
-        payments: {
-          enabled: true,
-          features: {
-            refund_management: true,
-            dispute_management: true,
-            capture_payments: true,
-          },
-        },
-        payouts: {
-          enabled: true,
-          features: {
-            instant_payouts: true,
-            standard_payouts: true,
-            edit_payout_schedule: true,
-          },
-        },
-        account_onboarding: {
-          enabled: true,
-        },
-        documents: {
-          enabled: true,
-        },
-      },
+  async connectAccountOnboardingLink(payload: {
+    account: string;
+    refreshUrl: string;
+    returnUrl: string;
+    type: string;
+  }): Promise<Stripe.Response<Stripe.AccountLink>> {
+    return await stripe.accountLinks.create({
+      account: payload.account,
+      refresh_url: payload.refreshUrl,
+      return_url: payload.returnUrl,
+      type: "account_onboarding",
     });
   }
 
