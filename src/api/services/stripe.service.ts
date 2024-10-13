@@ -325,8 +325,6 @@ class StripeService {
             { accountAuthorized: false }
           );
         }
-
-        res.status(200).json({ received: true });
         break;
 
       default:
