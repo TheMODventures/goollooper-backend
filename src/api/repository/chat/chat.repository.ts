@@ -2713,7 +2713,7 @@ export class ChatRepository
                           title:
                             chat?.chatType === EChatType.GROUP
                               ? chat?.groupName
-                              : v.firstName + " " + v.lastName,
+                              : firstName + " " + lastName,
                           isGroup: req.body?.isGroup ? true : false,
                           participants: req.body?.participants,
                         },
