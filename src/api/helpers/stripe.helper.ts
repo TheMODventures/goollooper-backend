@@ -2,6 +2,7 @@ import Stripe from "stripe";
 import {
   STRIPE_SECRET_KEY,
   STRIPE_WEBHOOK_SECRET,
+  STRIPE_WEBHOOK_CONNECT_ACCOUNT_SECRET,
 } from "../../config/environment.config";
 
 const stripe = new Stripe(STRIPE_SECRET_KEY as string, {});
@@ -118,7 +119,7 @@ class StripeHelper {
     return stripe.webhooks.constructEvent(
       body,
       sig,
-      STRIPE_WEBHOOK_SECRET as string
+      STRIPE_WEBHOOK_CONNECT_ACCOUNT_SECRET as string
     );
   }
 
@@ -143,7 +144,7 @@ class StripeHelper {
 
   addBankAccount(
     id: string,
-    params: Stripe.AccountCreateExternalAccountParams // previous interface was deprecated thats why change to AccountCreateExternalAccountParams
+    params: Stripe.AccountCreateExternalAccountParams
   ): Promise<Stripe.Response<Stripe.ExternalAccount>> {
     return stripe.accounts.createExternalAccount(id, params);
   }
