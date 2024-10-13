@@ -107,7 +107,14 @@ class StripeHelper {
     return stripe.plans.retrieve(planId);
   }
 
-  stripeWebHook(body: string, sig: string): Stripe.Event {
+  stripeWebHookSubscription(body: string, sig: string): Stripe.Event {
+    return stripe.webhooks.constructEvent(
+      body,
+      sig,
+      STRIPE_WEBHOOK_SECRET as string
+    );
+  }
+  stripeWebHookConnectAccount(body: string, sig: string): Stripe.Event {
     return stripe.webhooks.constructEvent(
       body,
       sig,

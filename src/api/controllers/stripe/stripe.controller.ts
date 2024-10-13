@@ -19,9 +19,11 @@ class StripeController {
   };
 
   webhook = async (req: Request, res: Response) => {
-    await this.stripeService.webhook(req, res);
+    await this.stripeService.webhookSubscription(req, res);
   };
-
+  webhookConnectAccount = async (req: Request, res: Response) => {
+    await this.stripeService.webhookConnectAccount(req, res);
+  };
   getStripeCustomer = async (req: Request, res: Response) => {
     const response = await this.stripeService.getStripeCustomer(req);
     return res.status(response.code).json(response);
