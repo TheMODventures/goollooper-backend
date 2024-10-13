@@ -534,6 +534,7 @@ class StripeService {
   async onboarding(req: Request): Promise<ApiResponse> {
     try {
       // Retrieve the user based on the provided user ID in the request
+
       const user = await this.userRepository.getById<IUser>(
         req.locals.auth?.userId as string
       );
@@ -544,8 +545,7 @@ class StripeService {
 
       // Check if the user already has a Stripe Connect account
       let stripeConnectId = user.stripeConnectId;
-
-      // If the user doesn't have a Stripe Connect account, create one
+      const payload = { ...req.body, account: stripeConnectId };
       if (!stripeConnectId) {
         const createStripeConnect = await stripeHelper.stripeConnectAccount({
           email: user.email,
@@ -567,7 +567,7 @@ class StripeService {
 
       // Generate the account onboarding link
       const accountLink = await stripeHelper.connectAccountOnboardingLink(
-        stripeConnectId
+        payload
       );
 
       if (!accountLink) {

@@ -2633,7 +2633,7 @@ export class ChatRepository
               if (v) {
                 this.userRepository
                   .getById(userId)
-                  .then(({ firstName, lastName }: any) => {
+                  .then(async ({ firstName, lastName }: any) => {
                     console.log(v.callDeviceType); // Log actual value
                     console.log(ECALLDEVICETYPE.ios); // Log enum value
                     console.log(
@@ -2725,7 +2725,7 @@ export class ChatRepository
                         android: { priority: "high" },
                         registration_ids: [v.callToken],
                       };
-                      NotificationHelper.sendNotification({
+                      const noti = await NotificationHelper.sendNotification({
                         data: message.data,
                         tokens: message.registration_ids,
                       } as PushNotification);
