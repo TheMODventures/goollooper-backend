@@ -29,9 +29,15 @@ class App {
 
   private config(): void {
     this.app.post(
-      "/webhook",
+      "/webhook/subscription",
       express.raw({ type: "application/json" }),
       this.stripeController.webhook
+    );
+
+    this.app.post(
+      "/webhook/connect-account-onboarding",
+      express.raw({ type: "application/json" }),
+      this.stripeController.webhookConnectAccount
     );
 
     this.app.use(cors());

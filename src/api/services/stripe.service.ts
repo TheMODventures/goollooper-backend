@@ -246,27 +246,22 @@ class StripeService {
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   }
-
-  async webhook(req: Request, res: Response) {
+  async webhookConnectAccount(req: Request, res: Response) {
     const sig = req.headers["stripe-signature"] as string;
     let event;
     try {
-      event = stripeHelper.stripeWebHook(req.body, sig as string);
+      event = stripeHelper.stripeWebHookConnectAccount(req.body, sig as string);
     } catch (err) {
       console.error("Webhook Error:", (err as Error).message);
       return res.status(400).send(`Webhook Error: ${(err as Error).message}`);
     }
 
-    // Handle the event
     switch (event.type) {
-      case "account.application.authorized":
-        console.log("Account application authorized:", event.data.object);
-        break;
-
       case "account.updated":
         const account = event.data.object as Stripe.Account;
         console.log("Account Updated:", account);
-        // Safely check if the account is fully activated
+
+        // Handle various account states
         if (
           account.details_submitted &&
           account.charges_enabled &&
@@ -276,12 +271,11 @@ class StripeService {
             { stripeConnectId: account.id },
             { accountAuthorized: true }
           );
-          // Handle successful account activation
-          // e.g., notify the user, update your database, etc.
+          console.log(`Account ${account.id} has been fully activated.`);
         } else if (
           account.requirements &&
           account.requirements.currently_due &&
-          account?.requirements?.currently_due.length > 0
+          account.requirements.currently_due.length > 0
         ) {
           console.log(
             `Account ${account.id} has missing information:`,
@@ -296,8 +290,6 @@ class StripeService {
               accountAuthorized: false,
             }
           );
-          // Handle incomplete account setup
-          // e.g., notify the user to provide the missing details
         } else if (account.requirements?.disabled_reason) {
           console.log(
             `Account ${account.id} is disabled due to: ${account.requirements.disabled_reason}`
@@ -311,8 +303,6 @@ class StripeService {
               accountAuthorized: false,
             }
           );
-          // Handle account failure due to unmet requirements
-          // e.g., notify the user about the issue, suggest corrective actions
         } else if (
           account.payouts_enabled === false ||
           account.charges_enabled === false
@@ -334,15 +324,35 @@ class StripeService {
             { stripeConnectId: account.id },
             { accountAuthorized: false }
           );
-          // Handle other statuses
         }
+
+        res.status(200).json({ received: true });
         break;
 
+      default:
+        console.log(`Unhandled event type ${event.type}`);
+        break;
+    }
+    res.status(200).json({ received: true });
+    return;
+  }
+
+  async webhookSubscription(req: Request, res: Response) {
+    const sig = req.headers["stripe-signature"] as string;
+    let event;
+    try {
+      event = stripeHelper.stripeWebHookSubscription(req.body, sig as string);
+    } catch (err) {
+      console.error("Webhook Error:", (err as Error).message);
+      return res.status(400).send(`Webhook Error: ${(err as Error).message}`);
+    }
+
+    // Handle the event
+    switch (event.type) {
       case "customer.subscription.deleted":
         console.log("Subscription deleted:", event.data.object);
 
         const customer = event.data.object.customer as string;
-        // Find the user first
         const user = await this.userRepository.getOne<IUser>({
           stripeCustomerId: customer,
         });
@@ -366,15 +376,10 @@ class StripeService {
 
         break;
 
-      case "account.external_account.created":
-        console.log("Account Created:", event.data.object);
-
-        break;
       default:
         console.log(`Unhandled event type ${event.type}`);
     }
 
-    // Respond to acknowledge receipt of the event
     res.status(200).json({ received: true });
     return;
   }
