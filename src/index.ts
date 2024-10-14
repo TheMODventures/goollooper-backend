@@ -2,7 +2,6 @@ import express, { Application } from "express";
 import cors from "cors";
 import morgan from "morgan";
 import { Server as SocketIOServer } from "socket.io";
-// import './database/seeders/admin.seeder'
 import { APP_HOST, APP_PORT } from "./config/environment.config";
 import { Database } from "./config/database.config";
 import AdminRoutes from "./api/routes/admin/admin.route";
@@ -39,7 +38,7 @@ class App {
       express.raw({ type: "application/json" }),
       this.stripeController.webhookConnectAccount
     );
-
+    this.app.set("trust proxy", true);
     this.app.use(cors());
     this.app.use(morgan("dev"));
     this.app.use(express.json());

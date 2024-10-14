@@ -11,32 +11,17 @@ class StripeHelper {
   createStripeCustomer(email?: string): Promise<Stripe.Customer> {
     return stripe.customers.create({ email });
   }
-
+  // const timestamp = Math.floor(Date.now() / 1000);
   createConnect(
     email: string,
     dataset: Stripe.AccountCreateParams
   ): Promise<Stripe.Account> {
     return stripe.accounts.create({
       email,
-      // ...dataset,
-      // type: "custom",
-      // capabilities: {
-      //   card_payments: { requested: true },
-      //   transfers: { requested: true },
-      // },
-      // settings: {
-      //   payouts: {
-      //     schedule: {
-      //       interval: "manual",
-      //     },
-      //   },
-      // },
-      // business_type: "individual",
-      // tos_acceptance: { ip: "8.8.8.8", date: Math.floor(Date.now() / 1000) },
-      // business_profile: {
-      //   url: "goollooper.com",
-      //   mcc: "5734",
-      // },
+      tos_acceptance: {
+        ip: dataset.tos_acceptance?.ip,
+        date: Math.floor(Date.now() / 1000),
+      },
     });
   }
 
@@ -300,23 +285,23 @@ class StripeHelper {
       refresh_url: payload.refreshUrl,
       return_url: payload.returnUrl,
       type: "account_onboarding",
+      collection_options: {
+        future_requirements: "include",
+        fields: "eventually_due",
+      },
     });
   }
 
   async stripeConnectAccount(
-    payload: Stripe.AccountUpdateParams
+    payload: Stripe.AccountCreateParams
   ): Promise<Stripe.Account> {
     return stripe.accounts.create({
       email: payload.email,
-      business_type: "individual",
       capabilities: {
         card_payments: { requested: true },
         transfers: { requested: true },
       },
-      business_profile: {
-        url: "goollooper.com",
-        mcc: "5734",
-      },
+      country: payload.country,
       settings: {
         payouts: {
           schedule: {

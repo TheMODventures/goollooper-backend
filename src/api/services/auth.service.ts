@@ -55,35 +55,32 @@ class AuthService {
   register = async (req: Request, role: EUserRole): Promise<ApiResponse> => {
     try {
       const createCode = crypto.randomInt(100000, 999999);
-      const user: IUserDoc = {
-        ...req.body,
-        role: role,
-        otpCode: Number(createCode),
-        otpExpiredAt: moment().add(60, "seconds").valueOf(),
-      };
-      if (req.body.fcmToken) user.fcmTokens = [req.body.fcmToken];
-      const data = await this.userRepository.create<IUser>(user);
-      if (!data) return ResponseHelper.sendResponse(500, "User not created");
-      const wallet = await this.walletRepository.create<IWallet>({
-        user: data._id,
-      } as IWallet);
-      const userId = new mongoose.Types.ObjectId(data._id!);
-      const tokenResponse = await this.tokenService.create(userId, role);
-      const CustomerCreate = await stripeHelper.createStripeCustomer(
-        user.email
+      const userPayload: IUserDoc = this.buildUserPayload(
+        req.body,
+        role,
+        createCode
       );
-      if (CustomerCreate) {
-        await this.userRepository.updateById(data._id as string, {
-          stripeCustomerId: CustomerCreate.id,
-        });
-      }
 
-      await this.userRepository.updateById(data._id as string, {
-        wallet: wallet._id,
-      });
+      const newUser = await this.userRepository.create<IUser>(userPayload);
+      if (!newUser) return ResponseHelper.sendResponse(400, "User not created");
+
+      const [wallet, tokenResponse, stripeCustomer] = await Promise.all([
+        this.walletRepository.create<IWallet>({ user: newUser._id } as IWallet),
+        this.tokenService.create(
+          new mongoose.Types.ObjectId(newUser._id),
+          role
+        ),
+        stripeHelper.createStripeCustomer(newUser.email),
+      ]);
+
+      const updateData: Partial<IUser> = { wallet: wallet._id as string };
+
+      if (stripeCustomer) updateData.stripeCustomerId = stripeCustomer.id;
+
+      await this.userRepository.updateById(newUser._id as string, updateData);
 
       Mailer.sendEmail({
-        email: data.email,
+        email: newUser.email,
         subject: "Verification Code",
         message: `<h1>Your Verification Code is ${createCode}</h1>`,
       });
@@ -91,12 +88,27 @@ class AuthService {
       return ResponseHelper.sendSignTokenResponse(
         201,
         SUCCESS_REGISTRATION_PASSED,
-        data,
+        newUser,
         tokenResponse
       );
     } catch (error) {
+      console.error("Registration Error:", error); // Improved error logging
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
+  };
+
+  buildUserPayload = (
+    body: any,
+    role: EUserRole,
+    otpCode: number
+  ): IUserDoc => {
+    return {
+      ...body,
+      role: role,
+      otpCode: otpCode,
+      otpExpiredAt: moment().add(60, "seconds").valueOf(),
+      fcmTokens: body.fcmToken ? [body.fcmToken] : [],
+    };
   };
 
   login = async (

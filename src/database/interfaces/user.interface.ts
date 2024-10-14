@@ -107,6 +107,8 @@ export interface IUser {
     pastDue: string[];
     currentlyDue: string[];
     eventuallyDue: string[];
+    payoutEnabled: boolean;
+    chargesEnabled: boolean;
     disabledReason: string;
   };
   wallet?: string;

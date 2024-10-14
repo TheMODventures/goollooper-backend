@@ -60,6 +60,17 @@ class RatingService {
         payload.to as string
       );
       if (!user) return ResponseHelper.sendResponse(404, "User not found");
+      const isRatingExist = await this.ratingRepository.getOne<IRating>({
+        by: payload.by,
+        to: payload.to,
+        task: payload.task,
+      });
+
+      if (isRatingExist)
+        return ResponseHelper.sendResponse(
+          400,
+          "Rating Already has been given"
+        );
 
       const updatedRatingCount = user.ratingCount + 1;
       const updatedAverageRating =
@@ -91,6 +102,14 @@ class RatingService {
           userId = userId.toString();
           const user = await this.userRepository.getById<IUser>(userId);
           if (!user) return;
+
+          const isRatingExist = await this.ratingRepository.getOne<IRating>({
+            by: payload.by,
+            to: userId,
+            task: payload.task,
+          });
+
+          if (isRatingExist) return;
 
           const updatedRatingCount = user.ratingCount + 1;
           const updatedAverageRating =
