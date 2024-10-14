@@ -58,23 +58,13 @@ class WalletService {
   };
 
   create = async (payload: IWallet, req: Request): Promise<ApiResponse> => {
-    const {
-      idNumber,
-      ssnLast4,
-      dob,
-      countryCode,
-      city,
-      line1,
-      line2,
-      country,
-      state,
-      postal_code,
-    } = req.body;
+    const { idNumber, ssnLast4, dob, countryCode } = req.body;
     payload.user = req.locals.auth?.userId as string;
     try {
       const user: IUser | null = await this.userRepository.getById(
         req.locals.auth?.userId as string
       );
+
       if (user?.wallet)
         return ResponseHelper.sendResponse(
           409,
@@ -87,6 +77,7 @@ class WalletService {
           "Complete your profile to create wallet"
         );
       }
+
       if (
         !user.stripeConnectId &&
         countryCode == "US" &&
@@ -99,40 +90,11 @@ class WalletService {
         );
       }
 
+      // console.log("USER IP ADDRESS",userIp);
+
       let stripeDataset: Stripe.AccountCreateParams = {
         default_currency: "usd",
-      };
-
-      stripeDataset = {
-        email: user.email,
-        country: countryCode,
-        individual: {
-          ssn_last_4: countryCode == "US" ? ssnLast4 : undefined,
-          id_number: country == "US" ? idNumber : undefined,
-          address: {
-            line1,
-            line2,
-            country,
-            state,
-            city,
-            postal_code,
-          },
-
-          email: user.email,
-          gender: user.gender,
-          phone: `${user.phoneCode}${user.phone}`,
-          first_name: user.firstName,
-          last_name: user.lastName,
-        },
-        external_account: {
-          account_number: req.body.account_number,
-          routing_number: req.body.routing_number,
-          currency: "usd",
-          account_holder_name: req.body.account_holder_name,
-          country: countryCode,
-          account_holder_type: "individual",
-          object: "bank_account",
-        },
+        // tos_acceptance:{ip:}
       };
 
       if (dob && stripeDataset.individual) {
@@ -145,18 +107,8 @@ class WalletService {
         stripeDataset
       );
 
-      if (stripeWallets.code !== 200) return stripeWallets;
-
-      const uploaded = await this.uploadDocuments(
-        stripeWallets.data.stripeConnect.id,
-        req.files
-      );
-      if (!uploaded)
-        return ResponseHelper.sendResponse(
-          500,
-          "Error while uploading documents"
-        );
       const data = await this.walletRepository.create<IWallet>(payload);
+
       await this.userRepository.updateById(payload.user as string, {
         stripeConnectId: stripeWallets.data.stripeConnect.id,
         stripeCustomerId: stripeWallets.data.stripeCustomer.id,

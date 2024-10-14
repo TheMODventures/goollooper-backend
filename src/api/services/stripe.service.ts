@@ -128,8 +128,6 @@ class StripeService {
         }
       );
 
-      console.log("PAYMENT INTENT", paymentIntent);
-
       if (paymentIntent.status !== "succeeded") {
         await session.abortTransaction();
         session.endSession();
@@ -261,15 +259,21 @@ class StripeService {
         const account = event.data.object as Stripe.Account;
         console.log("Account Updated:", account);
 
-        // Handle various account states
         if (
           account.details_submitted &&
           account.charges_enabled &&
           account.payouts_enabled
         ) {
-          this.userRepository.updateByOne(
+          this.userRepository.updateByOne<IUser>(
             { stripeConnectId: account.id },
-            { accountAuthorized: true }
+            {
+              accountAuthorized: true,
+              stripeConnectAccountRequirementsDue: {
+                payoutEnabled: true,
+                chargesEnabled: true,
+                disabledReason: "",
+              },
+            } as IUser
           );
           console.log(`Account ${account.id} has been fully activated.`);
         } else if (
@@ -528,12 +532,12 @@ class StripeService {
         return ResponseHelper.sendResponse(404, "User not found");
       }
 
-      // Check if the user already has a Stripe Connect account
       let stripeConnectId = user.stripeConnectId;
 
       if (!stripeConnectId) {
         const createStripeConnect = await stripeHelper.stripeConnectAccount({
           email: user.email,
+          country: user.countryCode,
         });
 
         if (!createStripeConnect) {
