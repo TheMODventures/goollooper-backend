@@ -63,12 +63,6 @@ class RatingController {
     const response = await this.ratingService.delete(id);
     return res.status(response.code).json(response);
   };
-
-  isRatingExist = async (req: Request, res: Response) => {
-    const payload: IRating = req.body;
-    const response = await this.ratingService.isRatingExist(payload);
-    return res.status(response.code).json(response);
-  };
 }
 
 export default RatingController;

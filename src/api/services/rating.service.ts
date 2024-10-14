@@ -200,22 +200,6 @@ class RatingService {
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   };
-
-  isRatingExist = async (payload: IRating): Promise<ApiResponse> => {
-    try {
-      const isRatingExist = await this.ratingRepository.getOne<IRating>({
-        to: payload.to,
-        by: payload.by,
-        task: payload.task,
-      });
-      return ResponseHelper.sendResponse(
-        isRatingExist ? 400 : 200,
-        isRatingExist ? { ratingExist: true } : { ratingExist: false }
-      );
-    } catch (error) {
-      return ResponseHelper.sendResponse(500, (error as Error).message);
-    }
-  };
 }
 
 export default RatingService;
