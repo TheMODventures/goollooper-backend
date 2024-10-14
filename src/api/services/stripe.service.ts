@@ -330,7 +330,18 @@ class StripeService {
           );
         }
         break;
-
+      case "payout.canceled":
+        const cancelPayout = event.data.object;
+        console.log("PAYOUT CANCELED ->", cancelPayout);
+        break;
+      case "payout.failed":
+        const failedPayout = event.data.object;
+        console.log("PAYOUT FAILED ->", failedPayout);
+        break;
+      case "radar.early_fraud_warning.created":
+        const radar = event.data.object;
+        console.log("RADAR WARNING CREATED ->", radar);
+        break;
       default:
         console.log(`Unhandled event type ${event.type}`);
         break;
@@ -593,7 +604,6 @@ class StripeService {
 
       // Step 1: Check if user exists
       if (!user) return ResponseHelper.sendResponse(404, "User not found");
-
       // Step 2: Check if Stripe Connect account is linked
       if (!user.stripeConnectId)
         return ResponseHelper.sendResponse(
@@ -632,7 +642,7 @@ class StripeService {
       if (wallet.balance < req.body.amount)
         return ResponseHelper.sendResponse(400, "Insufficient balance");
 
-      this.transactionRepository.create(
+      const payout = await this.transactionRepository.create<ITransaction>(
         {
           amount: req.body.amount,
           user: req.locals.auth?.userId as string,
@@ -651,7 +661,10 @@ class StripeService {
         { session }
       );
       session.commitTransaction();
-      return ResponseHelper.sendSuccessResponse("Withdrawal request sent", {});
+      return ResponseHelper.sendSuccessResponse(
+        "Withdrawal request sent",
+        payout
+      );
     } catch (error) {
       session.abortTransaction();
       return ResponseHelper.sendResponse(500, (error as Error).message);
@@ -676,70 +689,47 @@ class StripeService {
       if (!transaction)
         return ResponseHelper.sendResponse(404, "transaction not found");
 
-      switch (status) {
-        case ETransactionStatus.cancelled:
-          {
-            const wallet = await this.walletRepository.updateByOne(
-              { user: transaction.user as string },
-              { $inc: { balance: +transaction.amount } },
-              { session }
-            );
-            if (!wallet) {
-              session.abortTransaction();
-              return ResponseHelper.sendResponse(400, "Wallet not found");
-            }
-          }
-          break;
-
-        case ETransactionStatus.completed: {
-          const user = await this.userRepository.getById<IUser>(
-            transaction.user as string
-          );
-          if (!user) {
-            session.abortTransaction();
-            return ResponseHelper.sendResponse(404, "User not found");
-          }
-
-          const retrievedBalance = await stripeHelper.retrieveBalance();
-
-          if (retrievedBalance?.pending[0].amount < transaction.amount * 100) {
-            session.abortTransaction();
-            return ResponseHelper.sendResponse(400, "Insufficient balance");
-          }
-
-          if (
-            retrievedBalance?.available[0].amount <
-            transaction.amount * 100
-          ) {
-            session.abortTransaction();
-            return ResponseHelper.sendResponse(400, "Insufficient balance");
-          }
-
-          const transferFunds = await stripeHelper.transfer(
-            {
-              amount: transaction.amount * 100,
-              currency: "usd",
-              destination: user.stripeConnectId as string,
-            },
-            user.stripeConnectId as string
-          );
-
-          if (!transferFunds) {
-            session.abortTransaction();
-            return ResponseHelper.sendResponse(400, "Transfer failed");
-          }
-
-          const payout = stripeHelper.payout(user.stripeConnectId as string, {
-            amount: transaction.amount * 100,
-            currency: "usd",
-            destination: user.stripeConnectId as string,
-          });
-          if (!payout) {
-            session.abortTransaction();
-            return ResponseHelper.sendResponse(400, "Payout failed");
-          }
-        }
+      const user = await this.userRepository.getById<IUser>(
+        transaction.user as string
+      );
+      if (!user) {
+        session.abortTransaction();
+        return ResponseHelper.sendResponse(404, "User not found");
       }
+
+      const retrievedBalance = await stripeHelper.retrieveBalance();
+
+      if (
+        retrievedBalance?.pending[0].amount < transaction.amount * 100 ||
+        retrievedBalance?.available[0].amount < transaction.amount * 100
+      ) {
+        session.abortTransaction();
+        return ResponseHelper.sendResponse(400, "Insufficient balance");
+      }
+
+      const transferFunds = await stripeHelper.transfer({
+        amount: transaction.amount * 100,
+        currency: "usd",
+        destination: user.stripeConnectId as string,
+      });
+
+      if (!transferFunds) {
+        session.abortTransaction();
+        return ResponseHelper.sendResponse(400, "Transfer failed");
+      }
+      const payout = await stripeHelper.payout(user.stripeConnectId as string, {
+        amount: transaction.amount * 100,
+        currency: "usd",
+        method: "instant",
+      });
+      console.log("PAYOUT OBECT ->", payout);
+
+      if (!payout) {
+        session.abortTransaction();
+        return ResponseHelper.sendResponse(400, "Payout failed");
+      }
+      //   }
+      // }
 
       const updatedTransaction = await this.transactionRepository.updateById(
         transaction._id as string,

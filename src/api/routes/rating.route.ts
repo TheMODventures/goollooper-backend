@@ -29,6 +29,11 @@ class RatingRoutes extends BaseRoutes {
       this.validateRequest,
       this.ratingController.createMultiple
     );
+    this.router.post(
+      "/isRatingExist",
+      this.validateRequest,
+      this.ratingController.isRatingExist
+    );
   }
 }
 

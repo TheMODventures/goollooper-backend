@@ -80,9 +80,14 @@ const createMultipleRule = yup.object().shape({
     .noUnknown(),
   query: yup.object().noUnknown(),
 });
-
+// const isRatingExistRule = yup.object().shape({
+//   params: yup.object().noUnknown(),
+//   body:yup.object(),
+//   query: yup.object().noUnknown(),
+// })
 export = {
   "/": indexRule,
   "/create": createRule,
   "/multiple": createMultipleRule,
+  // "isRatingExist":
 };
