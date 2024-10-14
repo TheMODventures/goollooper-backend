@@ -92,6 +92,18 @@ class RatingService {
   createMultiple = async (payload: RatingPayload): Promise<ApiResponse> => {
     try {
       const reviews: IRating[] = [];
+
+      const isRatingExist = await this.ratingRepository.getOne<IRating>({
+        by: payload.by,
+        task: payload.task,
+      });
+
+      if (isRatingExist)
+        return ResponseHelper.sendResponse(
+          400,
+          "User already provide Rating for this task"
+        );
+
       const userUpdates: {
         userId: string;
         updateData: { averageRating: number; ratingCount: number };
@@ -102,14 +114,6 @@ class RatingService {
           userId = userId.toString();
           const user = await this.userRepository.getById<IUser>(userId);
           if (!user) return;
-
-          const isRatingExist = await this.ratingRepository.getOne<IRating>({
-            by: payload.by,
-            to: userId,
-            task: payload.task,
-          });
-
-          if (isRatingExist) return;
 
           const updatedRatingCount = user.ratingCount + 1;
           const updatedAverageRating =
