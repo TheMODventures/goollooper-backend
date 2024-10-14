@@ -621,6 +621,7 @@ export class ChatRepository
             `newMessage/${chatId}/${senderId}`,
             "cannot send message due chat deleted"
           );
+        return "cannot send message due to chat deleted";
       }
 
       const id = new mongoose.Types.ObjectId();

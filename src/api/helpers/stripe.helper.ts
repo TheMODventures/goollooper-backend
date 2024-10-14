@@ -198,7 +198,6 @@ class StripeHelper {
         {},
         { stripeAccount: stripeConnectId }
       );
-
       const isInstant = payload.method === "instant";
       const isStandard = payload.method === "standard";
       const hasInstantBalance =
@@ -224,7 +223,7 @@ class StripeHelper {
 
   async transfer(
     payload: Stripe.TransferCreateParams,
-    stripeConnectId: string
+    stripeConnectId?: string
   ) {
     return stripe.transfers.create(
       {
