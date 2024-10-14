@@ -101,7 +101,7 @@ class RatingService {
       if (isRatingExist)
         return ResponseHelper.sendResponse(
           400,
-          "User already provide Rating for this task"
+          "You have already rated this user"
         );
 
       const userUpdates: {
