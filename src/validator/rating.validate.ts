@@ -80,33 +80,8 @@ const createMultipleRule = yup.object().shape({
     .noUnknown(),
   query: yup.object().noUnknown(),
 });
-const isRatingExistRule = yup.object().shape({
-  params: yup.object().noUnknown(),
-  body: yup.object().shape({
-    to: yup
-      .string()
-      .required()
-      .test("invalid id", "No Such Id Exist", (value: string) => {
-        return isObjectIdOrHexString(value);
-      }),
-    by: yup
-      .string()
-      .required()
-      .test("invalid id", "No Such Id Exist", (value: string) => {
-        return isObjectIdOrHexString(value);
-      }),
-    task: yup
-      .string()
-      .required()
-      .test("invalid id", "No Such Id Exist", (value: string) => {
-        return isObjectIdOrHexString(value);
-      }),
-  }),
-  query: yup.object().noUnknown(),
-});
 export = {
   "/": indexRule,
   "/create": createRule,
   "/multiple": createMultipleRule,
-  isRatingExist: isRatingExistRule,
 };
