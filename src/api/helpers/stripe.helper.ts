@@ -59,6 +59,16 @@ class StripeHelper {
     return stripePk.tokens.create(obj);
   }
 
+  getDefaultBankAccount(
+    connectId: string,
+    type: string,
+    limit = 1
+  ): Stripe.ApiListPromise<Stripe.ExternalAccount> {
+    return stripe.accounts.listExternalAccounts(connectId, {
+      limit: 1,
+    });
+  }
+
   createPaymentIntent(
     obj: Stripe.PaymentIntentCreateParams
   ): Promise<Stripe.PaymentIntent> {
@@ -114,9 +124,7 @@ class StripeHelper {
     return stripe.customers.retrieve(id);
   }
 
-  getConnect(
-    id: string
-  ): Promise<Stripe.Response<Stripe.Account | Stripe.DeletedAccount>> {
+  getConnect(id: string): Promise<Stripe.Response<Stripe.Account>> {
     return stripe.accounts.retrieve(id);
   }
 

@@ -14,8 +14,10 @@ import {
   ITransactionDoc,
 } from "../../database/interfaces/transaction.interface";
 import {
+  BANK_ACCOUNT_PAYMENT_METHOD_TYPE,
   ETransactionStatus,
   EUserRole,
+  PAYOUT_SOURCE,
   TransactionType,
 } from "../../database/interfaces/enums";
 import { IWallet } from "../../database/interfaces/wallet.interface";
@@ -676,15 +678,16 @@ class StripeService {
     try {
       session.startTransaction();
       const status = req.body.status;
-
-      const transaction =
-        await this.transactionRepository.getById<ITransaction>(
-          req.params.id,
-          "",
-          "",
-          [],
-          true
-        );
+      const transaction = await this.transactionRepository.getOne<ITransaction>(
+        {
+          _id: req.params.id,
+          status: ETransactionStatus.pending,
+        },
+        "",
+        "",
+        [],
+        true
+      );
 
       if (!transaction)
         return ResponseHelper.sendResponse(404, "transaction not found");
@@ -707,29 +710,55 @@ class StripeService {
         return ResponseHelper.sendResponse(400, "Insufficient balance");
       }
 
+      // const connectAccount = await stripeHelper.getConnect(user.stripeConnectId)
+
+      // if(!connectAccount){
+      //   session.abortTransaction();
+      //   return ResponseHelper.sendResponse(400,"Connect Account not found")
+      // }
+      const bankAccount = await stripeHelper.getDefaultBankAccount(
+        user.stripeConnectId,
+        PAYOUT_SOURCE.card
+      );
+
+      let isInstantAvailable;
+      if (Array.isArray(bankAccount.data) && bankAccount.data.length > 0) {
+        isInstantAvailable =
+          bankAccount.data[0].available_payout_methods?.includes(
+            BANK_ACCOUNT_PAYMENT_METHOD_TYPE.instant
+          );
+      } else {
+        isInstantAvailable = false;
+      }
+      console.log("BANK ACCOUNT ->", bankAccount);
+
+      console.log("BANK ACCOUNT STATUS ->", bankAccount.data[0].status);
+
       const transferFunds = await stripeHelper.transfer({
         amount: transaction.amount * 100,
         currency: "usd",
         destination: user.stripeConnectId as string,
       });
 
+      console.log("transferFunds ->", transferFunds);
       if (!transferFunds) {
         session.abortTransaction();
         return ResponseHelper.sendResponse(400, "Transfer failed");
       }
+
       const payout = await stripeHelper.payout(user.stripeConnectId as string, {
         amount: transaction.amount * 100,
         currency: "usd",
-        method: "instant",
+        method: isInstantAvailable
+          ? BANK_ACCOUNT_PAYMENT_METHOD_TYPE.instant
+          : BANK_ACCOUNT_PAYMENT_METHOD_TYPE.standard,
+        metadata: { transfer_id: transferFunds.id },
       });
-      console.log("PAYOUT OBECT ->", payout);
 
       if (!payout) {
         session.abortTransaction();
         return ResponseHelper.sendResponse(400, "Payout failed");
       }
-      //   }
-      // }
 
       const updatedTransaction = await this.transactionRepository.updateById(
         transaction._id as string,

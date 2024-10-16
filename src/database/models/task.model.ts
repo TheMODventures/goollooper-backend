@@ -3,7 +3,12 @@ import mongoosePaginate from "mongoose-paginate-v2";
 import aggregatePaginate from "mongoose-aggregate-paginate-v2";
 
 import { ITaskDoc } from "../interfaces/task.interface";
-import { TaskType, ETaskUserStatus, ETaskStatus } from "../interfaces/enums";
+import {
+  TaskType,
+  ETaskUserStatus,
+  ETaskStatus,
+  Days,
+} from "../interfaces/enums";
 
 const schemaOptions = {
   timestamps: true,
@@ -28,6 +33,7 @@ const taskModel: Schema = new Schema(
     },
     requirement: { type: String, default: null },
     date: { type: Date, required: true },
+    day: { type: String, enum: Days },
     slot: {
       startTime: {
         type: String,

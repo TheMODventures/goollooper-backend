@@ -619,9 +619,18 @@ export class ChatRepository
         if (this.io)
           this.io?.emit(
             `newMessage/${chatId}/${senderId}`,
-            "cannot send message due chat deleted"
+            "cannot send message due to chat deleted"
           );
         return "cannot send message due to chat deleted";
+      }
+
+      if (chat.isTicketClosed) {
+        if (this.io)
+          this.io?.emit(
+            `newMessage/${chatId}/${senderId}`,
+            "cannot send message due to chat Closed"
+          );
+        return "cannot send message due to chat Closed";
       }
 
       const id = new mongoose.Types.ObjectId();

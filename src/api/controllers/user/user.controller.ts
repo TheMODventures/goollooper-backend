@@ -118,7 +118,7 @@ class UserController {
     const { limit, page, username = "", email = "" } = req.query;
     const limitNow = limit ? limit : 10;
     const filter: FilterQuery<IUser> = {
-      role: EUserRole.subAdmin,
+      role: { $in: [EUserRole.subAdmin, EUserRole.support] },
       email: { $regex: email, $options: "i" },
       isDeleted: false,
     };

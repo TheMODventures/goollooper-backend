@@ -20,7 +20,6 @@ export class Authorize {
     }
     const token = req.headers.authorization.split(" ")[1];
     if (token) {
-      // verifies secret and checks exp
       return jwt.verify(token, JWT_SECRET_KEY!, async function (err, decoded) {
         if (err || typeof decoded === "string") {
           const response = ResponseHelper.sendResponse(401);
