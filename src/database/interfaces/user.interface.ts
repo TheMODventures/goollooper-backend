@@ -28,6 +28,15 @@ interface Schedule {
   dayOff?: boolean;
 }
 
+export interface ISubscription {
+  subscription: string;
+  plan: string;
+  name: string;
+  priceId: string;
+  subscribe: boolean;
+  subscriptionAuthId: string;
+}
+
 export interface IUser {
   _id?: string | mongoose.Types.ObjectId;
   firstName?: string;
@@ -49,14 +58,7 @@ export interface IUser {
   role: EUserRole;
   volunteer?: string[];
   services?: string[] | IService[];
-  subscription?: {
-    subscription: string;
-    plan: string;
-    name: string;
-    priceId: string;
-    subscribe: boolean;
-    subscriptionAuthId: string;
-  };
+  subscription?: ISubscription;
   locationType?: EUserLocationType;
   location?: Location[];
   taskLocation?: Location[];
@@ -100,7 +102,7 @@ export interface IUser {
   callToken?: string;
   callDeviceType?: string;
   stripeCustomerId?: string;
-  stripeConnectId?: string;
+  stripeConnectId: string;
   accountAuthorized?: boolean;
   allServices: IService[];
   stripeConnectAccountRequirementsDue: {

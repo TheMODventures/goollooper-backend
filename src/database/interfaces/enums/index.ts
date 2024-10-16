@@ -204,3 +204,20 @@ export enum AUTH_PROVIDER {
   APPLE = "apple",
   MANUAL = "manual",
 }
+
+export enum PAYOUT_SOURCE {
+  bank_account = "bank_account",
+  card = "card",
+}
+export enum BANK_ACCOUNT_PAYMENT_METHOD_TYPE {
+  instant = "instant",
+  standard = "standard",
+}
+
+export enum BANK_ACCOUNT_STATUS {
+  new = "new",
+  validate = "validate",
+  verified = "verified",
+  verification_failed = "verification_failed",
+  errored = "errored",
+}

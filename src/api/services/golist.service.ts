@@ -98,20 +98,6 @@ class GolistService {
         return ResponseHelper.sendResponse(404);
       }
       const query: PipelineStage[] = [];
-      // if (coordinates) {
-      //   query.push({
-      //     $geoNear: {
-      //       near: {
-      //         type: "Point",
-      //         coordinates: coordinates ?? ([67.0, 24.0] as [number, number]),
-      //       },
-      //       distanceField: "distance",
-      //       spherical: true,
-      //       // maxDistance: 10000,
-      //       query: { _id: { $in: response?.serviceProviders } },
-      //     },
-      //   });
-      // }
       query.push(
         ...[
           { $match: { _id: { $in: response?.serviceProviders } } },

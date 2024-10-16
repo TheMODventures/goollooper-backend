@@ -29,13 +29,19 @@ import {
   ETaskStatus,
   ETaskUserStatus,
   ETransactionStatus,
+  Subscription,
+  SubscriptionType,
   TaskType,
   TransactionType,
 } from "../../database/interfaces/enums";
 import { ICalendar } from "../../database/interfaces/calendar.interface";
-import { IUser } from "../../database/interfaces/user.interface";
+import {
+  IUser,
+  IUserWithSchedule,
+} from "../../database/interfaces/user.interface";
 import { UploadHelper } from "../helpers/upload.helper";
 import { ModelHelper } from "../helpers/model.helper";
+
 import NotificationService, {
   NotificationParams,
 } from "./notification.service";
@@ -92,19 +98,28 @@ class TaskService {
     try {
       const match: any = {
         postedBy: { $ne: new mongoose.Types.ObjectId(user) },
+        isDeleted: false,
       };
-      match.isDeleted = false;
-      if (taskInterests?.length > 0)
+
+      if (taskInterests?.length > 0) {
         match.taskInterests = {
           $in: taskInterests.map((e) => new mongoose.Types.ObjectId(e)),
         };
+      }
+
       if (title) {
         match.title = { $regex: title, $options: "i" };
       }
+
+      const currentUser = await this.userRepository.getById<IUserWithSchedule>(
+        user
+      );
+
       const query = [
         {
           $match: match,
         },
+
         {
           $lookup: {
             from: "users",
@@ -146,6 +161,25 @@ class TaskService {
           $unwind: "$postedBy",
         },
       ];
+      if (currentUser?.subscription?.name === Subscription.bsp) {
+        const schedule = currentUser?.schedule || [];
+
+        query.push({
+          $match: {
+            $expr: {
+              $and: schedule.map((scheduleItem) => ({
+                $and: [
+                  { $eq: ["$day", scheduleItem.day] },
+                  { $gte: ["$slot.startTime", scheduleItem.startTime] },
+                  { $lte: ["$slot.endTime", scheduleItem.endTime] },
+                  { $eq: [scheduleItem.dayOff, "false"] },
+                ],
+              })),
+            },
+          },
+        });
+      }
+
       const data = await this.taskRepository.getAllWithAggregatePagination(
         query,
         undefined,
@@ -754,23 +788,38 @@ class TaskService {
       });
 
       if (!task) return ResponseHelper.sendResponse(404, "Task not found");
+      const userData: IUser | null = await this.userRepository.getById<IUser>(
+        user,
+        undefined,
+        "firstName"
+      );
 
-      const conflictTiming = await this.taskRepository.getOne<ITask>({
-        serviceProviders: {
-          $elemMatch: { user: new mongoose.Types.ObjectId(user) },
-        },
-        _id: { $ne: _id },
-        date: task.date,
-        "slot.startTime": { $lt: task.slot.endTime },
-        "slot.endTime": { $gt: task.slot.startTime },
-        status: ETaskStatus.pending,
-      });
+      const subscription = userData?.subscription;
+      // if (!subscription?.subscribe) return ResponseHelper.sendResponse(400, "You are not Service Provider")
 
-      if (conflictTiming)
-        return ResponseHelper.sendResponse(
-          409,
-          `Task Timing Conflict with ${conflictTiming.title}`
-        );
+      if (subscription?.name != Subscription.mbs) {
+        console.log("Subscription ->", subscription);
+        const conflictTiming = await this.taskRepository.getOne<ITask>({
+          serviceProviders: {
+            $elemMatch: {
+              user: new mongoose.Types.ObjectId(user),
+              status: ETaskUserStatus.ACCEPTED,
+            },
+          },
+          _id: { $ne: _id },
+          date: task.date,
+          "slot.startTime": { $lt: task.slot.endTime },
+          "slot.endTime": { $gt: task.slot.startTime },
+          status: ETaskStatus.pending,
+          isDeleted: false,
+        });
+
+        if (conflictTiming)
+          return ResponseHelper.sendResponse(
+            409,
+            `Task Timing Conflict with ${conflictTiming.title}`
+          );
+      }
 
       const updateCount: any = { $inc: {} };
       const noOfServiceProvider = task?.noOfServiceProvider;
@@ -808,12 +857,6 @@ class TaskService {
 
       if (!response) return ResponseHelper.sendResponse(404);
 
-      const userData: IUser | null = await this.userRepository.getById(
-        user,
-        undefined,
-        "firstName"
-      );
-
       const notificationType =
         status == ETaskUserStatus.ACCEPTED
           ? ENOTIFICATION_TYPES.TASK_ACCEPTED
@@ -827,7 +870,7 @@ class TaskService {
           // Case where status is changed from 4 to 3
           return `${
             (task.postedBy as unknown as IUser).firstName
-          } accepted your task request but the main queue is full, so you have been placed into standby.`;
+          } accepted your task request but the main queue is full, so you have been placed into standby`;
         }
 
         // Handle normal ACCEPTED/REJECTED cases
@@ -1019,3 +1062,36 @@ class TaskService {
 }
 
 export default TaskService;
+// {
+//   $addFields: {
+//     hasConflict: {
+//       $anyElementTrue: {
+//         $map: {
+//           input: '$serviceProviders',
+//           as: 'provider',
+//           in: {
+//             $and: [
+//               { $eq: ['$$provider.user', new mongoose.Types.ObjectId(user)] },
+//               { $ne: ['$$provider.status', ETaskUserStatus.ACCEPTED] }
+//               {
+//                 $or: [
+//                   {
+//                     $and: [
+//                       { $lt: ['$slot.startTime', '$$provider.slot.endTime'] },
+//                       { $gt: ['$slot.endTime', '$$provider.slot.startTime'] },
+//                     ],
+//                   },
+//                 ],
+//               },
+//             ],
+//           },
+//         },
+//       },
+//     },
+//   },
+// },
+// {
+//   $match: {
+//     hasConflict: false,
+//   },
+// },
