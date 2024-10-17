@@ -15,6 +15,7 @@ import {
 } from "../../database/interfaces/transaction.interface";
 import {
   BANK_ACCOUNT_PAYMENT_METHOD_TYPE,
+  BANK_ACCOUNT_STATUS,
   ETransactionStatus,
   EUserRole,
   PAYOUT_SOURCE,
@@ -635,6 +636,28 @@ class StripeService {
           `Account requirements past due: ${requirements.pastDue.join(", ")}`
         );
       }
+      const bankAccount = await stripeHelper.getDefaultBankAccount(
+        user.stripeConnectId,
+        PAYOUT_SOURCE.bank
+      );
+
+      if (Array.isArray(bankAccount.data) && bankAccount.data.length === 0) {
+        return ResponseHelper.sendResponse(
+          400,
+          `You have not attached a bank account for payout. Please add a bank account to proceed.`
+        );
+      }
+      const status = bankAccount.data[0].status;
+
+      if (
+        status === BANK_ACCOUNT_STATUS.verification_failed ||
+        status === BANK_ACCOUNT_STATUS.errored
+      ) {
+        return ResponseHelper.sendResponse(
+          400,
+          `The bank account you attached could not be verified or encountered an error. Please update your bank account details or add a new bank account to proceed with payouts.`
+        );
+      }
 
       const wallet = await this.walletRepository.getOne<IWallet>({
         user: req.locals.auth?.userId as string,
@@ -718,7 +741,7 @@ class StripeService {
       // }
       const bankAccount = await stripeHelper.getDefaultBankAccount(
         user.stripeConnectId,
-        PAYOUT_SOURCE.card
+        PAYOUT_SOURCE.bank
       );
 
       let isInstantAvailable;
