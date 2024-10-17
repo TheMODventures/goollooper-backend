@@ -486,10 +486,7 @@ export class ChatRepository
       }
       query.push(...remainingQuery);
       const result = await Chat.aggregate(query);
-      console.log(
-        "🚀 ~ file: chat.repository.ts ~ line 191 ~ ChatRepository ~ getChats ~ result",
-        result
-      );
+      console.log("GET-CHAT SOCKET");
 
       if (this.io) this.io?.emit(`getChats/${user}`, result);
       return result;
@@ -1497,7 +1494,10 @@ export class ChatRepository
 
   async createChatSupport(user: string, topic = "new topic") {
     const u = (await this.userRepository.getAll(
-      { role: EUserRole.admin, isActive: true },
+      {
+        role: { $in: [EUserRole.admin, EUserRole.support, EUserRole.subAdmin] },
+        isActive: true,
+      },
       undefined,
       ModelHelper.userSelect,
       undefined,
@@ -1513,7 +1513,6 @@ export class ChatRepository
       chatType: EChatType.GROUP,
       ticketStatus: ETICKET_STATUS.PENDING,
       isChatSupport: true,
-      // groupImageUrl,
       participants: [
         {
           user: user,
