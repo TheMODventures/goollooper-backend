@@ -24,12 +24,15 @@ import {
 import { IWallet } from "../../database/interfaces/wallet.interface";
 import mongoose from "mongoose";
 import TokenService from "./token.service";
+import { NotificationRepository } from "../repository/notification/notification.repository";
+import { INotification } from "../../database/interfaces/notification.interface";
 
 class StripeService {
   private userRepository: UserRepository;
   private walletRepository: WalletRepository;
   private transactionRepository: TransactionRepository;
   private tokenService: TokenService;
+  private notificationRepository: NotificationRepository;
   private dateHelper: DateHelper;
 
   constructor() {
@@ -37,7 +40,7 @@ class StripeService {
     this.walletRepository = new WalletRepository();
     this.transactionRepository = new TransactionRepository();
     this.tokenService = new TokenService();
-
+    this.notificationRepository = new NotificationRepository();
     this.dateHelper = new DateHelper();
   }
 
@@ -339,7 +342,20 @@ class StripeService {
         break;
       case "payout.failed":
         const failedPayout = event.data.object;
-        console.log("PAYOUT FAILED ->", failedPayout);
+        const wallet = failedPayout.metadata && failedPayout.metadata.wallet;
+        const id = failedPayout.metadata && failedPayout.metadata.transfer_id;
+
+        const amount = failedPayout.amount / 100;
+
+        if (!wallet) break;
+        const updateBalance = await this.walletRepository.updateById<IWallet>(
+          wallet,
+          { $inc: { balance: amount } }
+        );
+        const reverseTransfer = await stripeHelper.reverseTransfer(id!);
+        console.log("WALLET UPDATED -> ", updateBalance);
+        console.log("REVERSE TRANSFER ->", reverseTransfer);
+
         break;
       case "radar.early_fraud_warning.created":
         const radar = event.data.object;
@@ -605,20 +621,17 @@ class StripeService {
         req.locals.auth?.userId as string
       );
 
-      // Step 1: Check if user exists
       if (!user) return ResponseHelper.sendResponse(404, "User not found");
-      // Step 2: Check if Stripe Connect account is linked
+
       if (!user.stripeConnectId)
         return ResponseHelper.sendResponse(
           404,
           "Stripe Connect Account not found"
         );
 
-      // Step 3: Check if account is authorized
       if (!user.accountAuthorized)
         return ResponseHelper.sendResponse(400, "Account not authorized");
 
-      // Step 4: Check if there are any outstanding requirements for the Stripe Connect account
       const requirements = user.stripeConnectAccountRequirementsDue;
 
       if (requirements?.currentlyDue?.length > 0) {
@@ -647,6 +660,7 @@ class StripeService {
           `You have not attached a bank account for payout. Please add a bank account to proceed.`
         );
       }
+
       const status = bankAccount.data[0].status;
 
       if (
@@ -733,18 +747,13 @@ class StripeService {
         return ResponseHelper.sendResponse(400, "Insufficient balance");
       }
 
-      // const connectAccount = await stripeHelper.getConnect(user.stripeConnectId)
-
-      // if(!connectAccount){
-      //   session.abortTransaction();
-      //   return ResponseHelper.sendResponse(400,"Connect Account not found")
-      // }
       const bankAccount = await stripeHelper.getDefaultBankAccount(
         user.stripeConnectId,
         PAYOUT_SOURCE.bank
       );
 
       let isInstantAvailable;
+
       if (Array.isArray(bankAccount.data) && bankAccount.data.length > 0) {
         isInstantAvailable =
           bankAccount.data[0].available_payout_methods?.includes(
@@ -753,9 +762,6 @@ class StripeService {
       } else {
         isInstantAvailable = false;
       }
-      console.log("BANK ACCOUNT ->", bankAccount);
-
-      console.log("BANK ACCOUNT STATUS ->", bankAccount.data[0].status);
 
       const transferFunds = await stripeHelper.transfer({
         amount: transaction.amount * 100,
@@ -763,7 +769,6 @@ class StripeService {
         destination: user.stripeConnectId as string,
       });
 
-      console.log("transferFunds ->", transferFunds);
       if (!transferFunds) {
         session.abortTransaction();
         return ResponseHelper.sendResponse(400, "Transfer failed");
@@ -775,7 +780,10 @@ class StripeService {
         method: isInstantAvailable
           ? BANK_ACCOUNT_PAYMENT_METHOD_TYPE.instant
           : BANK_ACCOUNT_PAYMENT_METHOD_TYPE.standard,
-        metadata: { transfer_id: transferFunds.id },
+        metadata: {
+          transfer_id: transferFunds.id,
+          wallet: String(user.wallet),
+        },
       });
 
       if (!payout) {
@@ -804,9 +812,9 @@ class StripeService {
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }
   };
+
   goollooperBalance = async (req: Request): Promise<ApiResponse> => {
     try {
-      // Define the transaction types to filter by
       const transactionTypes = [
         TransactionType.subscription,
         TransactionType.taskAddRequest,
@@ -814,7 +822,6 @@ class StripeService {
         TransactionType.applicationFee,
       ];
 
-      // Define the aggregation pipeline
       const transactionResponse =
         await this.transactionRepository.getAllWithAggregatePagination<ITransaction>(
           [
@@ -833,7 +840,6 @@ class StripeService {
           ]
         );
 
-      // Check if the response has valid data
       if (
         !transactionResponse ||
         !transactionResponse.data ||
@@ -842,7 +848,6 @@ class StripeService {
         return ResponseHelper.sendResponse(404, "Transaction not found");
       }
 
-      // Extract totalAmount from the first item in the data array
       const balance = transactionResponse.data[0]?.totalAmount || 0;
 
       return ResponseHelper.sendSuccessResponse("Balance retrieved", balance);

@@ -244,6 +244,9 @@ class StripeHelper {
       }
     );
   }
+  reverseTransfer = async (id: string) => {
+    return stripe.transfers.createReversal(id);
+  };
 
   platformPayout = async (payload: Stripe.PayoutCreateParams) => {
     return stripe.payouts.create(payload);
