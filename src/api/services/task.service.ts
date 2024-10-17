@@ -817,7 +817,7 @@ class TaskService {
         if (conflictTiming)
           return ResponseHelper.sendResponse(
             409,
-            `Task Timing Conflict with ${conflictTiming.title}`
+            `The task "${conflictTiming.title}" conflicts with an already accepted task. Please review your schedule and try accepting a task at a different time.`
           );
       }
 
