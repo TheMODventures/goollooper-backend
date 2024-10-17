@@ -206,7 +206,7 @@ export enum AUTH_PROVIDER {
 }
 
 export enum PAYOUT_SOURCE {
-  bank_account = "bank_account",
+  bank = "bank_account",
   card = "card",
 }
 export enum BANK_ACCOUNT_PAYMENT_METHOD_TYPE {
