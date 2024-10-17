@@ -666,7 +666,7 @@ class TaskService {
       const userId = new mongoose.Types.ObjectId(user);
 
       // Perform all necessary checks and fetch the wallet in parallel
-      const [isPreviouslyRejected, isUserExistInTask, wallet] =
+      const [isPreviouslyRejected, isUserExistInTask, wallet, task] =
         await Promise.all([
           // Check if the user was previously rejected
           this.taskRepository.exists({
@@ -683,6 +683,8 @@ class TaskService {
 
           // Fetch the user's wallet
           this.userWalletRepository.getOne<IWallet>({ user: userId }),
+
+          this.taskRepository.getById<ITask>(String(taskId)),
         ]);
 
       // Handle the case where the user was previously rejected
@@ -692,6 +694,27 @@ class TaskService {
           "You are previously rejected from this task and can't request again"
         );
       }
+
+      const conflictTiming = await this.taskRepository.getOne<ITask>({
+        serviceProviders: {
+          $elemMatch: {
+            user: new mongoose.Types.ObjectId(user),
+            status: ETaskUserStatus.ACCEPTED,
+          },
+        },
+        _id: { $ne: _id },
+        date: task?.date,
+        "slot.startTime": { $lte: task?.slot.endTime },
+        "slot.endTime": { $gte: task?.slot.startTime },
+        status: ETaskStatus.pending,
+        isDeleted: false,
+      });
+
+      if (conflictTiming)
+        return ResponseHelper.sendResponse(
+          409,
+          `The task "${conflictTiming.title} conflicts with an already accepted task. Please review your schedule`
+        );
 
       // Handle the case where the user is already in the task
       if (isUserExistInTask) {
