@@ -31,7 +31,6 @@ class AdminRoutes extends BaseRoutes {
     this.serviceRoutes = new ServiceRoutes();
     this.guidelineRoutes = new GuidelineRoutes();
     this.mediaRoutes = new MediaRoutes();
-
     this.authorize = new Authorize();
 
     this.initializeRoutes();
@@ -40,6 +39,7 @@ class AdminRoutes extends BaseRoutes {
   protected routes(): void {
     this.router.use("/auth", this.authRoutes.router);
     this.router.use("/service", this.serviceRoutes.router);
+
     this.router.use((req, res, next) =>
       this.authorize.validateAuth(req, res, next, true)
     );

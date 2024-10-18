@@ -143,6 +143,12 @@ class UserController {
     const response = await this.userService.delete(id);
     return res.status(response.code).json(response);
   };
+
+  blockUser = async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const response = await this.userService.block(id);
+    return res.status(response.code).json(response);
+  };
 }
 
 export default UserController;

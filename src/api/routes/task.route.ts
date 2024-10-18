@@ -87,12 +87,6 @@ class TaskRoutes extends BaseRoutes {
       this.validateRequest,
       this.taskController.cancel
     );
-
-    // this.router.get(
-    //   "/flag-task",
-    //   this.validateRequest
-    //   this.taskController
-    // )
   }
 }
 

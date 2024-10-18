@@ -657,6 +657,20 @@ class UserService {
     }
   };
 
+  block = async (id: string): Promise<ApiResponse> => {
+    try {
+      const response = await this.userRepository.updateById<IUser>(id, {
+        isActive: false,
+      });
+      if (!response) {
+        return ResponseHelper.sendResponse(404);
+      }
+      return ResponseHelper.sendSuccessResponse("User Blocked");
+    } catch (error) {
+      return ResponseHelper.sendResponse(500, (error as Error).message);
+    }
+  };
+
   getDataByAggregate = async (
     page: number,
     limit = 10,

@@ -93,14 +93,10 @@ class TaskService {
     user: string,
     page: number,
     limit: number,
+    match: any,
     title?: string
   ): Promise<ApiResponse> => {
     try {
-      const match: any = {
-        postedBy: { $ne: new mongoose.Types.ObjectId(user) },
-        isDeleted: false,
-      };
-
       if (taskInterests?.length > 0) {
         match.taskInterests = {
           $in: taskInterests.map((e) => new mongoose.Types.ObjectId(e)),
