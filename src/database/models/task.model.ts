@@ -118,6 +118,7 @@ const taskModel: Schema = new Schema(
       enum: Object.values(ETaskStatus),
       default: ETaskStatus.pending,
     },
+    flag: { type: Boolean, default: false },
     isDeleted: {
       type: Boolean,
       default: false,

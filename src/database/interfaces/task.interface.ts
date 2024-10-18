@@ -95,6 +95,7 @@ export interface ITaskPayload {
     status: ETaskUserStatus;
   }[];
   pendingCount?: number;
+  flag: boolean;
   acceptedCount?: number;
   status?: ETaskStatus;
   endDate?: Date | Moment;
