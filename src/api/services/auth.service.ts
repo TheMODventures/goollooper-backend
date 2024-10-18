@@ -161,6 +161,12 @@ class AuthService {
         return ResponseHelper.sendResponse(401, ERROR_LOGIN);
       }
 
+      if (response.isActive == false)
+        return ResponseHelper.sendResponse(
+          403,
+          "Your account is currently blocked. Please contact support."
+        );
+
       const userId = new mongoose.Types.ObjectId(response._id!);
 
       const schedules = await this.scheduleRepository.getAll({

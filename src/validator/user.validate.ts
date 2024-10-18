@@ -219,6 +219,12 @@ const updatePassword = yup.object().shape({
   query: yup.object().noUnknown(),
 });
 
+const block = yup.object().shape({
+  params: yup.object().shape(paramRule).noUnknown(),
+  body: yup.object().noUnknown(),
+  query: yup.object().noUnknown(),
+});
+
 export = {
   "/": indexRule,
   "/check-username": checkUsernameRule,
@@ -230,4 +236,5 @@ export = {
   "/trash": showRule,
   "/restore": showRule,
   "/update-password": updatePassword,
+  "/block": block,
 };

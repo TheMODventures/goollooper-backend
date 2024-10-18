@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { FilterQuery } from "mongoose";
+import mongoose, { FilterQuery } from "mongoose";
 
 import TaskService from "../../services/task.service";
 import { ITaskPayload } from "../../../database/interfaces/task.interface";
@@ -15,16 +15,43 @@ class TaskController {
     const { limit, page, title = "" } = req.query;
     const limitNow = limit ? limit : 10;
 
+    const filter: any = {
+      postedBy: {
+        $ne: new mongoose.Types.ObjectId(req.locals.auth?.userId as string),
+      },
+      isDeleted: false,
+    };
+
     const response = await this.taskService.index(
       req.body.taskInterests as string[],
       req.locals.auth?.userId as string,
       Number(page),
       Number(limitNow),
+      filter,
       title as string
     );
     return res.status(response.code).json(response);
   };
 
+  flagTasks = async (req: Request, res: Response) => {
+    console.log("FLAG TASK");
+    const { limit, page } = req.query;
+    const limitNow = limit ? limit : 10;
+
+    const filter: any = {
+      isDeleted: false,
+      flag: true,
+    };
+
+    const response = await this.taskService.index(
+      req.body.taskInterests as string[],
+      req.locals.auth?.userId as string,
+      Number(page),
+      Number(limitNow),
+      filter
+    );
+    return res.status(response.code).json(response);
+  };
   myTasks = async (req: Request, res: Response) => {
     const { limit, page, type } = req.query;
     const limitNow = limit ? limit : 10;
