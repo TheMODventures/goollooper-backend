@@ -156,6 +156,7 @@ const updateRule = yup.object().shape({
     .shape({
       title: yup.string().notRequired(),
       description: yup.string().notRequired(),
+      flag: yup.boolean().notRequired(),
       location: yup
         .object()
         .shape({
