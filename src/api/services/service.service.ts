@@ -89,6 +89,7 @@ class ServiceService {
         $project: {
           title: 1,
           industry: "$industry.name", // Only project the industry name
+          industryId: "$industry._id",
           hasSubCategory: 1,
           "subCategories._id": 1,
           "subCategories.title": 1,
@@ -98,13 +99,12 @@ class ServiceService {
         },
       });
 
-      // Step 8: Group by industry and aggregate categories under each industry
       if (filter.type == ServiceType.interest) {
-        console.log("HELLO WORLD");
         pipeline.push({
           $group: {
             _id: "$industry",
             industry: { $first: "$industry" },
+            industryId: { $first: "$industryId" },
             categories: {
               $push: {
                 _id: "$_id",
@@ -117,11 +117,9 @@ class ServiceService {
         });
       }
 
-      // Step 9: Sort by industry name
       pipeline.push({
         $sort: { industry: 1 },
       });
-      // Final response with pagination
       const response =
         await this.serviceRepository.getAllWithAggregatePagination<IService>(
           pipeline,
