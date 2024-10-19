@@ -1,7 +1,7 @@
 import { isObjectIdOrHexString } from "mongoose";
 import * as yup from "yup";
 
-import { EUserLocationType } from "../database/interfaces/enums";
+import { EUserLocationType, EUserRole } from "../database/interfaces/enums";
 import AuthService from "../api/services/auth.service";
 
 const authData = new AuthService();
@@ -25,6 +25,13 @@ const indexRule = yup.object().shape({
       limit: yup.string().notRequired(),
       username: yup.string().notRequired(),
       email: yup.string().notRequired(),
+      role: yup
+        .string()
+        .oneOf(
+          [`${EUserRole.subAdmin}`, `${EUserRole.support}`],
+          "Role must be either 4 or 5"
+        ) // Expecting role as string values
+        .notRequired(),
     })
     .noUnknown(),
 });

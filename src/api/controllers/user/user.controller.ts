@@ -115,10 +115,14 @@ class UserController {
   };
 
   getSubAdmin = async (req: Request, res: Response) => {
-    const { limit, page, username = "", email = "" } = req.query;
+    const { limit, page, username = "", email = "", role } = req.query;
     const limitNow = limit ? limit : 10;
+    console.log("ROLE ->", role);
     const filter: FilterQuery<IUser> = {
-      role: { $in: [EUserRole.subAdmin, EUserRole.support] },
+      role: {
+        $in:
+          role !== undefined ? [role] : [EUserRole.subAdmin, EUserRole.support],
+      },
       email: { $regex: email, $options: "i" },
       isDeleted: false,
     };
