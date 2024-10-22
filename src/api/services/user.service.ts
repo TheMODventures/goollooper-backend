@@ -745,6 +745,15 @@ class UserService {
         ...payload,
         role,
       };
+
+      const isUserExist = await this.userRepository.getOne({
+        $or: [{ username: payload.username }, { phone: payload.phone }],
+      });
+      if (isUserExist)
+        return ResponseHelper.sendResponse(
+          422,
+          "Username & Phone Should be Unique"
+        );
       const data = await this.userRepository.create<IUser>(user);
       const userId = new mongoose.Types.ObjectId(data._id!);
       const tokenResponse = await this.tokenService.create(userId, role);
