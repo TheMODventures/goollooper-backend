@@ -34,7 +34,6 @@ class TaskController {
   };
 
   flagTasks = async (req: Request, res: Response) => {
-    console.log("FLAG TASK");
     const { limit, page } = req.query;
     const limitNow = limit ? limit : 10;
 

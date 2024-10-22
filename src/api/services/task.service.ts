@@ -132,6 +132,7 @@ class TaskService {
                   profileImage: 1,
                   ratingCount: 1,
                   averageRating: 1,
+                  isActive: 1,
                 },
               },
             ],
