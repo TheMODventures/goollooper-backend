@@ -661,21 +661,32 @@ class StripeService {
       );
 
       if (!transaction)
-        return ResponseHelper.sendResponse(404, "transaction not found");
+        return ResponseHelper.sendResponse(404, "Transaction not found");
 
-      const user = await this.userRepository.getById<IUser>(
-        transaction.user as string
-      );
+      // Start parallel asynchronous calls
+      const [user, retrievedBalance] = await Promise.all([
+        this.userRepository.getById<IUser>(transaction.user as string),
+        stripeHelper.retrieveBalance(),
+      ]);
+
+      // Handle cases where either user or retrievedBalance is not found
       if (!user) {
         session.abortTransaction();
         return ResponseHelper.sendResponse(404, "User not found");
       }
 
-      const retrievedBalance = await stripeHelper.retrieveBalance();
+      if (!retrievedBalance) {
+        session.abortTransaction();
+        return ResponseHelper.sendResponse(500, "Failed to retrieve balance");
+      }
 
+      // Cache the transaction amount calculation
+      const transactionAmountInCents = transaction.amount * 100;
+
+      // Check balance and return appropriate response
       if (
-        retrievedBalance?.pending[0].amount < transaction.amount * 100 ||
-        retrievedBalance?.available[0].amount < transaction.amount * 100
+        retrievedBalance?.pending[0].amount < transactionAmountInCents ||
+        retrievedBalance?.available[0].amount < transactionAmountInCents
       ) {
         session.abortTransaction();
         return ResponseHelper.sendResponse(400, "Insufficient balance");

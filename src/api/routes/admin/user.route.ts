@@ -24,6 +24,7 @@ class UserRoutes extends BaseRoutes {
       this.userController.blockUser
     );
     this.router.get("/flag-task", this.taskController.flagTasks);
+    this.router.get("/reported-users", this.userController.reportedUsers);
   }
 }
 
