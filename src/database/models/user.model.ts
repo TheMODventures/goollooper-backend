@@ -9,6 +9,7 @@ import {
   Subscription,
   SubscriptionType,
   AUTH_PROVIDER,
+  REPORT_USER_STATUS,
 } from "../interfaces/enums";
 import { IUserDoc } from "../interfaces/user.interface";
 
@@ -191,6 +192,11 @@ const userModel: Schema = new Schema(
       pastDue: { type: [String], default: [] },
     },
     wallet: { type: Schema.Types.ObjectId, ref: "Wallet", default: null },
+    reportStatus: {
+      type: String,
+      enum: Object.values(REPORT_USER_STATUS),
+      default: REPORT_USER_STATUS.idle,
+    },
   },
   schemaOptions
 );

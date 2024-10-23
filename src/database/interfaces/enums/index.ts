@@ -221,3 +221,8 @@ export enum BANK_ACCOUNT_STATUS {
   verification_failed = "verification_failed",
   errored = "errored",
 }
+
+export enum REPORT_USER_STATUS {
+  idle = "idle",
+  reported = "reported",
+}

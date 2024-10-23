@@ -7,7 +7,10 @@ import UserService from "../../services/user.service";
 import ScheduleService from "../../services/schedule.service";
 import { IUser } from "../../../database/interfaces/user.interface";
 import { ISchedule } from "../../../database/interfaces/schedule.interface";
-import { EUserRole } from "../../../database/interfaces/enums";
+import {
+  EUserRole,
+  REPORT_USER_STATUS,
+} from "../../../database/interfaces/enums";
 
 class UserController {
   protected userService: UserService;
@@ -151,6 +154,19 @@ class UserController {
   blockUser = async (req: Request, res: Response) => {
     const { id } = req.params;
     const response = await this.userService.block(id);
+    return res.status(response.code).json(response);
+  };
+
+  reportedUsers = async (req: Request, res: Response) => {
+    const { limit, page } = req.query;
+    const filter: FilterQuery<IUser> = {
+      reportedStatus: REPORT_USER_STATUS.reported,
+    };
+    const response = await this.userService.index(
+      Number(limit),
+      Number(page),
+      filter
+    );
     return res.status(response.code).json(response);
   };
 }

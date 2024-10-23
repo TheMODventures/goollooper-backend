@@ -67,6 +67,7 @@ const updateRule = yup.object().shape({
       companyResume: yup.string().notRequired(),
       certificates: yup.string().notRequired(),
       licenses: yup.string().notRequired(),
+      reportedStatus: yup.string().notRequired(),
       insurances: yup.string().notRequired(),
       username: yup.string().min(3).max(20).notRequired(),
       gender: yup.string().notRequired(),
