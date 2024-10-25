@@ -114,6 +114,7 @@ export interface IUser {
     disabledReason: string;
   };
   wallet?: string;
+  reportedStatus: string;
 }
 
 export interface IUserWithSchedule extends IUser {
