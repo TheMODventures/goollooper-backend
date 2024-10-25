@@ -2,7 +2,11 @@ import mongoose, { FilterQuery, PipelineStage } from "mongoose";
 import { Request } from "express";
 import _ from "lodash";
 
-import { EUserRole, Subscription } from "../../database/interfaces/enums";
+import {
+  EUserRole,
+  REPORT_USER_STATUS,
+  Subscription,
+} from "../../database/interfaces/enums";
 
 import {
   IUser,
@@ -311,8 +315,6 @@ class UserService {
     req?: Request
   ): Promise<ApiResponse> => {
     try {
-      let body: Partial<IUser> = { ...req?.body };
-
       let userResponse = await this.userRepository.getOne<IUser>({
         _id: _id,
       });
@@ -448,127 +450,127 @@ class UserService {
         return ResponseHelper.sendResponse(404);
       }
 
-      if (dataset.profileImage && userResponse?.profileImage) {
-        this.uploadHelper.deleteFile(userResponse.profileImage);
-      }
+      // if (dataset.profileImage && userResponse?.profileImage) {
+      //   this.uploadHelper.deleteFile(userResponse.profileImage);
+      // }
 
-      if (userResponse?.gallery?.length) {
-        const imagesToDelete = userResponse.gallery.filter(
-          (image) => !body.galleryImages?.includes(image)
-        );
-        for (const imageToDelete of imagesToDelete) {
-          this.uploadHelper.deleteFile(imageToDelete);
-        }
-        let updatedGallery = [];
-        if (dataset.galleryImages?.length) {
-          updatedGallery = dataset.galleryImages.filter(
-            (image) => !imagesToDelete.includes(image)
-          );
-        } else {
-          updatedGallery = userResponse.gallery.filter(
-            (image) => !imagesToDelete.includes(image)
-          );
-        }
-        dataset.gallery = updatedGallery;
-      }
+      // if (userResponse?.gallery?.length) {
+      //   const imagesToDelete = userResponse.gallery.filter(
+      //     (image) => !body.galleryImages?.includes(image)
+      //   );
+      //   for (const imageToDelete of imagesToDelete) {
+      //     this.uploadHelper.deleteFile(imageToDelete);
+      //   }
+      //   let updatedGallery = [];
+      //   if (dataset.galleryImages?.length) {
+      //     updatedGallery = dataset.galleryImages.filter(
+      //       (image) => !imagesToDelete.includes(image)
+      //     );
+      //   } else {
+      //     updatedGallery = userResponse.gallery.filter(
+      //       (image) => !imagesToDelete.includes(image)
+      //     );
+      //   }
+      //   dataset.gallery = updatedGallery;
+      // }
 
-      if (userResponse?.visuals?.length) {
-        const imagesToDelete = userResponse.visuals.filter(
-          (image) => !body.visualFiles?.includes(image)
-        );
-        for (const imageToDelete of imagesToDelete) {
-          this.uploadHelper.deleteFile(imageToDelete);
-        }
-        let updatedFiles = [];
-        if (dataset.visualFiles?.length) {
-          updatedFiles = dataset.visualFiles.filter(
-            (image) => !imagesToDelete.includes(image)
-          );
-        } else {
-          updatedFiles = userResponse.visuals.filter(
-            (image) => !imagesToDelete.includes(image)
-          );
-        }
-        dataset.visuals = updatedFiles;
-      }
+      // if (userResponse?.visuals?.length) {
+      //   const imagesToDelete = userResponse.visuals.filter(
+      //     (image) => !body.visualFiles?.includes(image)
+      //   );
+      //   for (const imageToDelete of imagesToDelete) {
+      //     this.uploadHelper.deleteFile(imageToDelete);
+      //   }
+      //   let updatedFiles = [];
+      //   if (dataset.visualFiles?.length) {
+      //     updatedFiles = dataset.visualFiles.filter(
+      //       (image) => !imagesToDelete.includes(image)
+      //     );
+      //   } else {
+      //     updatedFiles = userResponse.visuals.filter(
+      //       (image) => !imagesToDelete.includes(image)
+      //     );
+      //   }
+      //   dataset.visuals = updatedFiles;
+      // }
 
-      if (
-        _.isArray(req?.files) &&
-        req?.files?.find((file) => file.fieldname === "companyLogo") &&
-        dataset.company?.logo &&
-        userResponse?.company?.logo
-      ) {
-        this.uploadHelper.deleteFile(userResponse?.company?.logo);
-      }
+      // if (
+      //   _.isArray(req?.files) &&
+      //   req?.files?.find((file) => file.fieldname === "companyLogo") &&
+      //   dataset.company?.logo &&
+      //   userResponse?.company?.logo
+      // ) {
+      //   this.uploadHelper.deleteFile(userResponse?.company?.logo);
+      // }
 
-      if (
-        _.isArray(req?.files) &&
-        req?.files?.find((file) => file.fieldname === "companyResume") &&
-        dataset.company?.resume &&
-        userResponse?.company?.resume
-      ) {
-        this.uploadHelper.deleteFile(userResponse?.company?.resume);
-      }
+      // if (
+      //   _.isArray(req?.files) &&
+      //   req?.files?.find((file) => file.fieldname === "companyResume") &&
+      //   dataset.company?.resume &&
+      //   userResponse?.company?.resume
+      // ) {
+      //   this.uploadHelper.deleteFile(userResponse?.company?.resume);
+      // }
 
-      if (userResponse?.certificates?.length) {
-        const imagesToDelete = userResponse.certificates.filter(
-          (image) => !body.certificateFiles?.includes(image)
-        );
-        for (const imageToDelete of imagesToDelete) {
-          this.uploadHelper.deleteFile(imageToDelete);
-        }
-        let updatedFiles = [];
-        if (dataset.certificateFiles?.length) {
-          updatedFiles = dataset.certificateFiles.filter(
-            (image) => !imagesToDelete.includes(image)
-          );
-        } else {
-          updatedFiles = userResponse.certificates.filter(
-            (image) => !imagesToDelete.includes(image)
-          );
-        }
-        dataset.certificates = updatedFiles;
-      }
+      // if (userResponse?.certificates?.length) {
+      //   const imagesToDelete = userResponse.certificates.filter(
+      //     (image) => !body.certificateFiles?.includes(image)
+      //   );
+      //   for (const imageToDelete of imagesToDelete) {
+      //     this.uploadHelper.deleteFile(imageToDelete);
+      //   }
+      //   let updatedFiles = [];
+      //   if (dataset.certificateFiles?.length) {
+      //     updatedFiles = dataset.certificateFiles.filter(
+      //       (image) => !imagesToDelete.includes(image)
+      //     );
+      //   } else {
+      //     updatedFiles = userResponse.certificates.filter(
+      //       (image) => !imagesToDelete.includes(image)
+      //     );
+      //   }
+      //   dataset.certificates = updatedFiles;
+      // }
 
-      if (userResponse?.licenses?.length) {
-        const imagesToDelete = userResponse.licenses.filter(
-          (image) => !body.licenseFiles?.includes(image)
-        );
-        for (const imageToDelete of imagesToDelete) {
-          this.uploadHelper.deleteFile(imageToDelete);
-        }
-        let updatedFiles = [];
-        if (dataset.licenseFiles?.length) {
-          updatedFiles = dataset.licenseFiles.filter(
-            (image) => !imagesToDelete.includes(image)
-          );
-        } else {
-          updatedFiles = userResponse.licenses.filter(
-            (image) => !imagesToDelete.includes(image)
-          );
-        }
-        dataset.licenses = updatedFiles;
-      }
+      // if (userResponse?.licenses?.length) {
+      //   const imagesToDelete = userResponse.licenses.filter(
+      //     (image) => !body.licenseFiles?.includes(image)
+      //   );
+      //   for (const imageToDelete of imagesToDelete) {
+      //     this.uploadHelper.deleteFile(imageToDelete);
+      //   }
+      //   let updatedFiles = [];
+      //   if (dataset.licenseFiles?.length) {
+      //     updatedFiles = dataset.licenseFiles.filter(
+      //       (image) => !imagesToDelete.includes(image)
+      //     );
+      //   } else {
+      //     updatedFiles = userResponse.licenses.filter(
+      //       (image) => !imagesToDelete.includes(image)
+      //     );
+      //   }
+      //   dataset.licenses = updatedFiles;
+      // }
 
-      if (userResponse?.insurances?.length) {
-        const imagesToDelete = userResponse.insurances.filter(
-          (image) => !body.insuranceFiles?.includes(image)
-        );
-        for (const imageToDelete of imagesToDelete) {
-          this.uploadHelper.deleteFile(imageToDelete);
-        }
-        let updatedFiles = [];
-        if (dataset.insuranceFiles?.length) {
-          updatedFiles = dataset.insuranceFiles.filter(
-            (image) => !imagesToDelete.includes(image)
-          );
-        } else {
-          updatedFiles = userResponse.insurances.filter(
-            (image) => !imagesToDelete.includes(image)
-          );
-        }
-        dataset.insurances = updatedFiles;
-      }
+      // if (userResponse?.insurances?.length) {
+      //   const imagesToDelete = userResponse.insurances.filter(
+      //     (image) => !body.insuranceFiles?.includes(image)
+      //   );
+      //   for (const imageToDelete of imagesToDelete) {
+      //     this.uploadHelper.deleteFile(imageToDelete);
+      //   }
+      //   let updatedFiles = [];
+      //   if (dataset.insuranceFiles?.length) {
+      //     updatedFiles = dataset.insuranceFiles.filter(
+      //       (image) => !imagesToDelete.includes(image)
+      //     );
+      //   } else {
+      //     updatedFiles = userResponse.insurances.filter(
+      //       (image) => !imagesToDelete.includes(image)
+      //     );
+      //   }
+      //   dataset.insurances = updatedFiles;
+      // }
 
       await this.userRepository.updateById<IUserWithSchedule>(
         _id as string,
@@ -661,6 +663,7 @@ class UserService {
     try {
       const response = await this.userRepository.updateById<IUser>(id, {
         isActive: false,
+        reportedStatus: REPORT_USER_STATUS.idle,
       });
       if (!response) {
         return ResponseHelper.sendResponse(404);

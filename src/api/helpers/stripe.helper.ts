@@ -284,6 +284,7 @@ class StripeHelper {
   async deleteSubscriptionItem(subscriptionId: string) {
     return stripe.subscriptions.cancel(subscriptionId);
   }
+
   async connectAccountOnboardingLink(payload: {
     account: string;
     refreshUrl: string;

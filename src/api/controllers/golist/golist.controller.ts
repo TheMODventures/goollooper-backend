@@ -42,12 +42,12 @@ class GolistController {
     };
     if (payload.type === EList.myList) {
       payload.title = "My List";
-      const phoneContacts = req.body.phoneContacts as string[];
+      const phoneContacts = req.body.phoneContacts;
+      console.log("phoneContacts ->", phoneContacts);
       const users = await this.userService.index(1, 10000, {
         _id: { $ne: payload.createdBy },
         phone: { $in: phoneContacts },
       });
-      console.log("~ USER_DATA", users);
       const mylist = await this.golistService.index(1, 1, {
         type: EList.myList,
         createdBy: user,
@@ -58,16 +58,14 @@ class GolistController {
         const response = await this.golistService.update(
           item._id?.toString() ?? "",
           {
-            serviceProviders: users?.data?.result?.map((e: IUser) => e?._id),
+            serviceProviders: users?.data?.data?.map((e: IUser) => e?._id),
             createdBy: user,
           }
         );
         return res.status(response.code).json(response);
       }
       if (users.status)
-        payload.serviceProviders = users?.data?.result?.map(
-          (e: IUser) => e?._id
-        );
+        payload.serviceProviders = users?.data?.data?.map((e: IUser) => e?._id);
     }
     const response = await this.golistService.create(payload);
     return res.status(response.code).json(response);
