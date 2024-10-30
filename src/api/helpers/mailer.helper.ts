@@ -44,4 +44,4 @@ class Mailer {
   }
 }
 
-export default Mailer;
+module.exports = Mailer;
