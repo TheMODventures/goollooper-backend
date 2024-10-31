@@ -659,16 +659,18 @@ class UserService {
     }
   };
 
-  block = async (id: string): Promise<ApiResponse> => {
+  block = async (id: string, status: boolean): Promise<ApiResponse> => {
     try {
       const response = await this.userRepository.updateById<IUser>(id, {
-        isActive: false,
+        isActive: status,
         reportedStatus: REPORT_USER_STATUS.idle,
       });
       if (!response) {
         return ResponseHelper.sendResponse(404);
       }
-      return ResponseHelper.sendSuccessResponse("User Blocked");
+      return ResponseHelper.sendSuccessResponse(
+        status ? "User Blocked" : "User unblocked"
+      );
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);
     }

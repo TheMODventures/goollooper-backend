@@ -19,7 +19,7 @@ class UserRoutes extends BaseRoutes {
   protected routes(): void {
     this.router.get("/", this.validateRequest, this.userController.index);
     this.router.put(
-      "/block/:id",
+      "/toggle-block/:id",
       this.validateRequest,
       this.userController.blockUser
     );

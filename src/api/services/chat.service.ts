@@ -31,13 +31,12 @@ import {
   RequestStatus,
 } from "../../database/interfaces/enums";
 import { IWallet } from "../../database/interfaces/wallet.interface";
-import { NotificationRepository } from "../repository/notification/notification.repository";
 import NotificationService, {
   NotificationParams,
 } from "./notification.service";
 
 interface CustomSocket extends SocketIO.Socket {
-  user?: any; // Adjust the type according to your user structure
+  user?: any;
 }
 let clients: Record<string, string> = {};
 
@@ -58,6 +57,7 @@ export default (io: SocketIO.Server) => {
   });
 
   io.on("connection", async (socket: CustomSocket) => {
+    console.log("clients->", clients);
     console.log(`Active Clients ${Object.keys(clients).length}`);
 
     socket.on(

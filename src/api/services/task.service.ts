@@ -815,7 +815,6 @@ class TaskService {
       );
 
       const subscription = userData?.subscription;
-      // if (!subscription?.subscribe) return ResponseHelper.sendResponse(400, "You are not Service Provider")
 
       if (subscription?.name != Subscription.mbs) {
         console.log("Subscription ->", subscription);
@@ -837,7 +836,7 @@ class TaskService {
         if (conflictTiming)
           return ResponseHelper.sendResponse(
             409,
-            `The task "${conflictTiming.title}" conflicts with an already accepted task. Please review your schedule`
+            `The task schedule conflicts with ${conflictTiming.title} Task`
           );
       }
 

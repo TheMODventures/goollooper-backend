@@ -222,7 +222,12 @@ const updatePassword = yup.object().shape({
 
 const block = yup.object().shape({
   params: yup.object().shape(paramRule).noUnknown(),
-  body: yup.object().noUnknown(),
+  body: yup
+    .object()
+    .shape({
+      isBlocked: yup.boolean().required(),
+    })
+    .noUnknown(),
   query: yup.object().noUnknown(),
 });
 

@@ -120,7 +120,7 @@ class UserController {
   getSubAdmin = async (req: Request, res: Response) => {
     const { limit, page, username = "", email = "", role } = req.query;
     const limitNow = limit ? limit : 10;
-    console.log("ROLE ->", role);
+
     const filter: FilterQuery<IUser> = {
       role: {
         $in:
@@ -153,7 +153,8 @@ class UserController {
 
   blockUser = async (req: Request, res: Response) => {
     const { id } = req.params;
-    const response = await this.userService.block(id);
+    const { isBlocked } = req.body;
+    const response = await this.userService.block(id, isBlocked);
     return res.status(response.code).json(response);
   };
 
