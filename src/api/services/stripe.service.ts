@@ -785,14 +785,6 @@ class StripeService {
           ]
         );
 
-      if (
-        !transactionResponse ||
-        !transactionResponse.data ||
-        transactionResponse.data.length === 0
-      ) {
-        return ResponseHelper.sendResponse(404, "Transaction not found");
-      }
-
       const balance = transactionResponse.data[0]?.totalAmount || 0;
 
       return ResponseHelper.sendSuccessResponse("Balance retrieved", balance);
