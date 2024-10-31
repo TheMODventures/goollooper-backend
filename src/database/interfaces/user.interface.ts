@@ -56,6 +56,7 @@ export interface IUser {
   galleryImages: string[];
   about?: string;
   role: EUserRole;
+  online: boolean;
   volunteer?: string[];
   services?: string[] | IService[];
   subscription?: ISubscription;

@@ -50,7 +50,6 @@ const userModel: Schema = new Schema(
     },
     email: {
       type: String,
-      // unique: true,
       index: {
         unique: true,
         partialFilterExpression: {
@@ -64,6 +63,7 @@ const userModel: Schema = new Schema(
     },
     password: { type: String, select: false },
     gender: { type: String },
+    online: { type: Boolean, default: false },
     age: { type: Number, default: null },
     countryCode: { type: String }, // like 'PK' alpha-2 format
     phoneCode: { type: String }, // like '+92'

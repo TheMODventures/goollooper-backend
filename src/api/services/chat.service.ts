@@ -20,6 +20,7 @@ import { ChatRepository } from "../repository/chat/chat.repository";
 import { TaskRepository } from "../repository/task/task.repository";
 import { WalletRepository } from "../repository/wallet/wallet.repository";
 import { CalendarRepository } from "../repository/calendar/calendar.repository";
+import { UserRepository } from "../repository/user/user.repository";
 import { Authorize } from "../../middleware/authorize.middleware";
 import { ResponseHelper } from "../helpers/reponseapi.helper";
 import { UploadHelper } from "../helpers/upload.helper";
@@ -44,6 +45,7 @@ export default (io: SocketIO.Server) => {
   console.log("Chat Socket Initialized");
 
   const chatRepository = new ChatRepository(io);
+  const userRepository = new UserRepository();
   const authorize = new Authorize();
 
   io.use(async (socket: CustomSocket, next) => {
@@ -57,9 +59,10 @@ export default (io: SocketIO.Server) => {
   });
 
   io.on("connection", async (socket: CustomSocket) => {
-    console.log("clients->", clients);
+    console.log("user connected ->", socket.user);
     console.log(`Active Clients ${Object.keys(clients).length}`);
 
+    await userRepository.updateById(socket.user.userId, { online: true });
     socket.on(
       "getChats",
       async (data: {
@@ -224,8 +227,9 @@ export default (io: SocketIO.Server) => {
       io.emit(`declineCall/${data.chatId}`, data);
     });
 
-    socket.on("disconnect", () => {
-      console.log("A user disconnected.");
+    socket.on("disconnect", async () => {
+      await userRepository.updateById(socket.user.userId, { online: false });
+      console.log("A user disconnected", socket.user);
     });
   });
 };
