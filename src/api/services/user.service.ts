@@ -663,7 +663,7 @@ class UserService {
     try {
       const response = await this.userRepository.updateById<IUser>(id, {
         isActive: status,
-        reportedStatus: REPORT_USER_STATUS.idle,
+        // reportedStatus: REPORT_USER_STATUS.idle,
       });
       if (!response) {
         return ResponseHelper.sendResponse(404);
