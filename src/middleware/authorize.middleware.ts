@@ -38,7 +38,8 @@ export class Authorize {
         if (
           isAdmin &&
           decoded?.role !== EUserRole.admin &&
-          decoded?.role !== EUserRole.subAdmin
+          decoded?.role !== EUserRole.subAdmin &&
+          decoded?.role !== EUserRole.support
         ) {
           const response = ResponseHelper.sendResponse(
             401,
