@@ -1,4 +1,4 @@
-import mongoose, { FilterQuery, ObjectId } from "mongoose";
+import mongoose, { FilterQuery } from "mongoose";
 import { Request } from "express";
 import moment from "moment";
 import crypto from "crypto";
@@ -161,11 +161,11 @@ class AuthService {
         return ResponseHelper.sendResponse(401, ERROR_LOGIN);
       }
 
-      if (response.isActive == false)
-        return ResponseHelper.sendResponse(
-          403,
-          "Your account is currently blocked. Please contact support."
-        );
+      // if (response.per == false)
+      //   return ResponseHelper.sendResponse(
+      //     403,
+      //     "Your account is currently blocked. Please contact support."
+      //   );
 
       const userId = new mongoose.Types.ObjectId(response._id!);
 

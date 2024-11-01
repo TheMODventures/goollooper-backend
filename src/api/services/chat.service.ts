@@ -62,7 +62,7 @@ export default (io: SocketIO.Server) => {
     console.log("user connected ->", socket.user);
     console.log(`Active Clients ${Object.keys(clients).length}`);
 
-    await userRepository.updateById(socket.user.userId, { online: true });
+    // await userRepository.updateById(socket.user.userId, { online: true });
     socket.on(
       "getChats",
       async (data: {

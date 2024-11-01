@@ -163,6 +163,7 @@ const userModel: Schema = new Schema(
     insurances: [String],
     isProfileCompleted: { type: Boolean, default: false },
     isVerified: { type: Boolean, default: false },
+    permanentBan: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true },
     fcmTokens: [{ type: String }],
     refreshToken: { type: String, select: false },
