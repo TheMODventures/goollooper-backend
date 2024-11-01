@@ -173,6 +173,7 @@ export class ChatRepository
                   profileImage: 1,
                   selectedLocation: 1,
                   subscription: 1,
+                  isActive: 1,
                 },
               },
             ],

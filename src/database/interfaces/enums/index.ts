@@ -1,5 +1,3 @@
-import { EncodingType } from "@aws-sdk/client-s3";
-
 export enum EUserRole {
   admin = 1,
   user = 2,
