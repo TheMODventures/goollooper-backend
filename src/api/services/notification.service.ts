@@ -281,6 +281,10 @@ class NotificationService {
         title = ntitle ?? `#sender`;
         body = nbody ?? `#sender has cancelled the task`;
         break;
+      case ENOTIFICATION_TYPES.TASK_DELETED:
+        title = ntitle ?? `#sender`;
+        body = nbody ?? `#sender has deleted the task`;
+        break;
     }
 
     const n = {

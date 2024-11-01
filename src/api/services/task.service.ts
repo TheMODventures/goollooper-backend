@@ -4,6 +4,7 @@ import _ from "lodash";
 
 import { ResponseHelper } from "../helpers/reponseapi.helper";
 import {
+  days,
   MEGA_BLAST_FEE,
   REQUEST_ADDED_FEE,
   SERVICE_INITIATION_FEE,
@@ -24,6 +25,7 @@ import {
 } from "../../database/interfaces/task.interface";
 import { IGolist } from "../../database/interfaces/golist.interface";
 import {
+  Days,
   ECALENDARTaskType,
   ENOTIFICATION_TYPES,
   ETaskStatus,
@@ -158,18 +160,18 @@ class TaskService {
           $unwind: "$postedBy",
         },
       ];
-      if (currentUser?.subscription?.name === Subscription.bsp) {
+      if (currentUser?.subscription?.name === Subscription.bsl) {
         const schedule = currentUser?.schedule || [];
-
+        console.log("schedule ->", schedule);
         query.push({
           $match: {
             $expr: {
-              $and: schedule.map((scheduleItem) => ({
+              $or: schedule.map((scheduleItem) => ({
                 $and: [
-                  { $eq: ["$day", scheduleItem.day] },
-                  { $gte: ["$slot.startTime", scheduleItem.startTime] },
-                  { $lte: ["$slot.endTime", scheduleItem.endTime] },
-                  { $eq: [scheduleItem.dayOff, "false"] },
+                  { $eq: ["$day", scheduleItem.day] }, // Match day
+                  { $gte: ["$slot.startTime", scheduleItem.startTime] }, // Start time check
+                  { $lte: ["$slot.endTime", scheduleItem.endTime] }, // End time check
+                  { $eq: [scheduleItem.dayOff, false] }, // Check if dayOff is false
                 ],
               })),
             },
@@ -369,6 +371,10 @@ class TaskService {
           }
         }
       }
+
+      const date = new Date(payload.date);
+      const day = date.getDay();
+      payload.day = days[day];
 
       const data = await this.taskRepository.create<ITask>(payload);
       if (!data) return ResponseHelper.sendResponse(400, "Task not created");
@@ -600,9 +606,8 @@ class TaskService {
     }
   };
 
-  delete = async (_id: string): Promise<ApiResponse> => {
+  delete = async (_id: string, user: string): Promise<ApiResponse> => {
     try {
-      // Start task update operation
       const taskUpdate = await this.taskRepository.updateById<ITask>(_id, {
         isDeleted: true,
       });
@@ -651,6 +656,24 @@ class TaskService {
         task: taskUpdate._id,
       } as ITransaction);
 
+      if (taskUpdate.postedBy != user) {
+        const filteredServiceProviders = taskUpdate.serviceProviders.filter(
+          (provider) => provider.toString() !== taskUpdate.postedBy.toString()
+        );
+
+        const notifications = filteredServiceProviders.map((provider) => {
+          return this.notificationService.createAndSendNotification({
+            senderId: user,
+            receiverId: provider.user,
+            type: ENOTIFICATION_TYPES.TASK_DELETED,
+            data: { task: taskUpdate._id?.toString() },
+            ntitle: "Task Deleted",
+            nbody: "Admin deleted the task for inappropriate content",
+          } as NotificationParams);
+        });
+
+        await Promise.all(notifications);
+      }
       return ResponseHelper.sendSuccessResponse(SUCCESS_DATA_DELETION_PASSED);
     } catch (error) {
       return ResponseHelper.sendResponse(500, (error as Error).message);

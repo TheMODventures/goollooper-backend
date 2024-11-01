@@ -38,6 +38,7 @@ export interface ITask {
   location: Location;
   requirement: string;
   date: string;
+  day?: string;
   applicationEndDate?: string;
   slot: Slot;
   noOfServiceProvider: number;
@@ -74,6 +75,7 @@ export interface ITaskPayload {
   location: Location;
   requirement: string;
   date: string;
+  day?: string;
   slot: Slot;
   noOfServiceProvider: number;
   media: string;
