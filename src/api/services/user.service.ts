@@ -659,10 +659,15 @@ class UserService {
     }
   };
 
-  block = async (id: string, status: boolean): Promise<ApiResponse> => {
+  block = async (
+    id: string,
+    status: boolean,
+    permanentBan: boolean
+  ): Promise<ApiResponse> => {
     try {
       const response = await this.userRepository.updateById<IUser>(id, {
         isActive: status,
+        permanentBan: permanentBan,
         // reportedStatus: REPORT_USER_STATUS.idle,
       });
       if (!response) {

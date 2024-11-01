@@ -161,11 +161,8 @@ class AuthService {
         return ResponseHelper.sendResponse(401, ERROR_LOGIN);
       }
 
-      // if (response.per == false)
-      //   return ResponseHelper.sendResponse(
-      //     403,
-      //     "Your account is currently blocked. Please contact support."
-      //   );
+      if (response.permanentBan == true)
+        return ResponseHelper.sendResponse(403, "Your account is blocked");
 
       const userId = new mongoose.Types.ObjectId(response._id!);
 

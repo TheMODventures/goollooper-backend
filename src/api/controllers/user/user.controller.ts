@@ -153,8 +153,8 @@ class UserController {
 
   blockUser = async (req: Request, res: Response) => {
     const { id } = req.params;
-    const { isActive } = req.body;
-    const response = await this.userService.block(id, isActive);
+    const { isActive, permanentBan = false } = req.body;
+    const response = await this.userService.block(id, isActive, permanentBan);
     return res.status(response.code).json(response);
   };
 

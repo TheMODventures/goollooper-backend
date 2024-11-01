@@ -16,6 +16,7 @@ import {
 import {
   BANK_ACCOUNT_PAYMENT_METHOD_TYPE,
   BANK_ACCOUNT_STATUS,
+  ENOTIFICATION_TYPES,
   ETransactionStatus,
   EUserRole,
   PAYOUT_SOURCE,
@@ -26,13 +27,16 @@ import mongoose from "mongoose";
 import TokenService from "./token.service";
 import { NotificationRepository } from "../repository/notification/notification.repository";
 import { INotification } from "../../database/interfaces/notification.interface";
+import NotificationService, {
+  NotificationParams,
+} from "./notification.service";
 
 class StripeService {
   private userRepository: UserRepository;
   private walletRepository: WalletRepository;
   private transactionRepository: TransactionRepository;
   private tokenService: TokenService;
-  private notificationRepository: NotificationRepository;
+  private notificationService: NotificationService;
   private dateHelper: DateHelper;
 
   constructor() {
@@ -40,7 +44,7 @@ class StripeService {
     this.walletRepository = new WalletRepository();
     this.transactionRepository = new TransactionRepository();
     this.tokenService = new TokenService();
-    this.notificationRepository = new NotificationRepository();
+    this.notificationService = new NotificationService();
     this.dateHelper = new DateHelper();
   }
 
@@ -355,7 +359,12 @@ class StripeService {
         const reverseTransfer = await stripeHelper.reverseTransfer(id!);
         console.log("WALLET UPDATED -> ", updateBalance);
         console.log("REVERSE TRANSFER ->", reverseTransfer);
-
+        // await this.notificationService.createAndSendNotification({
+        //   ntitle: "your request has been accepted",
+        //   nbody: "Relieve Action Request",
+        //   receiverId:updateBalance?.user ,
+        //   type: ENOTIFICATION_TYPES.PAYOUT_FAILED,
+        // } as NotificationParams);
         break;
       case "radar.early_fraud_warning.created":
         const radar = event.data.object;
