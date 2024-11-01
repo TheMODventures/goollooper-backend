@@ -225,7 +225,7 @@ const block = yup.object().shape({
   body: yup
     .object()
     .shape({
-      isBlocked: yup.boolean().required(),
+      isActive: yup.boolean().required(),
     })
     .noUnknown(),
   query: yup.object().noUnknown(),
