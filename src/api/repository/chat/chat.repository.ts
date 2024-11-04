@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 import axios, { AxiosResponse } from "axios";
 import { Server } from "socket.io";
-import { RtcRole, RtcTokenBuilder } from "agora-access-token";
+import { RtcRole, RtcTokenBuilder } from "agora-token";
 import { v4 } from "uuid";
 import express, { Application, Request } from "express";
 import path from "path";
@@ -2352,15 +2352,17 @@ export class ChatRepository
       const role = RtcRole?.PUBLISHER;
       const expirationTimeInSeconds = 60 * 60;
       const currentTimestamp = Math.floor(Date.now() / 1000);
-      const privilegeExpiredTs = currentTimestamp + expirationTimeInSeconds;
-      const tokenA = RtcTokenBuilder?.buildTokenWithAccount(
+      const privilege_expire = currentTimestamp + expirationTimeInSeconds;
+      const privilegeExpired = currentTimestamp + expirationTimeInSeconds;
+      const tokenA = RtcTokenBuilder?.buildTokenWithUserAccount(
         APP_ID as string,
         APP_CERTIFICATE as string,
         channelName as string,
         // convertTo32BitInt(uid as string).toString(),
         uid as string,
         role,
-        privilegeExpiredTs
+        privilegeExpired,
+        privilege_expire
       );
       // const tokenA = "";
       console.log("Token with integer number Uid: " + tokenA);

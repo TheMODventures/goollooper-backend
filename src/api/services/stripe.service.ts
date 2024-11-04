@@ -359,12 +359,12 @@ class StripeService {
         const reverseTransfer = await stripeHelper.reverseTransfer(id!);
         console.log("WALLET UPDATED -> ", updateBalance);
         console.log("REVERSE TRANSFER ->", reverseTransfer);
-        // await this.notificationService.createAndSendNotification({
-        //   ntitle: "your request has been accepted",
-        //   nbody: "Relieve Action Request",
-        //   receiverId:updateBalance?.user ,
-        //   type: ENOTIFICATION_TYPES.PAYOUT_FAILED,
-        // } as NotificationParams);
+        await this.notificationService.createAndSendNotification({
+          ntitle: "your request has been accepted",
+          nbody: "Relieve Action Request",
+          receiverId: updateBalance?.user,
+          type: ENOTIFICATION_TYPES.PAYOUT_FAILED,
+        } as NotificationParams);
         break;
       case "radar.early_fraud_warning.created":
         const radar = event.data.object;
