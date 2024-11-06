@@ -406,7 +406,10 @@ class TaskService {
                   senderId: payload.postedBy,
                   receiverId: user._id,
                   type: ENOTIFICATION_TYPES.ANNOUNCEMENT,
-                  data: { task: data._id?.toString() },
+                  data: {
+                    task: data._id?.toString(),
+                    type: ENOTIFICATION_TYPES.ANNOUNCEMENT,
+                  },
                   ntitle: "Volunteer Work",
                   nbody: payload.title,
                 } as NotificationParams);
@@ -444,7 +447,10 @@ class TaskService {
             senderId: payload.postedBy,
             receiverId: user,
             type: ENOTIFICATION_TYPES.TASK_REQUEST,
-            data: { task: data?._id?.toString() },
+            data: {
+              task: data?._id?.toString(),
+              type: ENOTIFICATION_TYPES.TASK_REQUEST,
+            },
             ntitle: "Task Request",
             nbody: payload.title,
           } as NotificationParams);
@@ -666,7 +672,10 @@ class TaskService {
             senderId: user,
             receiverId: provider.user,
             type: ENOTIFICATION_TYPES.TASK_DELETED,
-            data: { task: taskUpdate._id?.toString() },
+            data: {
+              task: taskUpdate._id?.toString(),
+              type: ENOTIFICATION_TYPES.TASK_DELETED,
+            },
             ntitle: "Task Deleted",
             nbody: "Admin deleted the task for inappropriate content",
           } as NotificationParams);
@@ -791,7 +800,7 @@ class TaskService {
           senderId: user,
           receiverId: response.postedBy,
           type: ENOTIFICATION_TYPES.TASK_REQUEST,
-          data: { task: _id },
+          data: { task: _id, type: ENOTIFICATION_TYPES.TASK_REQUEST },
           ntitle: "Task Request",
           nbody: `${findUser.firstName} has requested to be added to the task`,
         } as NotificationParams),
@@ -972,7 +981,7 @@ class TaskService {
         senderId: isRequestToBeAdded ? response.postedBy : user,
         receiverId: isRequestToBeAdded ? user : response.postedBy,
         type: notificationType,
-        data: { task: response._id?.toString() },
+        data: { task: response._id?.toString(), type: notificationType },
         ntitle: notificationTitle,
         nbody: notificationBody,
       } as NotificationParams);
@@ -1074,7 +1083,10 @@ class TaskService {
           senderId: response.postedBy,
           receiverId: serviceProvider,
           type: ENOTIFICATION_TYPES.TASK_CANCELLED,
-          data: { task: response._id?.toString() },
+          data: {
+            task: response._id?.toString(),
+            type: ENOTIFICATION_TYPES.TASK_CANCELLED,
+          },
           ntitle: "Task Cancelled",
           nbody: "Task has been cancelled",
         } as NotificationParams);

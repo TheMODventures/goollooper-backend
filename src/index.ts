@@ -17,6 +17,7 @@ class App {
   protected userRoutes: UserRoutes;
   protected io: SocketIOServer;
   protected stripeController: StripeController;
+
   constructor() {
     this.app = express();
     this.adminRoutes = new AdminRoutes();

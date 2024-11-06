@@ -226,3 +226,9 @@ export enum REPORT_USER_STATUS {
   idle = "idle",
   reported = "reported",
 }
+
+export enum ENOTIFICATION {
+  CHAT = "chat",
+  TASK = "task",
+  SHARE_PROVIDER = "share-provider",
+}

@@ -604,6 +604,7 @@ class GolistService {
         type: ENOTIFICATION_TYPES.SHARE_PROVIDER,
         content: "#sender Shared A Service Provider",
         data: {
+          type: ENOTIFICATION_TYPES.SHARE_PROVIDER,
           serviceProvider: new mongoose.Types.ObjectId(serviceProviderId),
         },
       } as INotification;

@@ -25,6 +25,7 @@ import {
   ECALLDEVICETYPE,
   EChatType,
   EMessageStatus,
+  ENOTIFICATION,
   ENOTIFICATION_TYPES,
   EParticipantStatus,
   ETICKET_STATUS,
@@ -817,6 +818,7 @@ export class ChatRepository
               type: ENOTIFICATION_TYPES.ACTION_REQUEST,
               senderId: senderId as string,
               data: {
+                type: ENOTIFICATION.CHAT,
                 task: chat?.task?.toString(),
               },
             } as NotificationParams);
@@ -1292,6 +1294,7 @@ export class ChatRepository
           type: ENOTIFICATION_TYPES.ACTION_REQUEST,
           senderId: senderId as string,
           data: {
+            type: ENOTIFICATION_TYPES.ACTION_REQUEST,
             chatId: chatId,
             chatType: chat.chatType,
             groupName: chat?.groupName,

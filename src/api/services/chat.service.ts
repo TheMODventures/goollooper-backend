@@ -350,6 +350,7 @@ export class ChatService {
               type: ENOTIFICATION_TYPES.ACTION_REQUEST,
               senderId: userId as string,
               data: {
+                type: ENOTIFICATION_TYPES.ACTION_REQUEST,
                 task: chat?.task?.toString(),
               },
             } as NotificationParams);
@@ -529,6 +530,7 @@ export class ChatService {
           type: ENOTIFICATION_TYPES.ACTION_REQUEST,
           senderId: userId as string,
           data: {
+            type: ENOTIFICATION_TYPES.ACTION_REQUEST,
             task: chat?.task?.toString(),
           },
         } as NotificationParams);
