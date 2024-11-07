@@ -10,6 +10,7 @@ import {
   SubscriptionType,
   AUTH_PROVIDER,
   REPORT_USER_STATUS,
+  USER_CALL_STATUS,
 } from "../interfaces/enums";
 import { IUserDoc } from "../interfaces/user.interface";
 
@@ -181,6 +182,11 @@ const userModel: Schema = new Schema(
     isContactPermission: { type: Boolean, default: true },
     callToken: { type: String, default: null },
     callDeviceType: { type: String, default: null },
+    callStatus: {
+      type: String,
+      default: USER_CALL_STATUS.AVAILABLE,
+      enum: USER_CALL_STATUS,
+    },
     stripeCustomerId: { type: String, default: null },
     stripeConnectId: { type: String, default: null },
     accountAuthorized: { type: Boolean, default: false },

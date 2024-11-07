@@ -26,7 +26,7 @@ export class UploadHelper {
   constructor(subPart: string) {
     this.subPart = subPart;
     this.s3 = new S3Client({
-      forcePathStyle: true, // Ensures that the bucket name is part of the path, not the hostname
+      forcePathStyle: true,
       region: DO_SPACES_REGION,
       endpoint: DO_SPACES_ENDPOINT,
       credentials: {

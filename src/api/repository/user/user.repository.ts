@@ -36,4 +36,8 @@ export class UserRepository
   getCallToken = async (user: string | ObjectId) => {
     return await this.model.findById(user).select("callToken callDeviceType");
   };
+
+  getUserCallStatus = async (user: string | ObjectId) => {
+    return await this.model.findById(user).select("userCallStatus");
+  };
 }

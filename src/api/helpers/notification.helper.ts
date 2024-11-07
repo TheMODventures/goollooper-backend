@@ -22,7 +22,7 @@ class NotificationHelperC {
       };
 
       const response = await admin.messaging().sendEachForMulticast(message);
-
+      console.log("NOTIFICATION RESULTS ->", response);
       response.responses.forEach((resp, idx) => {
         if (resp.error) {
           console.error(`Failed to send notification to ${resp.error}`);

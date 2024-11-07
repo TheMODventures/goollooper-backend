@@ -1,7 +1,7 @@
 import { Moment } from "moment";
 import mongoose, { Document } from "mongoose";
 
-import { Days, EUserLocationType, EUserRole } from "./enums";
+import { Days, EUserLocationType, EUserRole, USER_CALL_STATUS } from "./enums";
 import { IService } from "./service.interface";
 
 interface Location {
@@ -54,6 +54,7 @@ export interface IUser {
   profileImage?: string;
   gallery?: string[];
   galleryImages: string[];
+  callStatus: USER_CALL_STATUS;
   about?: string;
   role: EUserRole;
   permanentBan: boolean;

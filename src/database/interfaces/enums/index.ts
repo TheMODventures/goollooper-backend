@@ -227,8 +227,7 @@ export enum REPORT_USER_STATUS {
   reported = "reported",
 }
 
-export enum ENOTIFICATION {
-  CHAT = "chat",
-  TASK = "task",
-  SHARE_PROVIDER = "share-provider",
+export enum USER_CALL_STATUS {
+  AVAILABLE = "available",
+  BUSY = "busy",
 }
